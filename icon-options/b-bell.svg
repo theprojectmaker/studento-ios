@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs>
+<radialGradient id="bg" cx="0.5" cy="0.35" r="0.8"><stop offset="0" stop-color="#1e2a4a"/><stop offset="1" stop-color="#0b1022"/></radialGradient>
+<linearGradient id="bell" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd36e"/><stop offset="1" stop-color="#e8a43b"/></linearGradient>
+</defs>
+<rect width="1024" height="1024" fill="url(#bg)"/>
+<g fill="none" stroke="#ffd36e" stroke-width="26" stroke-linecap="round" opacity="0.55">
+<path d="M228 330 Q190 420 220 520"/><path d="M796 330 Q834 420 804 520"/>
+<path d="M170 290 Q120 420 162 560" opacity="0.6"/><path d="M854 290 Q904 420 862 560" opacity="0.6"/>
+</g>
+<path d="M512 200 C 380 200 330 300 330 430 L 330 590 C 330 640 300 670 262 700 L 762 700 C 724 670 694 640 694 590 L 694 430 C 694 300 644 200 512 200 Z" fill="url(#bell)"/>
+<circle cx="512" cy="180" r="40" fill="#ffd36e"/>
+<circle cx="512" cy="770" r="62" fill="#ffd36e"/>
+<circle cx="512" cy="455" r="122" fill="#0b1022"/>
+<g stroke="#f7f1e3" stroke-width="22" stroke-linecap="round"><line x1="512" y1="455" x2="512" y2="370"/><line x1="512" y1="455" x2="575" y2="490"/></g>
+<circle cx="512" cy="455" r="16" fill="#f7f1e3"/>
+</svg>

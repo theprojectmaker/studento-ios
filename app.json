@@ -1,0 +1,130 @@
+{
+  "expo": {
+    "name": "Studento",
+    "slug": "studento",
+    "version": "1.0.0",
+    "orientation": "default",
+    "icon": "./assets/images/icon.png",
+    "scheme": "studento",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#0a0a0b",
+    "ios": {
+      "bundleIdentifier": "com.solyapps.studento",
+      "supportsTablet": true,
+      "requireFullScreen": false,
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
+    },
+    "android": {
+      "package": "com.solyapps.studento",
+      "adaptiveIcon": {
+        "backgroundColor": "#0F172A",
+        "foregroundImage": "./assets/images/android-icon-foreground.png",
+        "backgroundImage": "./assets/images/android-icon-background.png",
+        "monochromeImage": "./assets/images/android-icon-monochrome.png"
+      },
+      "permissions": [],
+      "predictiveBackGestureEnabled": false
+    },
+    "web": {
+      "output": "single",
+      "favicon": "./assets/images/favicon.png"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0A0A0B",
+          "image": "./assets/images/splash-icon.png",
+          "imageWidth": 120
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/notification-icon.png",
+          "color": "#E8B84B"
+        }
+      ],
+      "expo-background-task",
+      "expo-font",
+      "expo-status-bar",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Studento opens the schedule photo you pick so it can read your class times.",
+          "cameraPermission": "Studento uses the camera to take a photo of your schedule so it can read your class times.",
+          "microphonePermission": false
+        }
+      ],
+      [
+        "expo-widgets",
+        {
+          "bundleIdentifier": "com.solyapps.studento.widgets",
+          "groupIdentifier": "group.com.solyapps.studento",
+          "enablePushNotifications": false,
+          "frequentUpdates": false,
+          "widgets": [
+            {
+              "name": "StudentoBell",
+              "displayName": "Studento",
+              "description": "Your class, the time left, and what is next.",
+              "supportedFamilies": [
+                "systemSmall",
+                "systemMedium",
+                "systemLarge",
+                "accessoryRectangular",
+                "accessoryInline"
+              ],
+              "contentMarginsDisabled": false
+            }
+          ]
+        }
+      ],
+      [
+        "./plugins/alternate-icons",
+        [
+          "./assets/icons/TrainStation.png",
+          "./assets/icons/Midnight.png",
+          "./assets/icons/Sunset.png",
+          "./assets/icons/Ocean.png",
+          "./assets/icons/Forest.png",
+          "./assets/icons/Jackpot.png",
+          "./assets/icons/VegasStrip.png",
+          "./assets/icons/MonteCarlo.png",
+          "./assets/icons/Gatsby.png",
+          "./assets/icons/Champagne.png",
+          "./assets/icons/Emerald.png",
+          "./assets/icons/Ivory.png",
+          "./assets/icons/Paper.png",
+          "./assets/icons/PastelPink.png",
+          "./assets/icons/PastelMint.png",
+          "./assets/icons/PastelLavender.png",
+          "./assets/icons/Graphite.png",
+          "./assets/icons/Neon.png",
+          "./assets/icons/RoseGold.png",
+          "./assets/icons/Lava.png"
+        ]
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true,
+      "reactCompiler": true
+    },
+    "owner": "solomonsasson",
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "33e204b6-8e88-4b34-b60e-7400cae7a6bf"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/33e204b6-8e88-4b34-b60e-7400cae7a6bf"
+    }
+  }
+}

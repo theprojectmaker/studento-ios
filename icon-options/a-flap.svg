@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+<defs>
+<linearGradient id="bg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1b1b1f"/><stop offset="1" stop-color="#0a0a0b"/></linearGradient>
+<linearGradient id="tTop" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2e2e34"/><stop offset="1" stop-color="#24242a"/></linearGradient>
+<linearGradient id="tBot" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1d1d22"/><stop offset="1" stop-color="#16161a"/></linearGradient>
+<clipPath id="top"><rect x="0" y="0" width="1024" height="512"/></clipPath>
+<clipPath id="bot"><rect x="0" y="516" width="1024" height="508"/></clipPath>
+</defs>
+<rect width="1024" height="1024" fill="url(#bg)"/>
+<g font-family="Arial Black, Arial, sans-serif" font-weight="900" font-size="430" text-anchor="middle" fill="#f2e8d5">
+<rect x="150" y="262" width="350" height="500" rx="44" fill="url(#tTop)"/>
+<rect x="524" y="262" width="350" height="500" rx="44" fill="url(#tTop)"/>
+<g clip-path="url(#bot)"><rect x="150" y="262" width="350" height="500" rx="44" fill="url(#tBot)"/><rect x="524" y="262" width="350" height="500" rx="44" fill="url(#tBot)"/></g>
+<text x="325" y="663">0</text><text x="699" y="663">5</text>
+<rect x="150" y="509" width="724" height="7" fill="#0a0a0b"/>
+<circle cx="150" cy="512" r="9" fill="#0a0a0b"/><circle cx="500" cy="512" r="9" fill="#0a0a0b"/><circle cx="524" cy="512" r="9" fill="#0a0a0b"/><circle cx="874" cy="512" r="9" fill="#0a0a0b"/>
+</g>
+<rect x="362" y="824" width="300" height="26" rx="13" fill="#e8b84b"/>
+</svg>
