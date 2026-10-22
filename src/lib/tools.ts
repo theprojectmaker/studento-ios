@@ -68,6 +68,15 @@ export async function loadTools() {
   listeners.forEach((l) => l());
 }
 
+export function getTools(): Tools {
+  return state;
+}
+
+export function subscribeTools(l: () => void): () => void {
+  listeners.add(l);
+  return () => listeners.delete(l);
+}
+
 export function useTools<T>(select: (t: Tools) => T): T {
   return useSyncExternalStore(
     (l) => {

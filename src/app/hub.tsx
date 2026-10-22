@@ -1,5 +1,6 @@
 /** Hub: today at a glance plus big tiles for every tool. Opened from the clock's bottom-left button. */
 import { router, type Href } from 'expo-router';
+import Animated, { ZoomIn } from 'react-native-reanimated';
 import type { SFSymbol } from 'expo-symbols';
 import { Pressable, Text, useWindowDimensions, View } from 'react-native';
 
@@ -29,6 +30,7 @@ export default function Hub() {
   const realNow = useRealNow();
   const { width } = useWindowDimensions();
   const h24 = useStore((s) => s.prefs.h24);
+  const prefsMotion = useStore((s) => s.prefs.motion);
   const homework = usePlanner((p) => p.homework);
   const countdowns = usePlanner((p) => p.countdowns);
   const focus = useTools((t) => t.focus);
@@ -60,7 +62,13 @@ export default function Hub() {
 
   const tiles: Tile[] = [
     { title: 'Today', sub: list.length ? `${done}/${list.length} periods done` : 'Schedule & stats', icon: 'clock.fill', color: '#ff9500', href: '/today' },
-    { title: 'My schedule', sub: sched.personal ? sched.personal.name : 'Scan yours in seconds', icon: 'camera.viewfinder', color: '#30b0c7', href: sched.personal ? { pathname: '/schedule-review', params: { edit: '1' } } : '/welcome' },
+    {
+      title: 'My schedule',
+      sub: sched.personal ? sched.personal.name : 'Scan yours in seconds',
+      icon: 'camera.viewfinder',
+      color: '#30b0c7',
+      href: sched.personal ? { pathname: '/schedule-review', params: { edit: '1' } } : '/welcome',
+    },
     { title: 'This week', sub: 'Every day at a glance', icon: 'calendar', color: '#007aff', href: '/week' },
     { title: 'Focus', sub: focusText, icon: 'timer', color: '#ff3b30', href: '/focus' },
     { title: 'Homework', sub: due ? `${due} due soon` : 'All clear', icon: 'checklist', color: '#34c759', href: '/planner' },
@@ -75,9 +83,7 @@ export default function Hub() {
   return (
     <Screen>
       <View style={{ gap: 4, paddingHorizontal: 4 }}>
-        <Text style={{ ...fontStyle(theme.type.label, '600'), fontSize: 13, letterSpacing: theme.type.labelTracking ?? 2, color: theme.muted }}>
-          {fmtDate(st.date).toUpperCase()}
-        </Text>
+        <Text style={{ ...fontStyle(theme.type.label, '600'), fontSize: 13, letterSpacing: theme.type.labelTracking ?? 2, color: theme.muted }}>{fmtDate(st.date).toUpperCase()}</Text>
         <Text style={{ ...fontStyle(theme.type.title, '800'), fontSize: 30 * Math.min(1.1, theme.type.titleScale ?? 1), color: theme.ink }}>{headline}</Text>
         {st.current ? (
           <Text style={{ ...TYPE.medium, fontSize: 15, color: theme.muted }}>
@@ -91,28 +97,40 @@ export default function Hub() {
       </View>
 
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-        {tiles.map((t) => (
-          <Pressable
+        {tiles.map((t, i) => (
+          <Animated.View
             key={t.title}
-            accessibilityRole="button"
-            accessibilityLabel={`${t.title}. ${t.sub}`}
-            onPress={() => {
-              tap();
-              router.push(t.href);
-            }}
-            style={({ pressed }) => ({ width: tileW, transform: [{ scale: pressed ? 0.97 : 1 }] })}>
-            <View style={{ backgroundColor: theme.panel, borderRadius: 22, padding: 16, gap: 14, minHeight: 124 }}>
-              <View style={{ width: 38, height: 38, borderRadius: 11, backgroundColor: t.color, alignItems: 'center', justifyContent: 'center' }}>
-                <Icon name={t.icon} color="#ffffff" size={20} fallback={<View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: alpha('#ffffff', 0.9) }} />} />
+            entering={
+              prefsMotion
+                ? ZoomIn.delay(i * 50)
+                    .duration(380)
+                    .springify()
+                    .damping(15)
+                : undefined
+            }
+          >
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel={`${t.title}. ${t.sub}`}
+              onPress={() => {
+                tap();
+                router.push(t.href);
+              }}
+              style={({ pressed }) => ({ width: tileW, transform: [{ scale: pressed ? 0.97 : 1 }] })}
+            >
+              <View style={{ backgroundColor: theme.panel, borderRadius: 22, padding: 16, gap: 14, minHeight: 124 }}>
+                <View style={{ width: 38, height: 38, borderRadius: 11, backgroundColor: t.color, alignItems: 'center', justifyContent: 'center' }}>
+                  <Icon name={t.icon} color="#ffffff" size={20} fallback={<View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: alpha('#ffffff', 0.9) }} />} />
+                </View>
+                <View style={{ gap: 2 }}>
+                  <Text style={{ ...TYPE.bold, fontSize: 17, color: theme.ink }}>{t.title}</Text>
+                  <Text style={{ ...TYPE.regular, fontSize: 13, color: theme.muted }} numberOfLines={1}>
+                    {t.sub}
+                  </Text>
+                </View>
               </View>
-              <View style={{ gap: 2 }}>
-                <Text style={{ ...TYPE.bold, fontSize: 17, color: theme.ink }}>{t.title}</Text>
-                <Text style={{ ...TYPE.regular, fontSize: 13, color: theme.muted }} numberOfLines={1}>
-                  {t.sub}
-                </Text>
-              </View>
-            </View>
-          </Pressable>
+            </Pressable>
+          </Animated.View>
         ))}
       </View>
     </Screen>

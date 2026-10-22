@@ -11,10 +11,10 @@ import { isHeavyWork } from '@/lib/heavy';
 import { useTheme } from '@/lib/hooks';
 import { rescheduleAlerts, setupNotificationHandler, watchForReschedule } from '@/lib/notify';
 import { loadPlanner } from '@/lib/planner';
-import { loadTools } from '@/lib/tools';
+import { loadTools, subscribeTools } from '@/lib/tools';
 import { flushStore, load, refresh, subscribe, getState, useStore } from '@/lib/store';
 import { FONT_FILES } from '@/lib/typefaces';
-import { refreshWidget, syncLiveActivity } from '@/widgets';
+import { refreshWidget, syncFocusActivity, syncLiveActivity } from '@/widgets';
 
 void SplashScreen.preventAutoHideAsync();
 setupNotificationHandler();
@@ -74,6 +74,11 @@ export default function RootLayout() {
       }, 1000);
     });
     let lastActive = Date.now();
+    let focusTimer: ReturnType<typeof setTimeout> | null = null;
+    const stopFocusWatch = subscribeTools(() => {
+      if (focusTimer) clearTimeout(focusTimer);
+      focusTimer = setTimeout(() => void syncFocusActivity(), 400);
+    });
     const sub = AppState.addEventListener('change', (st) => {
       // Skip while a photo is being processed, and at most once every 20 s
       // (the camera and photo picker flip the app inactive/active).
@@ -90,6 +95,8 @@ export default function RootLayout() {
       sub.remove();
       stopWatch?.();
       stopWidgets();
+      stopFocusWatch();
+      if (focusTimer) clearTimeout(focusTimer);
     };
   }, []);
 

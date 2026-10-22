@@ -1,14 +1,15 @@
 /** iOS-style grouped lists on Liquid Glass, used by every settings-type screen. */
 import * as Haptics from 'expo-haptics';
 import type { SFSymbol } from 'expo-symbols';
-import type { ReactNode } from 'react';
+import { Children, isValidElement, type ReactNode } from 'react';
+import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
 import { Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View, type TextInputProps } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { TYPE } from '@/lib/fonts';
 import { useTheme } from '@/lib/hooks';
-import { getState } from '@/lib/store';
+import { getState, useStore } from '@/lib/store';
 import { alpha, readableOn } from '@/lib/themes';
 
 import { Glass, IconTile } from './glass';
@@ -17,9 +18,31 @@ export function tap() {
   if (Platform.OS !== 'web' && getState().prefs.haptics) void Haptics.selectionAsync();
 }
 
+/** Press feedback: the pressed element springs down a little and back (respects the Motion setting). */
+export function PressScale({ children, onPress, style, disabled, to = 0.97, ...rest }: React.ComponentProps<typeof Pressable> & { to?: number }) {
+  const motion = useStore((s) => s.prefs.motion);
+  const k = useSharedValue(1);
+  const anim = useAnimatedStyle(() => ({ transform: [{ scale: k.value }] }));
+  return (
+    <Pressable
+      {...rest}
+      disabled={disabled}
+      onPress={onPress}
+      onPressIn={() => {
+        if (motion) k.set(withSpring(to, { damping: 16, stiffness: 340 }));
+      }}
+      onPressOut={() => {
+        if (motion) k.set(withSpring(1, { damping: 12, stiffness: 260 }));
+      }}>
+      <Animated.View style={[typeof style === 'function' ? undefined : style, anim]}>{children as ReactNode}</Animated.View>
+    </Pressable>
+  );
+}
+
 export function Screen({ children }: { children: ReactNode }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const motion = useStore((s) => s.prefs.motion);
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
       <ScrollView
@@ -27,7 +50,15 @@ export function Screen({ children }: { children: ReactNode }) {
         contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 40, gap: 24, maxWidth: 680, width: '100%', alignSelf: 'center' }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive">
-        {children}
+        {Children.toArray(children).map((c, i) =>
+          motion ? (
+            <Animated.View key={isValidElement(c) && c.key != null ? c.key : i} entering={FadeInDown.delay(Math.min(i, 9) * 55).duration(420).springify().damping(18)}>
+              {c}
+            </Animated.View>
+          ) : (
+            c
+          )
+        )}
       </ScrollView>
     </View>
   );
@@ -75,15 +106,15 @@ export function Row({ label, sub, right, onPress, danger, icon, value }: RowProp
   );
   if (!onPress) return body;
   return (
-    <Pressable
+    <PressScale
       accessibilityRole="button"
+      to={0.985}
       onPress={() => {
         tap();
         onPress();
-      }}
-      style={({ pressed }) => ({ backgroundColor: pressed ? alpha(theme.ink, 0.08) : 'transparent' })}>
+      }}>
       {body}
-    </Pressable>
+    </PressScale>
   );
 }
 
@@ -118,14 +149,15 @@ export function Button({ title, onPress, kind = 'primary', disabled }: { title: 
   const fg = kind === 'primary' ? readableOn(theme.accent) : kind === 'danger' ? '#ff453a' : theme.ink;
   const inner = <Text style={[styles.buttonText, { color: fg }]}>{title}</Text>;
   return (
-    <Pressable
+    <PressScale
       accessibilityRole="button"
       disabled={disabled}
+      to={0.96}
       onPress={() => {
         tap();
         onPress();
       }}
-      style={({ pressed }) => ({ opacity: disabled ? 0.45 : pressed ? 0.75 : 1, transform: [{ scale: pressed ? 0.98 : 1 }] })}>
+      style={{ opacity: disabled ? 0.45 : 1 }}>
       {kind === 'primary' ? (
         <View style={[styles.button, { backgroundColor: theme.accent }]}>{inner}</View>
       ) : (
@@ -133,7 +165,7 @@ export function Button({ title, onPress, kind = 'primary', disabled }: { title: 
           {inner}
         </Glass>
       )}
-    </Pressable>
+    </PressScale>
   );
 }
 

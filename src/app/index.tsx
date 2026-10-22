@@ -9,7 +9,7 @@ import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AppState, Linking, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
-import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
+import Animated, { FadeInDown, FadeOutUp, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Rect } from 'react-native-svg';
 
@@ -566,6 +566,7 @@ function Title({ v, size, weight = 'heavy' }: { v: V; size: number; weight?: 'he
   const fs = size * (t.titleScale ?? 1);
   return (
     <Pressable onPress={() => router.push('/classes')} accessibilityRole="button" accessibilityHint="Edit your class names">
+      <Animated.View key={v.copy.title} entering={v.prefs.motion ? FadeInDown.duration(420).springify().damping(16) : undefined} exiting={v.prefs.motion ? FadeOutUp.duration(200) : undefined}>
       <Text
         style={{
           ...(custom ? fontStyle(t.title) : TYPE[weight]),
@@ -581,6 +582,7 @@ function Title({ v, size, weight = 'heavy' }: { v: V; size: number; weight?: 'he
       >
         {t.titleCaps ? v.copy.title.toUpperCase() : v.copy.title}
       </Text>
+      </Animated.View>
     </Pressable>
   );
 }

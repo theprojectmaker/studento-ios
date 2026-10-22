@@ -81,6 +81,20 @@
                 "accessoryInline"
               ],
               "contentMarginsDisabled": false
+            },
+            {
+              "name": "StudentoClock",
+              "displayName": "Studento Clock",
+              "description": "A plain live clock with seconds.",
+              "supportedFamilies": ["systemSmall", "systemMedium", "systemLarge", "accessoryCircular", "accessoryRectangular", "accessoryInline"],
+              "contentMarginsDisabled": false
+            },
+            {
+              "name": "StudentoDay",
+              "displayName": "Studento Day",
+              "description": "Today's classes at a glance.",
+              "supportedFamilies": ["systemSmall", "systemMedium", "systemLarge", "systemExtraLarge"],
+              "contentMarginsDisabled": false
             }
           ]
         }
