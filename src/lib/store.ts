@@ -67,6 +67,7 @@ export interface Prefs extends AlertPrefs {
   onboarded: boolean;
   /** Lock Screen / Dynamic Island countdown (installed app only). */
   liveActivity: boolean;
+  prefsVersion: number;
 }
 
 export interface Shared {
@@ -114,10 +115,10 @@ export const DEFAULT_PREFS: Prefs = {
   shuffle: false,
   daily: false,
   dailyDate: '',
-  flashWarn: false,
+  flashWarn: true,
   blinkLast: false,
   speak: false,
-  warnBuzz: false,
+  warnBuzz: true,
   digitSize: 'normal',
   h24: false,
   showNext: true,
@@ -135,6 +136,8 @@ export const DEFAULT_PREFS: Prefs = {
   alertsAsked: false,
   onboarded: false,
   liveActivity: true,
+  /** Bumped when defaults change so existing installs pick them up once. */
+  prefsVersion: 2,
 };
 
 const EMPTY_SHARED: Shared = { classNames: {}, classDetails: {}, customDays: [], override: null };
@@ -143,6 +146,8 @@ const K_PREFS = 'studento:prefs';
 const K_SHARED = 'studento:shared';
 const K_PENDING = 'studento:pending';
 const K_PERSONAL = 'studento:personal';
+/** A second copy of everything, used to recover if the main keys are ever empty or unreadable. */
+const K_BACKUP = 'studento:backup';
 
 let state: State = {
   loaded: false,
@@ -222,27 +227,56 @@ async function persist() {
       [K_SHARED, JSON.stringify(state.shared)],
       [K_PENDING, JSON.stringify(state.pending)],
       [K_PERSONAL, JSON.stringify(state.personal)],
+      [K_BACKUP, JSON.stringify({ prefs: state.prefs, shared: state.shared, personal: state.personal, at: Date.now() })],
     ]);
   } catch {
     // Storage full or unavailable: the app still runs from memory.
   }
 }
 
+/** Parse JSON, or null when it is missing/corrupt. */
+function readJson<T>(raw: string | null | undefined): T | null {
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as T;
+  } catch {
+    return null;
+  }
+}
+
 export async function load(): Promise<void> {
   if (state.loaded) return;
   try {
-    const rows = await AsyncStorage.multiGet([K_PREFS, K_SHARED, K_PENDING, K_PERSONAL]);
+    const rows = await AsyncStorage.multiGet([K_PREFS, K_SHARED, K_PENDING, K_PERSONAL, K_BACKUP]);
     const m = Object.fromEntries(rows);
+    const backup = readJson<{ prefs?: Partial<Prefs>; shared?: Shared; personal?: PersonalSchedule | null }>(m[K_BACKUP]);
+    // Prefer the main copy; fall back to the backup if it is missing or unreadable.
+    const savedPrefs = readJson<Partial<Prefs>>(m[K_PREFS]) ?? backup?.prefs ?? {};
+    const savedShared = readJson<Shared>(m[K_SHARED]) ?? backup?.shared ?? null;
+    const savedPersonal = m[K_PERSONAL] !== undefined && m[K_PERSONAL] !== null ? readJson<PersonalSchedule | null>(m[K_PERSONAL]) : (backup?.personal ?? null);
+    const prefs: Prefs = { ...DEFAULT_PREFS, ...savedPrefs };
+    // One-time default changes for installs saved before this version.
+    if ((savedPrefs.prefsVersion ?? 1) < 2) {
+      prefs.flashWarn = true;
+      prefs.warnBuzz = true;
+      prefs.prefsVersion = 2;
+    }
     set({
       loaded: true,
-      prefs: { ...DEFAULT_PREFS, ...(m[K_PREFS] ? JSON.parse(m[K_PREFS]) : {}) },
-      shared: { ...EMPTY_SHARED, ...(m[K_SHARED] ? JSON.parse(m[K_SHARED]) : {}) },
-      pending: m[K_PENDING] ? JSON.parse(m[K_PENDING]) : {},
-      personal: m[K_PERSONAL] ? JSON.parse(m[K_PERSONAL]) : null,
-    });
+      prefs,
+      shared: { ...EMPTY_SHARED, ...(savedShared ?? {}) },
+      pending: readJson<Record<string, unknown>>(m[K_PENDING]) ?? {},
+      personal: savedPersonal,
+    } as Partial<State>);
+    if ((savedPrefs.prefsVersion ?? 1) < 2) void persist();
   } catch {
     set({ loaded: true });
   }
+}
+
+/** Write everything now (called when the app goes to the background). */
+export function flushStore(): Promise<void> {
+  return persist();
 }
 
 export function setPref<K extends keyof Prefs>(key: K, value: Prefs[K]) {

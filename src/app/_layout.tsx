@@ -12,7 +12,7 @@ import { useTheme } from '@/lib/hooks';
 import { rescheduleAlerts, setupNotificationHandler, watchForReschedule } from '@/lib/notify';
 import { loadPlanner } from '@/lib/planner';
 import { loadTools } from '@/lib/tools';
-import { load, refresh, subscribe, getState, useStore } from '@/lib/store';
+import { flushStore, load, refresh, subscribe, getState, useStore } from '@/lib/store';
 import { FONT_FILES } from '@/lib/typefaces';
 import { refreshWidget, syncLiveActivity } from '@/widgets';
 
@@ -77,6 +77,7 @@ export default function RootLayout() {
     const sub = AppState.addEventListener('change', (st) => {
       // Skip while a photo is being processed, and at most once every 20 s
       // (the camera and photo picker flip the app inactive/active).
+      if (st === 'background' || st === 'inactive') void flushStore();
       if (st === 'active' && !isHeavyWork() && Date.now() - lastActive > 20000) {
         lastActive = Date.now();
         void refresh();

@@ -8,7 +8,7 @@
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import { Redirect, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+import { AppState, Linking, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, { useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Rect } from 'react-native-svg';
@@ -24,7 +24,7 @@ import { Button, GearIcon, tap } from '@/components/ui';
 import { TYPE } from '@/lib/fonts';
 import { fontStyle } from '@/lib/typefaces';
 import { useNow, useTheme } from '@/lib/hooks';
-import { getPermission, requestPermission, rescheduleAlerts } from '@/lib/notify';
+import { getPermission, type Permission, requestPermission, rescheduleAlerts } from '@/lib/notify';
 import { addDays, fmtDate, fmtTime, nyParts, toMin } from '@/lib/nytime';
 import { usePlanner } from '@/lib/planner';
 import { tickFocus } from '@/lib/tools';
@@ -81,14 +81,17 @@ export default function ClockScreen() {
     void syncLiveActivity();
   }, [bellKey]);
 
-  const [askAlerts, setAskAlerts] = useState(false);
+  // Bell alerts only work with iOS permission. Keep offering (and explain when iOS has blocked it)
+  // until they are on; "Not now" only hides the card for this session.
+  const [alertPerm, setAlertPerm] = useState<Permission | null>(null);
+  const [snoozed, setSnoozed] = useState(false);
   useEffect(() => {
-    if (prefs.alertsAsked) return;
-    void getPermission().then((p) => {
-      if (p === 'undetermined') setAskAlerts(true);
-      else setPref('alertsAsked', true);
-    });
-  }, [prefs.alertsAsked]);
+    const check = () => void getPermission().then(setAlertPerm);
+    check();
+    const sub = AppState.addEventListener('change', (s) => s === 'active' && check());
+    return () => sub.remove();
+  }, []);
+  const askAlerts = prefs.onboarded && prefs.alerts && alertPerm !== null && alertPerm !== 'granted' && !snoozed;
 
   // Customize mode opens only from Settings > Customize clock screen.
   const params = useLocalSearchParams<{ edit?: string }>();
@@ -175,11 +178,14 @@ export default function ClockScreen() {
           >
             <AlertsCard
               theme={theme}
+              blocked={alertPerm === 'denied'}
               onDone={async (turnOn) => {
-                if (turnOn) await requestPermission();
+                if (!turnOn) return setSnoozed(true);
+                if (alertPerm === 'denied') return void Linking.openSettings();
+                const p = await requestPermission();
+                setAlertPerm(p);
                 setPref('alertsAsked', true);
-                setAskAlerts(false);
-                if (turnOn) void rescheduleAlerts();
+                if (p === 'granted') void rescheduleAlerts();
               }}
             />
           </View>
@@ -650,11 +656,11 @@ function Corner({
   );
 }
 
-function AlertsCard({ theme, onDone }: { theme: Theme; onDone: (turnOn: boolean) => void }) {
+function AlertsCard({ theme, blocked, onDone }: { theme: Theme; blocked: boolean; onDone: (turnOn: boolean) => void }) {
   return (
     <Glass theme={theme} radius={22} style={{ padding: 16, gap: 12 }}>
       <View>
-        <Text style={{ ...TYPE.semibold, fontSize: 17, color: theme.ink }}>Turn on bell alerts?</Text>
+        <Text style={{ ...TYPE.semibold, fontSize: 17, color: theme.ink }}>{blocked ? 'Bell alerts are blocked' : 'Turn on bell alerts'}</Text>
         <Text
           style={{
             ...TYPE.regular,
@@ -663,12 +669,12 @@ function AlertsCard({ theme, onDone }: { theme: Theme; onDone: (turnOn: boolean)
             color: theme.muted,
           }}
         >
-          A calm alert 3 min into class and 5 min before the bell. Nothing else.
+          {blocked ? 'iPhone has notifications off for Studento, so the 5-minute alert can\'t reach you. Turn them on in Settings.' : 'A calm alert 3 min into class and 5 min before the bell. Nothing else.'}
         </Text>
       </View>
       <View style={{ flexDirection: 'row', gap: 10 }}>
         <View style={{ flex: 1 }}>
-          <Button title="Turn On" onPress={() => onDone(true)} />
+          <Button title={blocked ? 'Open Settings' : 'Turn On'} onPress={() => onDone(true)} />
         </View>
         <View style={{ flex: 1 }}>
           <Button title="Not Now" kind="plain" onPress={() => onDone(false)} />

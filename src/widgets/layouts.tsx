@@ -63,11 +63,27 @@ export function BellWidget(props: BellProps, env: WidgetEnvironment) {
   const range = { lower: new Date(props.start || env.date.getTime()), upper: new Date(props.end || env.date.getTime()) };
   const clockOn = !timing && props.clockFrom > 0;
   const clockRange = { lower: new Date(props.clockFrom || env.date.getTime()), upper: new Date((props.clockFrom || env.date.getTime()) + 86400000) };
-  const big = env.widgetFamily === 'systemLarge';
+  const big = env.widgetFamily === 'systemLarge' || env.widgetFamily === 'systemExtraLarge';
   const medium = env.widgetFamily === 'systemMedium';
   const design = (props.design || 'rounded') as 'default' | 'rounded' | 'serif' | 'monospaced';
   const wash = { type: 'linearGradient' as const, colors: [props.bg, props.bg2], startPoint: { x: 0, y: 0 }, endPoint: { x: 1, y: 1 } };
   const shell = [containerBackground(wash, 'widget'), widgetURL('studento://')];
+
+  // Lock Screen circle: the period and a live countdown (or the clock after school).
+  if (env.widgetFamily === 'accessoryCircular') {
+    return (
+      <VStack spacing={0} modifiers={[widgetURL('studento://')]}>
+        <Text modifiers={[font({ size: 11, weight: 'bold' }), lineLimit(1)]}>{timing ? props.short : props.ampm || 'NOW'}</Text>
+        {timing ? (
+          <Text timerInterval={range} countsDown modifiers={[font({ size: 17, weight: 'bold' }), monospacedDigit(), lineLimit(1), minimumScaleFactor(0.5)]} />
+        ) : clockOn ? (
+          <Text timerInterval={clockRange} modifiers={[font({ size: 13, weight: 'bold' }), monospacedDigit(), lineLimit(1), minimumScaleFactor(0.4)]} />
+        ) : (
+          <Text modifiers={[font({ size: 12, weight: 'bold' })]}>–</Text>
+        )}
+      </VStack>
+    );
+  }
 
   if (env.widgetFamily === 'accessoryInline') {
     if (clockOn) return <Text timerInterval={clockRange} modifiers={[monospacedDigit()]} />;
