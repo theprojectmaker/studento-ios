@@ -196,79 +196,55 @@ export function BellWidget(props: BellProps, env: WidgetEnvironment) {
 }
 
 /**
- * Lock Screen banner + Dynamic Island for the current period, in the theme's colors
- * (banner tint = theme background, accent progress bar, number style from the theme).
- * The island is always black, so it uses the light "island" colors.
+ * Lock Screen banner + Dynamic Island for the current period. Deliberately simple:
+ * the class, one quiet line, one big countdown, one thin progress bar. The banner is
+ * tinted with the theme background; the island is always black, so it uses the light
+ * "island" colors.
  */
 export function BellActivity(props: BellProps, env: LiveActivityEnvironment) {
   'widget';
   const range = { lower: new Date(props.start), upper: new Date(props.end) };
   const design = (props.design || 'rounded') as 'default' | 'rounded' | 'serif' | 'monospaced';
   const stale = env.isStale === true;
-  const timer = (size: number, color: string, weight: 'bold' | 'heavy' = 'bold') => (
-    <Text timerInterval={range} countsDown modifiers={[font({ size, weight, design }), monospacedDigit(), foregroundStyle(color), lineLimit(1), minimumScaleFactor(0.5)]} />
+  const digits = (size: number, color: string) => (
+    <Text timerInterval={range} countsDown modifiers={[font({ size, weight: 'heavy', design }), monospacedDigit(), foregroundStyle(color), lineLimit(1), minimumScaleFactor(0.6)]} />
   );
-  const eyebrow = (color: string) => <Text modifiers={[font({ size: 11, weight: 'semibold' }), kerning(1.1), foregroundStyle(color), lineLimit(1)]}>{props.label.toUpperCase()}</Text>;
+  // "Period 3 · Room 204", or the next class while passing.
+  const subtitle = stale ? 'Open Studento for the next class' : props.label;
 
   return {
     banner: (
-      <VStack alignment="leading" spacing={10} modifiers={[padding({ all: 16 }), activityBackgroundTint(props.bg)]}>
+      <VStack alignment="leading" spacing={12} modifiers={[padding({ horizontal: 18, vertical: 16 }), activityBackgroundTint(props.bg)]}>
         <HStack spacing={12}>
           <VStack alignment="leading" spacing={3}>
-            {eyebrow(props.accent)}
             <Text modifiers={[font({ size: 22, weight: 'bold', design }), foregroundStyle(props.ink), lineLimit(1), minimumScaleFactor(0.6)]}>{props.title}</Text>
+            <Text modifiers={[font({ size: 13, weight: 'medium' }), foregroundStyle(props.muted), lineLimit(1)]}>{subtitle}</Text>
           </VStack>
           <Spacer />
-          {stale ? <Text modifiers={[font({ size: 15, weight: 'semibold' }), foregroundStyle(props.muted)]}>Bell rang</Text> : timer(40, props.ink, 'heavy')}
+          {stale ? <Text modifiers={[font({ size: 15, weight: 'semibold' }), foregroundStyle(props.muted)]}>Bell rang</Text> : digits(40, props.ink)}
         </HStack>
         {stale ? null : <ProgressView timerInterval={range} countsDown modifiers={[tint(props.accent)]} />}
-        <HStack spacing={8}>
-          <Text modifiers={[font({ size: 13, weight: 'medium' }), foregroundStyle(props.muted), lineLimit(1)]}>{stale ? 'Open Studento for the next class' : props.next}</Text>
-          <Spacer />
-          {stale || !props.ends ? null : <Text modifiers={[font({ size: 13, weight: 'semibold' }), foregroundStyle(props.accent), lineLimit(1)]}>{props.ends}</Text>}
-        </HStack>
       </VStack>
     ),
-    // Compact: a filled accent chip for the period + the live countdown.
-    compactLeading: (
-      <Text modifiers={[font({ size: 12, weight: 'heavy', design }), foregroundStyle(props.onAccent), padding({ horizontal: 8, vertical: 3 }), background(props.accent, shapes.capsule()), lineLimit(1), frame({ maxWidth: 62 })]}>{props.short}</Text>
-    ),
+    compactLeading: <Text modifiers={[font({ size: 14, weight: 'bold', design }), foregroundStyle(props.accent), lineLimit(1), frame({ maxWidth: 52 })]}>{props.short}</Text>,
     compactTrailing: stale ? (
       <Text modifiers={[foregroundStyle(props.islandMuted)]}>✓</Text>
     ) : (
-      <Text timerInterval={range} countsDown modifiers={[font({ size: 15, weight: 'bold', design }), monospacedDigit(), foregroundStyle(props.islandInk), lineLimit(1), minimumScaleFactor(0.6), frame({ maxWidth: 56 })]} />
+      <Text timerInterval={range} countsDown modifiers={[font({ size: 14, weight: 'semibold', design }), monospacedDigit(), foregroundStyle(props.islandInk), lineLimit(1), minimumScaleFactor(0.6), frame({ maxWidth: 54 })]} />
     ),
     minimal: stale ? (
       <Text modifiers={[foregroundStyle(props.accent)]}>✓</Text>
     ) : (
       <Text timerInterval={range} countsDown modifiers={[font({ size: 11, weight: 'bold', design }), monospacedDigit(), foregroundStyle(props.accent), lineLimit(1), minimumScaleFactor(0.5)]} />
     ),
-    // Expanded: chip + end time on the sides, class and a big countdown across the full-width bottom.
+    // Expanded: class on the left, countdown on the right, a thin progress bar under both.
     expandedLeading: (
       <VStack alignment="leading" spacing={2}>
-        <Text modifiers={[font({ size: 26, weight: 'heavy', design }), foregroundStyle(props.accent), lineLimit(1), minimumScaleFactor(0.6)]}>{props.short}</Text>
-        <Text modifiers={[font({ size: 10, weight: 'bold' }), kerning(1.2), foregroundStyle(props.islandMuted)]}>{props.mode === 'class' ? 'NOW' : props.mode === 'passing' ? 'NEXT' : 'SOON'}</Text>
+        <Text modifiers={[font({ size: 18, weight: 'bold', design }), foregroundStyle(props.islandInk), lineLimit(1), minimumScaleFactor(0.6)]}>{props.title}</Text>
+        <Text modifiers={[font({ size: 12, weight: 'medium' }), foregroundStyle(props.islandMuted), lineLimit(1)]}>{subtitle}</Text>
       </VStack>
     ),
-    expandedTrailing: (
-      <VStack alignment="trailing" spacing={2}>
-        <Text modifiers={[font({ size: 19, weight: 'bold', design }), foregroundStyle(props.islandInk), lineLimit(1), minimumScaleFactor(0.6)]}>{(props.ends || props.next).replace('Ends ', '').replace('Starts ', '')}</Text>
-        <Text modifiers={[font({ size: 10, weight: 'bold' }), kerning(1.2), foregroundStyle(props.islandMuted)]}>{props.ends ? 'ENDS' : 'STARTS'}</Text>
-      </VStack>
-    ),
-    expandedBottom: (
-      <VStack alignment="leading" spacing={10}>
-        <HStack spacing={10}>
-          <VStack alignment="leading" spacing={2}>
-            <Text modifiers={[font({ size: 21, weight: 'bold', design }), foregroundStyle(props.islandInk), lineLimit(1), minimumScaleFactor(0.6)]}>{props.title}</Text>
-            {eyebrow(props.islandMuted)}
-          </VStack>
-          <Spacer />
-          {stale ? <Text modifiers={[font({ size: 16, weight: 'semibold' }), foregroundStyle(props.islandMuted)]}>Bell rang</Text> : timer(46, props.accent, 'heavy')}
-        </HStack>
-        {stale ? null : <ProgressView timerInterval={range} countsDown modifiers={[tint(props.accent)]} />}
-        <Text modifiers={[font({ size: 13, weight: 'medium' }), foregroundStyle(props.islandMuted), lineLimit(1)]}>{stale ? 'Open Studento for the next class' : props.next}</Text>
-      </VStack>
-    ),
+    expandedTrailing: stale ? <Text modifiers={[font({ size: 15, weight: 'semibold' }), foregroundStyle(props.islandMuted)]}>Bell rang</Text> : digits(34, props.accent),
+    expandedBottom: stale ? <Text modifiers={[font({ size: 13 }), foregroundStyle(props.islandMuted)]}>Open Studento for the next class</Text> : <ProgressView timerInterval={range} countsDown modifiers={[tint(props.accent)]} />,
   };
 }
