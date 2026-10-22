@@ -83,6 +83,7 @@ export default function RootLayout() {
       // Skip while a photo is being processed, and at most once every 20 s
       // (the camera and photo picker flip the app inactive/active).
       if (st === 'background' || st === 'inactive') void flushStore();
+      if (st === 'active') void load();
       if (st === 'active' && !isHeavyWork() && Date.now() - lastActive > 20000) {
         lastActive = Date.now();
         void refresh();

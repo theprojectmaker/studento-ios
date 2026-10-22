@@ -9,6 +9,7 @@ import { useSyncExternalStore } from 'react';
 import type { AlertPrefs, ClassDetail } from './alerts';
 import * as api from './api';
 import { nyParts } from './nytime';
+import { classifyStorage } from './storageKind';
 import { PERIOD_IDS, type CustomDay, type Override, type OverrideType, type Period, type PersonalSchedule, type ScheduleData } from './schedule';
 import { DEFAULT_THEME } from './themes';
 
@@ -148,6 +149,15 @@ const K_PENDING = 'studento:pending';
 const K_PERSONAL = 'studento:personal';
 /** A second copy of everything, used to recover if the main keys are ever empty or unreadable. */
 const K_BACKUP = 'studento:backup';
+/** Written by every save: its presence proves the app has stored data before. */
+const K_INIT = 'studento:init';
+
+/**
+ * True only when what is in memory came from a successful read of the saved copy (or the store
+ * is genuinely new). While false, nothing is ever written, so a failed read can never wipe
+ * the student's saved settings.
+ */
+let trusted = false;
 
 let state: State = {
   loaded: false,
@@ -221,8 +231,10 @@ export function useSchedule() {
 }
 
 async function persist() {
+  if (!trusted) return; // never overwrite saved data with defaults we could not check
   try {
     await AsyncStorage.multiSet([
+      [K_INIT, '1'],
       [K_PREFS, JSON.stringify(state.prefs)],
       [K_SHARED, JSON.stringify(state.shared)],
       [K_PENDING, JSON.stringify(state.pending)],
@@ -244,34 +256,57 @@ function readJson<T>(raw: string | null | undefined): T | null {
   }
 }
 
-export async function load(): Promise<void> {
-  if (state.loaded) return;
-  try {
-    const rows = await AsyncStorage.multiGet([K_PREFS, K_SHARED, K_PENDING, K_PERSONAL, K_BACKUP]);
-    const m = Object.fromEntries(rows);
-    const backup = readJson<{ prefs?: Partial<Prefs>; shared?: Shared; personal?: PersonalSchedule | null }>(m[K_BACKUP]);
+const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/**
+ * Read everything saved on this phone. Returns true when the data is trustworthy (read fine, or a
+ * brand-new install); false when the storage could not be read (for example a background task
+ * while the phone is locked). In that case the app may run with defaults but nothing is saved.
+ * Calling it again retries.
+ */
+export async function load(): Promise<boolean> {
+  if (state.loaded && trusted) return true;
+  for (let attempt = 0; attempt < 6; attempt++) {
+    let m: Record<string, string | null> | null = null;
+    try {
+      m = Object.fromEntries(await AsyncStorage.multiGet([K_PREFS, K_SHARED, K_PENDING, K_PERSONAL, K_BACKUP, K_INIT]));
+    } catch {
+      m = null;
+    }
+    const kind = m ? classifyStorage(m, { prefs: K_PREFS, backup: K_BACKUP, init: K_INIT }) : 'unreadable';
+    if (kind === 'unreadable') {
+      if (attempt < 5) await sleep(400);
+      continue;
+    }
+    const rows = m ?? {};
+    const backup = readJson<{ prefs?: Partial<Prefs>; shared?: Shared; personal?: PersonalSchedule | null }>(rows[K_BACKUP]);
     // Prefer the main copy; fall back to the backup if it is missing or unreadable.
-    const savedPrefs = readJson<Partial<Prefs>>(m[K_PREFS]) ?? backup?.prefs ?? {};
-    const savedShared = readJson<Shared>(m[K_SHARED]) ?? backup?.shared ?? null;
-    const savedPersonal = m[K_PERSONAL] !== undefined && m[K_PERSONAL] !== null ? readJson<PersonalSchedule | null>(m[K_PERSONAL]) : (backup?.personal ?? null);
+    const savedPrefs = readJson<Partial<Prefs>>(rows[K_PREFS]) ?? backup?.prefs ?? {};
+    const savedShared = readJson<Shared>(rows[K_SHARED]) ?? backup?.shared ?? null;
+    const savedPersonal = rows[K_PERSONAL] !== undefined && rows[K_PERSONAL] !== null ? readJson<PersonalSchedule | null>(rows[K_PERSONAL]) : (backup?.personal ?? null);
     const prefs: Prefs = { ...DEFAULT_PREFS, ...savedPrefs };
     // One-time default changes for installs saved before this version.
-    if ((savedPrefs.prefsVersion ?? 1) < 2) {
+    const migrate = kind === 'ok' && (savedPrefs.prefsVersion ?? 1) < 2;
+    if (migrate) {
       prefs.flashWarn = true;
       prefs.warnBuzz = true;
       prefs.prefsVersion = 2;
     }
+    trusted = true;
     set({
       loaded: true,
       prefs,
       shared: { ...EMPTY_SHARED, ...(savedShared ?? {}) },
-      pending: readJson<Record<string, unknown>>(m[K_PENDING]) ?? {},
+      pending: readJson<Record<string, unknown>>(rows[K_PENDING]) ?? {},
       personal: savedPersonal,
     } as Partial<State>);
-    if ((savedPrefs.prefsVersion ?? 1) < 2) void persist();
-  } catch {
-    set({ loaded: true });
+    if (migrate) void persist();
+    return true;
   }
+  // Could not read the saved copy. Run with defaults so the app opens, but never save over it.
+  trusted = false;
+  set({ loaded: true });
+  return false;
 }
 
 /** Write everything now (called when the app goes to the background). */

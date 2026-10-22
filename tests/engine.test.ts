@@ -281,3 +281,20 @@ test('widget timeline: one entry per bell, live countdown windows, switches peri
   const p = bellProps(nowState(fake, EMPTY), {}, {}, theme, false, real, fake);
   assert.equal(p.end - real, nyWallToMs('2026-10-19', '10:09') - fake);
 });
+
+test('storage read: an unreadable saved copy is never mistaken for a fresh install (the wipe bug)', async () => {
+  const { classifyStorage } = await import('../src/lib/storageKind');
+  const keys = { prefs: 'p', backup: 'b', init: 'i' };
+  // Brand-new install: nothing stored, no marker -> safe to start from defaults and save.
+  assert.equal(classifyStorage({ p: null, b: null, i: null }, keys), 'fresh');
+  assert.equal(classifyStorage({}, keys), 'fresh');
+  // Normal launch: saved settings are there.
+  assert.equal(classifyStorage({ p: '{"theme":"gold"}', b: null, i: '1' }, keys), 'ok');
+  // Backup copy alone is enough to restore from.
+  assert.equal(classifyStorage({ p: null, b: '{}', i: '1' }, keys), 'ok');
+  // Phone locked / storage hiccup: the app has saved before (marker) but nothing came back.
+  // This must NOT be treated as fresh, or the next save would wipe the student's data.
+  assert.equal(classifyStorage({ p: null, b: null, i: '1' }, keys), 'unreadable');
+  // Installs from before the marker existed still load fine.
+  assert.equal(classifyStorage({ p: '{}', b: null, i: null }, keys), 'ok');
+});

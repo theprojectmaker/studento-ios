@@ -17,7 +17,8 @@ if (Platform.OS !== 'web') {
   try {
     TaskManager.defineTask(TASK, async () => {
       try {
-        await load();
+        // Phone locked / storage unreadable: do nothing rather than act on (or save) empty defaults.
+        if (!(await load())) return BackgroundTask.BackgroundTaskResult.Failed;
         await refresh();
         await rescheduleAlerts();
         refreshWidget();
