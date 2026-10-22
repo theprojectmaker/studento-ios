@@ -102,6 +102,13 @@ const CSS: Record<string, Partial<RawTheme> & { tile?: string; tileInk?: string;
   platinum: { ink: '#e8edf5' },
   copperdeco: { ink: '#f2d8c8' },
   pearl: { ink: '#2f3138' },
+  bubblegum: { ink: '#3a1030', tile: '#5b2a86', tileInk: '#ffe6f4' },
+  lemonade: { ink: '#4a2a10', tile: '#3a2a10', tileInk: '#fff3a3' },
+  mintchip: { ink: '#15302a', tile: '#2d4a3a', tileInk: '#e8fff2' },
+  tangerine: { ink: '#1a1a2e' },
+  skyblue: { ink: '#0b3d91' },
+  linen: { ink: '#3f3428' },
+  sand: { ink: '#3b2a18' },
 };
 
 /** New in the app: casino reels and Art Deco gold (listed first in the picker). */
@@ -136,6 +143,20 @@ const EXTRA: RawTheme[] = [
   { id: 'platinum', name: 'Platinum', group: 'Gilded', bg: '#0a0b0e', accent: '#cfd6e0', style: 'deco' },
   { id: 'copperdeco', name: 'Copper Deco', group: 'Gilded', bg: '#120805', accent: '#d9825a', style: 'deco' },
   { id: 'pearl', name: 'Pearl', group: 'Gilded', bg: '#f4f1ec', accent: '#8a8f99', style: 'deco' },
+  // Fun: bright, playful palettes on the split-flap board.
+  { id: 'bubblegum', name: 'Bubblegum', group: 'Fun', bg: '#ff8fc7', accent: '#5b2a86', style: 'flap' },
+  { id: 'lemonade', name: 'Lemonade', group: 'Fun', bg: '#fff3a3', accent: '#d94f30', style: 'flap' },
+  { id: 'mintchip', name: 'Mint Chip', group: 'Fun', bg: '#b9f2d6', accent: '#2d4a3a', style: 'flap' },
+  { id: 'grape', name: 'Grape Soda', group: 'Fun', bg: '#3b1d6e', accent: '#c7f24b', style: 'led' },
+  { id: 'tangerine', name: 'Tangerine', group: 'Fun', bg: '#ff7a1a', accent: '#1a1a2e', style: 'ink' },
+  { id: 'skyblue', name: 'Sky Blue', group: 'Fun', bg: '#9fd8ff', accent: '#0b3d91', style: 'ink' },
+  // Quiet: soft, low-contrast palettes for a calm screen.
+  { id: 'fog', name: 'Fog', group: 'Quiet', bg: '#2a2d33', accent: '#b8c0cc', style: 'ink' },
+  { id: 'linen', name: 'Linen', group: 'Quiet', bg: '#f1ebe1', accent: '#7d6b58', style: 'ink' },
+  { id: 'moss', name: 'Moss', group: 'Quiet', bg: '#1f2a22', accent: '#9bb88a', style: 'ink' },
+  { id: 'dusk', name: 'Dusk', group: 'Quiet', bg: '#2b2340', accent: '#d9a7c7', style: 'ink' },
+  { id: 'slate', name: 'Slate', group: 'Quiet', bg: '#1b2430', accent: '#8fb3d9', style: 'lcd' },
+  { id: 'sand', name: 'Sand', group: 'Quiet', bg: '#e8dcc3', accent: '#8a5a2b', style: 'nixie' },
 ];
 
 /** One quiet live effect, only where it fits the theme. */
@@ -165,6 +186,13 @@ const EFFECTS: Record<string, Effect> = {
   platinum: 'glints',
   copperdeco: 'embers',
   pearl: 'bubbles',
+  bubblegum: 'bokeh',
+  mintchip: 'petals',
+  grape: 'glints',
+  skyblue: 'snow',
+  fog: 'dust',
+  moss: 'fireflies',
+  dusk: 'stars',
   midnight: 'stars',
   space: 'stars',
   observatory: 'stars',
@@ -257,7 +285,7 @@ function build(r: RawTheme): Theme {
 }
 
 // Picker order: Train Station (split-flap) first, then Casino, Gilded, then the rest.
-const FIRST = ['Split-flap', 'Casino', 'Gilded'];
+const FIRST = ['Split-flap', 'Casino', 'Gilded', 'Fun', 'Quiet'];
 const rank = (g: string) => (FIRST.includes(g) ? FIRST.indexOf(g) : FIRST.length);
 export const THEMES: Theme[] = [...EXTRA, ...RAW_THEMES].map(build).sort((x, y) => rank(x.group) - rank(y.group));
 export const GROUPS: string[] = [...new Set(THEMES.map((t) => t.group))];

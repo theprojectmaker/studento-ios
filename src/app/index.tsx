@@ -17,6 +17,7 @@ import { Board, InkBoard, SmallClock } from '@/components/boards';
 import { MsReadout } from '@/components/millis';
 import { Editable } from '@/components/editable';
 import { LiveEffect } from '@/components/effects';
+import { LockButton } from '@/components/lockmode';
 import { Blink, burnInOffset, FlashOverlay, NightDim, useThemeShuffle, useWarning } from '@/components/clock-extras';
 import { Glass, Icon } from '@/components/glass';
 import { Timeline } from '@/components/timeline';
@@ -99,7 +100,7 @@ export default function ClockScreen() {
   const [lastEditParam, setLastEditParam] = useState<string | undefined>(undefined);
   if (params.edit !== lastEditParam) {
     setLastEditParam(params.edit);
-    if (params.edit) setEditing(true);
+    if (params.edit && !rawPrefs.locked) setEditing(true);
   }
 
   // Corner buttons fade out after 15 s without a touch; any touch brings them back.
@@ -125,7 +126,10 @@ export default function ClockScreen() {
     };
   }, [chrome]);
   const chromeStyle = useAnimatedStyle(() => ({ opacity: chrome.value }));
-  const showChrome = chromeOn || editing;
+  // Idle dim follows the same timer as the corner buttons: full while touched, 70% once they fade.
+  const dimStyle = useAnimatedStyle(() => ({ opacity: 0.7 + chrome.value * 0.3 }));
+  const locked = rawPrefs.locked;
+  const showChrome = !locked && (chromeOn || editing || rawPrefs.corners);
 
   const v: V = {
     st,
@@ -164,10 +168,10 @@ export default function ClockScreen() {
           paddingRight: insets.right + 18,
         }}
       >
-        <View style={{ flex: 1, maxWidth: 900, width: '100%', alignSelf: 'center', transform: [{ translateX: nudge.x }, { translateY: nudge.y }] }}>
+        <Animated.View style={[{ flex: 1, maxWidth: 900, width: '100%', alignSelf: 'center', transform: [{ translateX: nudge.x }, { translateY: nudge.y }] }, rawPrefs.idleDim ? dimStyle : null]}>
           {prefs.layout === 'minimal' ? <Minimal v={v} /> : prefs.layout === 'glass' ? <Cards v={v} /> : <Classic v={v} />}
-        </View>
-        {askAlerts ? (
+        </Animated.View>
+        {askAlerts && !locked ? (
           <View
             style={{
               maxWidth: 640,
@@ -226,41 +230,45 @@ export default function ClockScreen() {
         </Pressable>
       ) : null}
 
-      {/* The website's four corner buttons, plus the test pill; they fade when idle. */}
-      <Animated.View style={[StyleSheet.absoluteFill, chromeStyle]} pointerEvents={showChrome ? 'box-none' : 'none'}>
-        {prefs.testPeriod3 && !editing ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel="Test mode is on. Tap to turn it off."
-            onPress={() => {
-              tap();
-              setPref('testPeriod3', false);
-            }}
-            style={[
-              styles.testPill,
-              {
-                top: insets.top + 16,
-                backgroundColor: alpha(theme.accent, 0.16),
-                borderColor: alpha(theme.accent, 0.45),
-              },
-            ]}
-          >
-            <Text style={[styles.testText, { color: theme.accent }]}>TEST · PERIOD 3 · TAP TO END</Text>
-          </Pressable>
-        ) : null}
-        <Corner theme={theme} glass={glassy} label="Planner" badge={dueSoon} style={{ top: insets.top + 8, left: insets.left + 14 }} onPress={() => router.push('/planner')}>
-          <Icon name="checklist" color={theme.ink} size={18} fallback={<PlannerGlyph color={theme.ink} />} />
-        </Corner>
-        <Corner theme={theme} glass={glassy} label="Settings" style={{ top: insets.top + 8, right: insets.right + 14 }} onPress={() => router.push('/settings')}>
-          <Icon name="gearshape" color={theme.ink} size={18} fallback={<GearIcon color={theme.ink} />} />
-        </Corner>
-        <Corner theme={theme} glass={glassy} label="Hub: today and tools" style={{ bottom: insets.bottom + 12, left: insets.left + 14 }} onPress={() => router.push('/hub')}>
-          <Icon name="square.grid.2x2" color={theme.ink} size={17} fallback={<GridGlyph color={theme.ink} />} />
-        </Corner>
-        <Corner theme={theme} glass={glassy} label="Themes" style={{ bottom: insets.bottom + 12, right: insets.right + 14 }} onPress={() => router.push('/themes')}>
-          <Icon name="paintpalette" color={theme.ink} size={17} fallback={<GridGlyph color={theme.ink} />} />
-        </Corner>
-      </Animated.View>
+      {locked ? <LockButton theme={theme} /> : null}
+
+      {/* The website's four corner buttons, plus the test pill; they fade when idle. Not rendered at all while locked. */}
+      {locked ? null : (
+        <Animated.View style={[StyleSheet.absoluteFill, rawPrefs.corners ? { opacity: 1 } : chromeStyle]} pointerEvents={showChrome ? 'box-none' : 'none'}>
+          {prefs.testPeriod3 && !editing ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Test mode is on. Tap to turn it off."
+              onPress={() => {
+                tap();
+                setPref('testPeriod3', false);
+              }}
+              style={[
+                styles.testPill,
+                {
+                  top: insets.top + 16,
+                  backgroundColor: alpha(theme.accent, 0.16),
+                  borderColor: alpha(theme.accent, 0.45),
+                },
+              ]}
+            >
+              <Text style={[styles.testText, { color: theme.accent }]}>TEST · PERIOD 3 · TAP TO END</Text>
+            </Pressable>
+          ) : null}
+          <Corner theme={theme} glass={glassy} label="Planner" badge={dueSoon} style={{ top: insets.top + 8, left: insets.left + 14 }} onPress={() => router.push('/planner')}>
+            <Icon name="checklist" color={theme.ink} size={18} fallback={<PlannerGlyph color={theme.ink} />} />
+          </Corner>
+          <Corner theme={theme} glass={glassy} label="Settings" style={{ top: insets.top + 8, right: insets.right + 14 }} onPress={() => router.push('/settings')}>
+            <Icon name="gearshape" color={theme.ink} size={18} fallback={<GearIcon color={theme.ink} />} />
+          </Corner>
+          <Corner theme={theme} glass={glassy} label="Hub: today and tools" style={{ bottom: insets.bottom + 12, left: insets.left + 14 }} onPress={() => router.push('/hub')}>
+            <Icon name="square.grid.2x2" color={theme.ink} size={17} fallback={<GridGlyph color={theme.ink} />} />
+          </Corner>
+          <Corner theme={theme} glass={glassy} label="Themes" style={{ bottom: insets.bottom + 12, right: insets.right + 14 }} onPress={() => router.push('/themes')}>
+            <Icon name="paintpalette" color={theme.ink} size={17} fallback={<GridGlyph color={theme.ink} />} />
+          </Corner>
+        </Animated.View>
+      )}
     </View>
   );
 }
@@ -533,22 +541,29 @@ function Cards({ v }: { v: V }) {
 
 function Hero({ v, width, maxDigit, glass }: { v: V; width: number; maxDigit: number; glass?: boolean }) {
   const { theme, copy, prefs } = v;
+  const flip = () => {
+    if (!prefs.tapToggle || !v.inSchool) return;
+    tap();
+    setPref('seconds', !prefs.seconds);
+  };
   if ((theme.engine === 'ring' || theme.engine === 'dial') && !v.inSchool) return <InkBoard text={v.bigText} theme={theme} width={width} maxSize={maxDigit} motion={prefs.motion} />;
   const maxSize = maxDigit * (prefs.digitSize === 'small' ? 0.8 : prefs.digitSize === 'large' ? 1.2 : 1);
   return (
-    <Blink on={v.blink}>
-      <Board
-        text={v.bigText}
-        theme={theme}
-        width={width}
-        maxSize={maxSize}
-        remaining={copy.remaining}
-        caption={copy.ringCaption}
-        secondsLeft={copy.countdownSec ?? 0}
-        motion={prefs.motion}
-        glass={glass}
-      />
-    </Blink>
+    <Pressable onPress={flip} accessibilityRole={prefs.tapToggle ? 'button' : undefined} accessibilityHint={prefs.tapToggle ? 'Switches between seconds and whole minutes' : undefined}>
+      <Blink on={v.blink}>
+        <Board
+          text={v.bigText}
+          theme={theme}
+          width={width}
+          maxSize={maxSize}
+          remaining={copy.remaining}
+          caption={copy.ringCaption}
+          secondsLeft={copy.countdownSec ?? 0}
+          motion={prefs.motion}
+          glass={glass}
+        />
+      </Blink>
+    </Pressable>
   );
 }
 
@@ -565,23 +580,23 @@ function Title({ v, size, weight = 'heavy' }: { v: V; size: number; weight?: 'he
   const custom = t.title !== 'system';
   const fs = size * (t.titleScale ?? 1);
   return (
-    <Pressable onPress={() => router.push('/classes')} accessibilityRole="button" accessibilityHint="Edit your class names">
+    <Pressable disabled={v.prefs.locked} onPress={() => router.push('/classes')} accessibilityRole="button" accessibilityHint="Edit your class names">
       <Animated.View key={v.copy.title} entering={v.prefs.motion ? FadeInDown.duration(420).springify().damping(16) : undefined} exiting={v.prefs.motion ? FadeOutUp.duration(200) : undefined}>
-      <Text
-        style={{
-          ...(custom ? fontStyle(t.title) : TYPE[weight]),
-          fontSize: fs,
-          lineHeight: fs * 1.15,
-          letterSpacing: custom ? 0 : -size * 0.025,
-          color: v.theme.ink,
-          textAlign: 'center',
-        }}
-        numberOfLines={2}
-        adjustsFontSizeToFit
-        minimumFontScale={0.5}
-      >
-        {t.titleCaps ? v.copy.title.toUpperCase() : v.copy.title}
-      </Text>
+        <Text
+          style={{
+            ...(custom ? fontStyle(t.title) : TYPE[weight]),
+            fontSize: fs,
+            lineHeight: fs * 1.15,
+            letterSpacing: custom ? 0 : -size * 0.025,
+            color: v.theme.ink,
+            textAlign: 'center',
+          }}
+          numberOfLines={2}
+          adjustsFontSizeToFit
+          minimumFontScale={0.5}
+        >
+          {t.titleCaps ? v.copy.title.toUpperCase() : v.copy.title}
+        </Text>
       </Animated.View>
     </Pressable>
   );
@@ -671,7 +686,9 @@ function AlertsCard({ theme, blocked, onDone }: { theme: Theme; blocked: boolean
             color: theme.muted,
           }}
         >
-          {blocked ? 'iPhone has notifications off for Studento, so the 5-minute alert can\'t reach you. Turn them on in Settings.' : 'A calm alert 3 min into class and 5 min before the bell. Nothing else.'}
+          {blocked
+            ? "iPhone has notifications off for Studento, so the 5-minute alert can't reach you. Turn them on in Settings."
+            : 'A calm alert 3 min into class and 5 min before the bell. Nothing else.'}
         </Text>
       </View>
       <View style={{ flexDirection: 'row', gap: 10 }}>

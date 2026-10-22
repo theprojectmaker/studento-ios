@@ -69,6 +69,14 @@ export interface Prefs extends AlertPrefs {
   /** Lock Screen / Dynamic Island countdown (installed app only). */
   liveActivity: boolean;
   prefsVersion: number;
+  /** Lock mode: only the clock, hold the red button to unlock. */
+  locked: boolean;
+  /** Tap the countdown to flip between m:ss and whole minutes. */
+  tapToggle: boolean;
+  /** Dim the clock a little while idle (like the corner buttons). */
+  idleDim: boolean;
+  /** Corner buttons never fade. */
+  corners: boolean;
 }
 
 export interface Shared {
@@ -139,6 +147,10 @@ export const DEFAULT_PREFS: Prefs = {
   liveActivity: true,
   /** Bumped when defaults change so existing installs pick them up once. */
   prefsVersion: 2,
+  locked: false,
+  tapToggle: true,
+  idleDim: false,
+  corners: false,
 };
 
 const EMPTY_SHARED: Shared = { classNames: {}, classDetails: {}, customDays: [], override: null };

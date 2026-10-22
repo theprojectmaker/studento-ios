@@ -88,7 +88,26 @@ export default function Settings() {
               icon={{ name: 'iphone.radiowaves.left.and.right', color: '#8e8e93' }} value={prefs.haptics} onChange={(v) => setPref('haptics', v)} />
       </Section>
 
+      <Section title="Lock mode" footer="Hides every button and setting so the clock can just sit there. To unlock, press and hold the small red dot in the top-right corner for 2 seconds.">
+        <Row
+          label="Lock the clock"
+          sub="Only the clock shows. Hold the red dot to unlock."
+          icon={{ name: 'lock.fill', color: '#ff3b30' }}
+          onPress={() => {
+            setPref('locked', true);
+            router.dismissAll();
+            router.replace('/');
+          }}
+        />
+      </Section>
+
       <Section title="On the clock screen" footer="The same options as the Studento website.">
+        <ToggleRow label="Tap the countdown to switch" sub="Seconds or whole minutes" icon={{ name: 'hand.tap.fill', color: '#30b0c7' }} value={prefs.tapToggle} onChange={(v) => setPref('tapToggle', v)} />
+        <Divider />
+        <ToggleRow label="Dim when idle" sub="The clock softens a little after 15 seconds without a touch" icon={{ name: 'circle.lefthalf.filled', color: '#8e8e93' }} value={prefs.idleDim} onChange={(v) => setPref('idleDim', v)} />
+        <Divider />
+        <ToggleRow label="Always show the corner buttons" icon={{ name: 'square.grid.2x2', color: '#5856d6' }} value={prefs.corners} onChange={(v) => setPref('corners', v)} />
+        <Divider />
         <ToggleRow label="Focus mode" sub="Just the class and the countdown" icon={{ name: 'scope', color: '#ff3b30' }} value={prefs.focus} onChange={(v) => setPref('focus', v)} />
         <Divider />
         <ToggleRow label="Show the period number" sub="Now · Period 3" icon={{ name: 'number', color: '#007aff' }} value={prefs.periodNum} onChange={(v) => setPref('periodNum', v)} />
