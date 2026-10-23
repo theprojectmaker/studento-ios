@@ -61,10 +61,12 @@ function designFor(t: Theme): string {
 /** The Dynamic Island is always black: light themes use white ink, dark themes keep theirs. */
 const island = (t: Theme) => ({ islandInk: t.light ? '#ffffff' : t.ink, islandMuted: t.light ? 'rgba(255,255,255,0.6)' : t.muted });
 
+/** Three-letter initials for the compact Dynamic Island: "SPA", "ENG", "LUN"; "ADV" for advisory; "P3" when the class has no name yet. */
 function shortName(p: { period: string }, name: string): string {
-  if (p.period === 'advisory') return 'Adv';
-  if (/^\d+$/.test(p.period)) return 'P' + p.period;
-  return name.slice(0, 6);
+  if (p.period === 'advisory') return 'ADV';
+  const named = name && !/^period \d+$/i.test(name);
+  if (!named) return /^\d+$/.test(p.period) ? 'P' + p.period : name.slice(0, 3).toUpperCase();
+  return name.replace(/[^A-Za-z0-9 ]/g, '').trim().slice(0, 3).toUpperCase();
 }
 
 /** Props for one moment. `realNow` maps the (possibly test-mode) clock onto real time for the timers. */

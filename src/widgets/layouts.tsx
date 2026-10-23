@@ -346,35 +346,25 @@ export function BellActivity(props: BellProps, env: LiveActivityEnvironment) {
         {nextLine(props.muted)}
       </VStack>
     ),
-    // Compact: a small live ring on the left, the countdown on the right.
-    compactLeading: stale ? (
-      <Text modifiers={[foregroundStyle(props.accent)]}>✓</Text>
-    ) : (
-      <ProgressView timerInterval={range} countsDown modifiers={[progressViewStyle('circular'), tint(props.accent), frame({ width: 20, height: 20 })]} />
-    ),
+    // Dynamic Island, "just the countdown": initials + timer when compact; class + timer with
+    // one quiet line when expanded. No ring, chip or bar.
+    compactLeading: <Text modifiers={[font({ size: 13, weight: 'heavy', design }), kerning(0.5), foregroundStyle(props.accent), lineLimit(1), frame({ maxWidth: 44 })]}>{props.short}</Text>,
     compactTrailing: stale ? (
-      <Text modifiers={[foregroundStyle(props.islandMuted)]}>Bell</Text>
+      <Text modifiers={[font({ size: 13, weight: 'semibold' }), foregroundStyle(props.islandMuted)]}>Bell</Text>
     ) : (
       <Text timerInterval={range} countsDown modifiers={[font({ size: 15, weight: 'bold', design }), monospacedDigit(), foregroundStyle(props.islandInk), lineLimit(1), minimumScaleFactor(0.6), frame({ maxWidth: 58 })]} />
     ),
     minimal: stale ? (
       <Text modifiers={[foregroundStyle(props.accent)]}>✓</Text>
     ) : (
-      <ProgressView timerInterval={range} countsDown modifiers={[progressViewStyle('circular'), tint(props.accent), frame({ width: 18, height: 18 })]} />
+      <Text timerInterval={range} countsDown modifiers={[font({ size: 11, weight: 'bold', design }), monospacedDigit(), foregroundStyle(props.accent), lineLimit(1), minimumScaleFactor(0.5)]} />
     ),
-    // Expanded: chip + class on the left, big countdown on the right, bar across the bottom.
-    expandedLeading: (
-      <VStack alignment="leading" spacing={6}>
-        {chip}
-        <Text modifiers={[font({ size: 20, weight: 'bold', design }), foregroundStyle(props.islandInk), lineLimit(1), minimumScaleFactor(0.6)]}>{props.title}</Text>
-      </VStack>
-    ),
-    expandedTrailing: stale ? <Text modifiers={[font({ size: 15, weight: 'semibold' }), foregroundStyle(props.islandMuted)]}>Bell rang</Text> : digits(40, props.accent),
+    expandedLeading: <Text modifiers={[font({ size: 22, weight: 'bold', design }), foregroundStyle(props.islandInk), lineLimit(1), minimumScaleFactor(0.6)]}>{props.title}</Text>,
+    expandedTrailing: stale ? <Text modifiers={[font({ size: 15, weight: 'semibold' }), foregroundStyle(props.islandMuted)]}>Bell rang</Text> : digits(40, props.islandInk),
     expandedBottom: (
-      <VStack alignment="leading" spacing={8}>
-        {bar}
-        {nextLine(props.islandMuted)}
-      </VStack>
+      <Text modifiers={[font({ size: 13, weight: 'medium' }), foregroundStyle(props.islandMuted), lineLimit(1)]}>
+        {stale ? 'Open Studento for the next class' : props.ends ? `${props.label} · ${props.ends.replace('Ends', 'ends')}` : props.label}
+      </Text>
     ),
   };
 }
