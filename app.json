@@ -136,7 +136,8 @@
           "./assets/icons/RoseGold.png",
           "./assets/icons/Lava.png"
         ]
-      ]
+      ],
+      "expo-secure-store"
     ],
     "experiments": {
       "typedRoutes": true,

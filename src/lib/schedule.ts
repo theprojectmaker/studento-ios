@@ -24,7 +24,7 @@ export interface PersonalSchedule {
    * assemblies, custom days) and just use this student's classes and rooms.
    * 'own' (default for older saves) = the student's own times in `days`.
    */
-  bells?: 'north' | 'own';
+  bells?: 'school' | 'north' | 'own';
   days: Record<SchoolDay, Period[]>;
   /** Period id -> class name (north mode). */
   classNames?: Record<string, string>;
@@ -39,16 +39,21 @@ export interface CustomDay {
   periods: Period[];
 }
 
-export type OverrideType = 'assembly' | 'custom';
-/** A shared "today only" switch; ignored on any other date. */
+export type OverrideType = 'assembly' | 'custom' | 'schedule';
+/** A "today only" switch; ignored on any other date. `scheduleId` picks one of the school's bell schedules. */
 export interface Override {
   date: string;
   type: OverrideType;
+  scheduleId?: number;
+  /** The picked schedule's days, cached so the switch works offline. */
+  days?: Record<SchoolDay, Period[]>;
 }
 
 export interface ScheduleData {
   customDays: CustomDay[];
   override: Override | null;
+  /** The chosen school's bell schedule by weekday. Missing = the built-in Great Neck North times. */
+  bells?: Record<SchoolDay, Period[]> | null;
   /** When set, this replaces the built-in bell schedules entirely. */
   personal?: PersonalSchedule | null;
 }
@@ -107,6 +112,19 @@ export const CUSTOM_SCHEDULE: Period[] = [
 
 /** Period ids a student can name, in display order. */
 export const PERIOD_IDS = ['advisory', '1', '2', '3', '4', '5', '6', '7', '8', '9'];
+export const SCHOOL_DAY_LIST: SchoolDay[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
+
+/** The built-in Great Neck North week, used until a school is picked (and as the offline fallback). */
+export const NORTH_BELLS: Record<SchoolDay, Period[]> = { Mon: REGULAR_SCHEDULE, Tue: REGULAR_SCHEDULE, Wed: WEDNESDAY_SCHEDULE, Thu: REGULAR_SCHEDULE, Fri: REGULAR_SCHEDULE };
+
+/** Period ids a student can name for a given bell schedule, in display order. */
+export function periodIdsFor(bells: Record<SchoolDay, Period[]> | null | undefined): string[] {
+  if (!bells) return PERIOD_IDS;
+  const ids: string[] = [];
+  for (const d of SCHOOL_DAY_LIST) for (const p of bells[d] ?? []) if (!ids.includes(p.period)) ids.push(p.period);
+  ids.sort((a, b) => (/^\d+$/.test(a) && /^\d+$/.test(b) ? Number(a) - Number(b) : a === 'advisory' ? -1 : b === 'advisory' ? 1 : 0));
+  return ids.length ? ids : PERIOD_IDS;
+}
 
 export interface DaySchedule {
   date: string;
@@ -131,9 +149,18 @@ export function scheduleFor(date: string, data: ScheduleData): DaySchedule {
   if (weekday === 'Sat' || weekday === 'Sun') {
     return { date, weekday, periods: [], kind: 'Weekend', isSchoolDay: false };
   }
-  const ov = data.override && data.override.date === date ? data.override.type : null;
-  if (ov === 'assembly') return { date, weekday, periods: ASSEMBLY_SCHEDULE, kind: 'Assembly', isSchoolDay: true };
-  if (ov === 'custom') return { date, weekday, periods: CUSTOM_SCHEDULE, kind: 'Custom', isSchoolDay: true };
+  const ovr = data.override && data.override.date === date ? data.override : null;
+  if (ovr?.type === 'schedule' && ovr.days) {
+    // One of the school's other schedules, just for today (its row for this weekday, else its first filled day).
+    const list = ovr.days[weekday as SchoolDay]?.length ? ovr.days[weekday as SchoolDay] : (SCHOOL_DAY_LIST.map((d) => ovr.days![d]).find((l) => l?.length) ?? []);
+    if (list.length) return { date, weekday, periods: sortPeriods(list), kind: 'Today', isSchoolDay: true };
+  }
+  if (ovr?.type === 'assembly') return { date, weekday, periods: ASSEMBLY_SCHEDULE, kind: 'Assembly', isSchoolDay: true };
+  if (ovr?.type === 'custom') return { date, weekday, periods: CUSTOM_SCHEDULE, kind: 'Custom', isSchoolDay: true };
+  if (data.bells) {
+    const list = data.bells[weekday as SchoolDay] ?? [];
+    return { date, weekday, periods: sortPeriods(list), kind: list.length ? 'Regular' : 'No school', isSchoolDay: list.length > 0 };
+  }
   if (weekday === 'Wed') return { date, weekday, periods: WEDNESDAY_SCHEDULE, kind: 'Wednesday Advisory', isSchoolDay: true };
   return { date, weekday, periods: REGULAR_SCHEDULE, kind: 'Regular', isSchoolDay: true };
 }

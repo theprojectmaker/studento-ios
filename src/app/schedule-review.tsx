@@ -10,20 +10,11 @@ import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 
 import { Button, Divider, Field, Note, Screen, Section, Segmented, tap, ToggleRow } from '@/components/ui';
-import { getDraft, SCHOOL_DAYS } from '@/lib/draft';
+import { getDraft, getDraftFlags, SCHOOL_DAYS } from '@/lib/draft';
 import { TYPE } from '@/lib/fonts';
 import { useTheme } from '@/lib/hooks';
-import {
-  PERIOD_IDS,
-  REGULAR_SCHEDULE,
-  sortPeriods,
-  validatePeriods,
-  WEDNESDAY_SCHEDULE,
-  type Period,
-  type PersonalSchedule,
-  type SchoolDay,
-} from '@/lib/schedule';
-import { getState, setPersonal } from '@/lib/store';
+import { NORTH_BELLS, periodIdsFor, sortPeriods, validatePeriods, type Period, type PersonalSchedule, type SchoolDay } from '@/lib/schedule';
+import { getState, setPersonal, useStore } from '@/lib/store';
 import { alpha, readableOn } from '@/lib/themes';
 import { parseTime } from '@/lib/timeinput';
 
@@ -53,11 +44,11 @@ function initialClasses(p: PersonalSchedule): { names: Record<string, string>; r
 }
 
 /** Own-times rows: the scanned times, or North's bells as a starting point. */
-function initialDays(p: PersonalSchedule, names: Record<string, string>): Record<SchoolDay, Row[]> {
+function initialDays(p: PersonalSchedule, names: Record<string, string>, bells: Record<SchoolDay, Period[]>): Record<SchoolDay, Row[]> {
   const out = {} as Record<SchoolDay, Row[]>;
   const any = SCHOOL_DAYS.some((d) => (p.days[d] ?? []).length > 0);
   for (const d of SCHOOL_DAYS) {
-    const base = any ? (p.days[d] ?? []) : d === 'Wed' ? WEDNESDAY_SCHEDULE : REGULAR_SCHEDULE;
+    const base = any ? (p.days[d] ?? []) : (bells[d] ?? []);
     out[d] = toRows(any ? base : base.map((x) => ({ ...x, label: names[x.period] || x.label })));
   }
   return out;
@@ -65,14 +56,18 @@ function initialDays(p: PersonalSchedule, names: Record<string, string>): Record
 
 export default function ScheduleReview() {
   const theme = useTheme();
+  const school = useStore((s) => s.school);
+  const bellSet = useStore((s) => s.bellSet);
+  const ids = periodIdsFor(bellSet?.days);
   const { edit } = useLocalSearchParams<{ edit?: string }>();
+  const [fl] = useState(() => (edit ? null : getDraftFlags()));
   const [initial] = useState<PersonalSchedule | null>(() => (edit ? getState().personal : getDraft()));
   const [start] = useState(() => (initial ? initialClasses(initial) : { names: {}, rooms: {} }));
-  const [mode, setMode] = useState<'north' | 'own'>(initial?.bells === 'own' ? 'own' : 'north');
+  const [mode, setMode] = useState<'school' | 'own'>(initial?.bells === 'own' ? 'own' : 'school');
   const [name, setName] = useState(initial?.name ?? 'My schedule');
   const [names, setNames] = useState<Record<string, string>>(start.names);
   const [rooms, setRooms] = useState<Record<string, string>>(start.rooms);
-  const [days, setDays] = useState<Record<SchoolDay, Row[]>>(() => (initial ? initialDays(initial, start.names) : ({} as Record<SchoolDay, Row[]>)));
+  const [days, setDays] = useState<Record<SchoolDay, Row[]>>(() => (initial ? initialDays(initial, start.names, getState().bellSet?.days ?? NORTH_BELLS) : ({} as Record<SchoolDay, Row[]>)));
   const [sameAll, setSameAll] = useState(() => (initial ? SCHOOL_DAYS.every((d) => same(days[d] ?? [], days.Mon ?? [])) : true));
   const [day, setDay] = useState<SchoolDay>('Mon');
   const [err, setErr] = useState<string | null>(null);
@@ -111,13 +106,13 @@ export default function ScheduleReview() {
     setErr(null);
     const cleanNames: Record<string, string> = {};
     const cleanRooms: Record<string, string> = {};
-    for (const id of PERIOD_IDS) {
+    for (const id of ids) {
       if (names[id]?.trim()) cleanNames[id] = names[id].trim().slice(0, 60);
       if (rooms[id]?.trim()) cleanRooms[id] = rooms[id].trim().slice(0, 20);
     }
-    if (mode === 'north') {
+    if (mode === 'school') {
       if (!Object.keys(cleanNames).length) return setErr('Add at least one class.');
-      return finish({ name: name.trim() || 'My schedule', bells: 'north', days: initial.days, classNames: cleanNames, rooms: cleanRooms });
+      return finish({ name: name.trim() || 'My schedule', bells: 'school', days: initial.days, classNames: cleanNames, rooms: cleanRooms });
     }
     const out = {} as PersonalSchedule['days'];
     for (const d of SCHOOL_DAYS) {
@@ -142,15 +137,16 @@ export default function ScheduleReview() {
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
       <Screen>
         <Text style={{ ...TYPE.regular, fontSize: 15, lineHeight: 21, color: theme.muted, textAlign: 'center' }}>
-          {edit ? 'Change anything, then save.' : 'Here is what the AI read. Fix anything that is off, then save.'}
+          {edit ? 'Change anything, then save.' : 'Here is what the reader found. It can make mistakes, so check each row, then save.'}
         </Text>
+        {fl?.warnings.length ? <Note tone="error">{fl.warnings.join(' ')}</Note> : null}
 
-        <Section title="Bell times" footer={mode === 'north' ? 'Uses Great Neck North High’s real bells: Regular days, Wednesday Advisory, assemblies and custom days.' : 'For a school with different times. Set them for each day below.'}>
+        <Section title="Bell times" footer={mode === 'school' ? `Uses ${school?.name ?? 'Great Neck North'}'s bell times (${bellSet?.name ?? 'Regular day'}), plus any custom days.` : 'Your own times, set for each day below.'}>
           <View style={{ padding: 12 }}>
             <Segmented
               value={mode}
               options={[
-                { value: 'north', label: 'North High bells' },
+                { value: 'school', label: school ? 'School bells' : 'North High bells' },
                 { value: 'own', label: 'My own times' },
               ]}
               onChange={setMode}
@@ -158,12 +154,12 @@ export default function ScheduleReview() {
           </View>
         </Section>
 
-        {mode === 'north' ? (
-          <Section title="My classes" footer="Leave a period empty if you don't have a class then.">
-            {PERIOD_IDS.map((id, i) => (
+        {mode === 'school' ? (
+          <Section title="My classes" footer={fl ? 'Highlighted rows: the reader was unsure, or the time did not match the bells. Leave a period empty if you have no class then.' : "Leave a period empty if you don't have a class then."}>
+            {ids.map((id, i) => (
               <View key={id}>
                 {i ? <Divider /> : null}
-                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8 }}>
+                <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8 }, fl?.flags[id] ? { backgroundColor: alpha('#ff9f0a', 0.14) } : null]}>
                   <Text style={{ ...TYPE.semibold, fontSize: 13, color: theme.accent, width: 70 }}>{periodName(id)}</Text>
                   <Field style={{ flex: 1 }} value={names[id] ?? ''} onChangeText={(v) => setNames((n) => ({ ...n, [id]: v }))} placeholder="Class" accessibilityLabel={`${periodName(id)} class`} maxLength={60} />
                   <Field style={{ width: 76 }} value={rooms[id] ?? ''} onChangeText={(v) => setRooms((r) => ({ ...r, [id]: v }))} placeholder="Room" accessibilityLabel={`${periodName(id)} room`} maxLength={20} />

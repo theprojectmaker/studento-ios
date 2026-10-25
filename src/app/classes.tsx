@@ -1,4 +1,4 @@
-/** Class name, room and note for each period. Shared with every device. */
+/** Class name, room and note for each period. Kept on this phone (and your account, if you have one). */
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Text, View } from 'react-native';
@@ -7,12 +7,13 @@ import { Button, Divider, Field, Note, Screen, Section } from '@/components/ui';
 import type { ClassDetail } from '@/lib/alerts';
 import { TYPE } from '@/lib/fonts';
 import { useTheme } from '@/lib/hooks';
-import { PERIOD_IDS } from '@/lib/schedule';
+import { periodIdsFor } from '@/lib/schedule';
 import { setClassInfo, useStore } from '@/lib/store';
 
 export default function Classes() {
   const theme = useTheme();
   const shared = useStore((s) => s.shared);
+  const ids = periodIdsFor(useStore((s) => s.bellSet)?.days);
   const [names, setNames] = useState<Record<string, string>>(() => ({ ...shared.classNames }));
   const [details, setDetails] = useState<Record<string, ClassDetail>>(() => ({ ...shared.classDetails }));
   const [saving, setSaving] = useState(false);
@@ -41,7 +42,7 @@ export default function Classes() {
       <Screen>
         <Note>These show on the clock and in your alerts. They stay on this phone.</Note>
         <Section>
-          {PERIOD_IDS.map((id, i) => {
+          {ids.map((id, i) => {
             const label = id === 'advisory' ? 'Advisory' : `Period ${id}`;
             return (
               <View key={id}>

@@ -7,9 +7,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSyncExternalStore } from 'react';
 
 import type { AlertPrefs, ClassDetail } from './alerts';
+import type { AccountUser, BellSet } from './api';
 import { nyParts } from './nytime';
 import { classifyStorage } from './storageKind';
-import { PERIOD_IDS, type CustomDay, type Override, type OverrideType, type Period, type PersonalSchedule, type ScheduleData } from './schedule';
+import { periodIdsFor, type CustomDay, type Override, type OverrideType, type Period, type PersonalSchedule, type ScheduleData, type SchoolDay } from './schedule';
 import { DEFAULT_THEME } from './themes';
 
 export type WidgetId = 'progress' | 'homework' | 'countdown' | 'next' | 'date' | 'weekend' | 'focus' | 'quote';
@@ -86,12 +87,29 @@ export interface Shared {
 }
 
 
+/** The signed-in account (token lives in SecureStore, not here). */
+export interface Account {
+  user: AccountUser;
+  /** Last successful save to the server. */
+  syncedAt: number | null;
+}
+export interface SchoolPick {
+  id: number;
+  name: string;
+}
+
 export interface State {
   loaded: boolean;
   prefs: Prefs;
   shared: Shared;
-  /** A student's own schedule on this phone; null = the shared default. */
+  /** A student's own classes/schedule on this phone; null = nothing set up yet. */
   personal: PersonalSchedule | null;
+  account: Account | null;
+  /** The chosen school and its bell schedule (cached; works offline). */
+  school: SchoolPick | null;
+  bellSet: BellSet | null;
+  /** Every schedule of the chosen school, cached for switching offline. */
+  schoolSchedules: BellSet[];
 }
 
 export type Millis = 'off' | 'tenths' | 'centis' | 'millis';
@@ -148,6 +166,8 @@ const EMPTY_SHARED: Shared = { classNames: {}, classDetails: {}, customDays: [],
 const K_PREFS = 'studento:prefs';
 const K_SHARED = 'studento:shared';
 const K_PERSONAL = 'studento:personal';
+const K_ACCOUNT = 'studento:account';
+const K_SCHOOL = 'studento:school';
 /** A second copy of everything, used to recover if the main keys are ever empty or unreadable. */
 const K_BACKUP = 'studento:backup';
 /** Written by every save: its presence proves the app has stored data before. */
@@ -165,6 +185,10 @@ let state: State = {
   prefs: DEFAULT_PREFS,
   shared: EMPTY_SHARED,
   personal: null,
+  account: null,
+  school: null,
+  bellSet: null,
+  schoolSchedules: [],
 };
 
 const listeners = new Set<() => void>();
@@ -193,10 +217,10 @@ export function useStore<T>(select: (s: State) => T): T {
  * - personal 'north': the same real bells, but this student's classes and rooms
  * - personal 'own': the student's own times (no shared custom days or switches)
  */
-export function resolveSchedule(shared: Shared, personal: PersonalSchedule | null): { data: ScheduleData; names: Record<string, string>; details: Record<string, ClassDetail> } {
-  const sharedData = { customDays: shared.customDays, override: shared.override, personal: null };
+export function resolveSchedule(shared: Shared, personal: PersonalSchedule | null, bellSet: BellSet | null = state.bellSet): { data: ScheduleData; names: Record<string, string>; details: Record<string, ClassDetail> } {
+  const sharedData: ScheduleData = { customDays: shared.customDays, override: shared.override, personal: null, bells: bellSet?.days ?? null };
   if (!personal) return { data: sharedData, names: shared.classNames, details: shared.classDetails };
-  if (personal.bells === 'north') {
+  if (personal.bells !== 'own') {
     const details: Record<string, ClassDetail> = {};
     for (const [k, room] of Object.entries(personal.rooms ?? {})) if (room) details[k] = { room };
     return { data: sharedData, names: personal.classNames ?? {}, details };
@@ -205,15 +229,15 @@ export function resolveSchedule(shared: Shared, personal: PersonalSchedule | nul
 }
 
 export function scheduleData(s: State = state): ScheduleData {
-  return resolveSchedule(s.shared, s.personal).data;
+  return resolveSchedule(s.shared, s.personal, s.bellSet).data;
 }
 
 /** Class names and details that apply right now. */
 export function namesFor(s: State = state): Record<string, string> {
-  return resolveSchedule(s.shared, s.personal).names;
+  return resolveSchedule(s.shared, s.personal, s.bellSet).names;
 }
 export function detailsFor(s: State = state): Record<string, ClassDetail> {
-  return resolveSchedule(s.shared, s.personal).details;
+  return resolveSchedule(s.shared, s.personal, s.bellSet).details;
 }
 
 /** Use (or clear) a personal schedule on this phone. */
@@ -226,7 +250,8 @@ export async function setPersonal(p: PersonalSchedule | null) {
 export function useSchedule() {
   const shared = useStore((st) => st.shared);
   const personal = useStore((st) => st.personal);
-  return { personal, ...resolveSchedule(shared, personal) };
+  const bellSet = useStore((st) => st.bellSet);
+  return { personal, bellSet, ...resolveSchedule(shared, personal, bellSet) };
 }
 
 async function persist() {
@@ -237,7 +262,9 @@ async function persist() {
       [K_PREFS, JSON.stringify(state.prefs)],
       [K_SHARED, JSON.stringify(state.shared)],
       [K_PERSONAL, JSON.stringify(state.personal)],
-      [K_BACKUP, JSON.stringify({ prefs: state.prefs, shared: state.shared, personal: state.personal, at: Date.now() })],
+      [K_ACCOUNT, JSON.stringify(state.account)],
+      [K_SCHOOL, JSON.stringify({ school: state.school, bellSet: state.bellSet, schoolSchedules: state.schoolSchedules })],
+      [K_BACKUP, JSON.stringify({ prefs: state.prefs, shared: state.shared, personal: state.personal, account: state.account, school: { school: state.school, bellSet: state.bellSet, schoolSchedules: state.schoolSchedules }, at: Date.now() })],
     ]);
   } catch {
     // Storage full or unavailable: the app still runs from memory.
@@ -267,7 +294,7 @@ export async function load(): Promise<boolean> {
   for (let attempt = 0; attempt < 6; attempt++) {
     let m: Record<string, string | null> | null = null;
     try {
-      m = Object.fromEntries(await AsyncStorage.multiGet([K_PREFS, K_SHARED, K_PERSONAL, K_BACKUP, K_INIT]));
+      m = Object.fromEntries(await AsyncStorage.multiGet([K_PREFS, K_SHARED, K_PERSONAL, K_ACCOUNT, K_SCHOOL, K_BACKUP, K_INIT]));
     } catch {
       m = null;
     }
@@ -277,7 +304,10 @@ export async function load(): Promise<boolean> {
       continue;
     }
     const rows = m ?? {};
-    const backup = readJson<{ prefs?: Partial<Prefs>; shared?: Shared; personal?: PersonalSchedule | null }>(rows[K_BACKUP]);
+    type SchoolBlob = { school: SchoolPick | null; bellSet: BellSet | null; schoolSchedules: BellSet[] };
+    const backup = readJson<{ prefs?: Partial<Prefs>; shared?: Shared; personal?: PersonalSchedule | null; account?: Account | null; school?: SchoolBlob }>(rows[K_BACKUP]);
+    const savedAccount = readJson<Account | null>(rows[K_ACCOUNT]) ?? backup?.account ?? null;
+    const savedSchool = readJson<SchoolBlob>(rows[K_SCHOOL]) ?? backup?.school ?? null;
     // Prefer the main copy; fall back to the backup if it is missing or unreadable.
     const savedPrefs = readJson<Partial<Prefs>>(rows[K_PREFS]) ?? backup?.prefs ?? {};
     const savedShared = readJson<Shared>(rows[K_SHARED]) ?? backup?.shared ?? null;
@@ -296,6 +326,10 @@ export async function load(): Promise<boolean> {
       prefs,
       shared: { ...EMPTY_SHARED, ...(savedShared ?? {}) },
       personal: savedPersonal,
+      account: savedAccount,
+      school: savedSchool?.school ?? null,
+      bellSet: savedSchool?.bellSet ?? null,
+      schoolSchedules: savedSchool?.schoolSchedules ?? [],
     } as Partial<State>);
     if (migrate) void persist();
     return true;
@@ -320,6 +354,18 @@ function today() {
   return nyParts(Date.now()).date;
 }
 
+/** Remember the signed-in account (null = signed out). */
+export async function setAccount(a: Account | null) {
+  set({ account: a });
+  await persist();
+}
+
+/** Pick a school + one of its bell schedules; the list is cached for offline switching. */
+export async function setSchool(school: SchoolPick | null, bellSet: BellSet | null, schoolSchedules: BellSet[] = state.schoolSchedules) {
+  set({ school, bellSet, schoolSchedules: school ? schoolSchedules : [] });
+  await persist();
+}
+
 /** Class names and rooms, kept on this phone. */
 export async function setClassInfo(names: Record<string, string>, details: Record<string, ClassDetail>) {
   set({ shared: { ...state.shared, classNames: names, classDetails: details } });
@@ -327,8 +373,8 @@ export async function setClassInfo(names: Record<string, string>, details: Recor
 }
 
 /** Today's schedule switch (assembly, custom...), on this phone, today only. */
-export async function setOverride(type: OverrideType | null) {
-  set({ shared: { ...state.shared, override: type ? { date: today(), type } : null } });
+export async function setOverride(type: OverrideType | null, pick?: { scheduleId: number; days: Record<SchoolDay, Period[]> }) {
+  set({ shared: { ...state.shared, override: type ? { date: today(), type, ...(pick ? { scheduleId: pick.scheduleId, days: pick.days } : {}) } : null } });
   await persist();
 }
 
@@ -352,8 +398,8 @@ export async function deleteCustomDay(id: string): Promise<string | null> {
 export function useClasses(): { ids: string[]; names: Record<string, string> } {
   const shared = useStore((st) => st.shared);
   const personal = useStore((st) => st.personal);
-  if (!personal) return { ids: PERIOD_IDS, names: shared.classNames };
-  if (personal.bells === 'north') return { ids: PERIOD_IDS, names: personal.classNames ?? {} };
+  if (!personal) return { ids: periodIdsFor(state.bellSet?.days), names: shared.classNames };
+  if (personal.bells !== 'own') return { ids: periodIdsFor(state.bellSet?.days), names: personal.classNames ?? {} };
   const ids: string[] = [];
   const names: Record<string, string> = {};
   for (const day of ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'] as const) {

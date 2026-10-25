@@ -14,6 +14,9 @@ import { endLiveActivities, syncLiveActivity } from '@/widgets';
 export default function Settings() {
   const prefs = useStore((s) => s.prefs);
   const personal = useStore((s) => s.personal);
+  const account = useStore((s) => s.account);
+  const school = useStore((s) => s.school);
+  const bellSet = useStore((s) => s.bellSet);
   const theme = useTheme();
   const [perm, setPerm] = useState<Permission | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -234,10 +237,34 @@ export default function Settings() {
       {msg ? <Note tone="ok">{msg}</Note> : null}
       {scheduled != null && perm === 'granted' ? <Note>{scheduled} alerts are set on this phone.</Note> : null}
 
-      <Section title="My schedule" footer={personal ? 'Your own schedule, kept on this phone.' : 'The shared Great Neck schedule. Scan or type your own to switch.'}>
+      <Section title="Account" footer={account ? 'Your classes, school and settings save to this account.' : 'Optional. Saves your schedule across devices and turns on the schedule reader.'}>
         <Row
-          label={personal ? personal.name : 'Great Neck North (default)'}
-          sub="Change: scan, type, or use the default"
+          label={account ? account.user.username : 'Sign in or create an account'}
+          sub={account ? (account.user.admin ? 'Owner · admin' : 'Signed in') : 'Username and password, nothing else'}
+          icon={{ name: 'person.crop.circle.fill', color: '#007aff' }}
+          onPress={() => router.push('/account')}
+        />
+        {account?.user.admin ? (
+          <>
+            <Divider />
+            <Row label="Admin" sub="Kill switches, shared schools and schedules" icon={{ name: 'wrench.and.screwdriver.fill', color: '#ff9500' }} onPress={() => router.push('/admin')} />
+          </>
+        ) : null}
+      </Section>
+
+      <Section title="School" footer="Your school's bell times. Switch to another of its schedules for a day under Schedules.">
+        <Row
+          label={school ? school.name : 'Pick your school'}
+          sub={school ? (bellSet?.name ?? 'Schedule') : 'Search, pick a bell schedule, or add your school'}
+          icon={{ name: 'building.columns.fill', color: '#ff9500' }}
+          onPress={() => router.push('/school')}
+        />
+      </Section>
+
+      <Section title="My classes" footer={personal ? 'Your classes and rooms.' : 'Scan or type your classes so the clock shows class names.'}>
+        <Row
+          label={personal ? personal.name : 'No classes yet'}
+          sub="Scan, type, or edit"
           icon={{ name: 'calendar.badge.clock', color: '#34c759' }}
           onPress={() => router.push('/welcome')}
         />

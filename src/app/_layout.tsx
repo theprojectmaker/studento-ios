@@ -9,6 +9,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { registerBackgroundRefresh } from '@/lib/background';
 import { isHeavyWork } from '@/lib/heavy';
 import { useTheme } from '@/lib/hooks';
+import { watchForSync } from '@/lib/account';
 import { rescheduleAlerts, setupNotificationHandler, watchForReschedule } from '@/lib/notify';
 import { loadPlanner } from '@/lib/planner';
 import { loadTools, subscribeTools } from '@/lib/tools';
@@ -47,10 +48,12 @@ export default function RootLayout() {
 
   useEffect(() => {
     let stopWatch: (() => void) | null = null;
+    let stopSync: (() => void) | null = null;
     void loadPlanner();
     void loadTools();
     void load().then(() => {
       stopWatch = watchForReschedule();
+      stopSync = watchForSync();
       // Always refill the alert queue on launch, then pull the shared schedule.
       void rescheduleAlerts();
       void registerBackgroundRefresh();
@@ -93,6 +96,7 @@ export default function RootLayout() {
     return () => {
       sub.remove();
       stopWatch?.();
+      stopSync?.();
       stopWidgets();
       stopFocusWatch();
       if (focusTimer) clearTimeout(focusTimer);
@@ -135,6 +139,10 @@ export default function RootLayout() {
         <Stack.Screen name="classes" options={{ title: 'My Classes' }} />
         <Stack.Screen name="themes" options={{ title: 'Themes' }} />
         <Stack.Screen name="app-icon" options={{ title: 'App Icon' }} />
+        <Stack.Screen name="school" options={{ title: 'Your School' }} />
+        <Stack.Screen name="schedule-publish" options={{ title: 'New Bell Schedule' }} />
+        <Stack.Screen name="account" options={{ title: 'Account' }} />
+        <Stack.Screen name="admin" options={{ title: 'Admin' }} />
         <Stack.Screen name="schedules" options={{ title: 'Schedules' }} />
         <Stack.Screen name="schedule-edit" options={{ title: 'Custom Day' }} />
       </Stack>

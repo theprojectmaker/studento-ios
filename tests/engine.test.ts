@@ -227,7 +227,7 @@ test('personal schedule replaces the built-in one (and ignores shared custom day
 
 test('scanned classes keep North High bells (custom days still apply), with the scanned names and rooms', () => {
   const personal = toPersonal({ name: 'Me', days: { Mon: [], Tue: [], Wed: [], Thu: [], Fri: [] }, classes: { '1': 'Algebra', '3': 'Biology' }, rooms: { '3': '204' }, hasTimes: false });
-  assert.equal(personal.bells, 'north');
+  assert.equal(personal.bells, 'school');
   // North mode runs the shared bells: scheduleFor gets personal: null, names/rooms come from the scan.
   const data: ScheduleData = { customDays: [], override: { date: '2026-10-19', type: 'assembly' }, personal: null };
   const mon = scheduleFor('2026-10-19', data);

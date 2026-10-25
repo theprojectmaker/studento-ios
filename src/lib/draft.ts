@@ -21,13 +21,20 @@ export function toPersonal(ai: AiSchedule): PersonalSchedule {
   }
   // Default to Great Neck North's real bells with these classes; the review
   // screen can switch to the times from the photo when there are any.
-  return { name: ai.name || 'My schedule', bells: 'north', days, classNames: ai.classes ?? {}, rooms: ai.rooms ?? {} };
+  return { name: ai.name || 'My schedule', bells: 'school', days, classNames: ai.classes ?? {}, rooms: ai.rooms ?? {} };
 }
 
 let draft: PersonalSchedule | null = null;
+let draftFlags: { flags: Record<string, string[]>; warnings: string[] } | null = null;
 
-export function setDraft(d: PersonalSchedule | null) {
+export function setDraft(d: PersonalSchedule | null, flags: { flags: Record<string, string[]>; warnings: string[] } | null = null) {
   draft = d;
+  draftFlags = flags;
+}
+
+/** Which periods the reader was unsure about (highlighted on the review screen). */
+export function getDraftFlags() {
+  return draftFlags;
 }
 
 export function getDraft(): PersonalSchedule | null {

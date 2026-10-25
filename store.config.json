@@ -2,17 +2,29 @@
   "configVersion": 0,
   "apple": {
     "copyright": "2026 YOUR NAME HERE",
-    "categories": ["EDUCATION", "UTILITIES"],
+    "categories": [
+      "EDUCATION",
+      "UTILITIES"
+    ],
     "info": {
       "en-US": {
         "title": "Studento",
         "subtitle": "Class countdown and bell clock",
-        "description": "Studento is a clock for school. It counts down to the end of every period, in seconds, so you always know how long is left.\n\nSET IT UP IN A MINUTE\nTake a photo of your schedule and Studento reads it on your phone, or type your classes. Great Neck North's bell times are built in, with Regular days and Wednesday Advisory, and you can enter your own school's times instead.\n\nALWAYS AT A GLANCE\n• Home Screen and Lock Screen widgets show the time left in the period, then a live clock with seconds after school\n• A Lock Screen countdown and Dynamic Island timer during class\n• Bell alerts a few minutes into class and five minutes before the bell\n\nMAKE IT YOURS\n• More than 100 themes: split-flap boards, casino reels, gold Art Deco, LED signs, nixie tubes and more, each with its own typeface\n• Three layouts, a focus timer, this week, notes, grades and homework\n• Lock mode keeps the clock on screen with every setting out of reach until you hold the red dot\n\nStudento runs entirely on your device. There are no accounts, no sign-in and no servers. Your schedule, settings and photos never leave your phone.",
-        "keywords": ["school", "bell schedule", "class timer", "period countdown", "student clock", "widget", "focus timer", "school day"],
+        "description": "Studento is a clock for school. It counts down to the end of every period, in seconds, so you always know how long is left.\n\nSET IT UP IN A MINUTE\nPick your school and its bell schedule from the shared list, or add your school and publish its schedule for everyone there. Then take a photo of your class schedule and the reader fills in your classes and rooms (you check every row before it saves), or type them in.\n\nALWAYS AT A GLANCE\n• Home Screen and Lock Screen widgets show the time left in the period, then a live clock with seconds after school\n• A Lock Screen countdown and Dynamic Island timer during class\n• Bell alerts a few minutes into class and five minutes before the bell\n\nMAKE IT YOURS\n• More than 100 themes: split-flap boards, casino reels, gold Art Deco, LED signs, nixie tubes and more\n• Three layouts, a focus timer, this week, notes, grades and homework\n• Lock mode keeps the clock on screen with every setting out of reach until you hold the red dot\n\nWORKS OFFLINE\nThe clock, alerts, widgets and themes need no internet. An optional account (just a username and password) saves your schedule and settings across devices and turns on the schedule reader. You can delete it in the app at any time.",
+        "keywords": [
+          "school",
+          "bell schedule",
+          "class timer",
+          "period countdown",
+          "student clock",
+          "widget",
+          "focus timer",
+          "school day"
+        ],
         "releaseNotes": "First release.",
         "promoText": "Count down every class. Runs entirely on your phone.",
-        "privacyPolicyUrl": "https://theprojectmaker.github.io/studento-ios/privacy.html",
-        "supportUrl": "https://github.com/theprojectmaker/studento-ios/issues"
+        "privacyPolicyUrl": "https://studento-app.pages.dev/privacy.html",
+        "supportUrl": "https://studento-app.pages.dev/"
       }
     },
     "review": {
@@ -23,7 +35,7 @@
       "demoUsername": "",
       "demoPassword": "",
       "demoRequired": false,
-      "notes": "Studento has no accounts or sign-in; nothing is needed to review it. On first launch choose \"Skip for now\" to use the built-in schedule, or \"Type it out\" and enter a line like \"Period 1 Math 8:00-8:41\". The app runs entirely on the device: the schedule scan uses on-device text recognition (Apple Vision), bell alerts are local notifications scheduled on the device, and no data is sent anywhere. Settings > Test > \"Pretend it's Period 3\" shows the countdown, widgets and Live Activity at any time of day. Widgets: long-press the Home Screen, add \"Studento\"."
+      "notes": "No account is needed to review the app: on first launch tap \"Skip for now\", or pick \"Great Neck North High School\" under step 1. To test accounts, create one in Settings > Account (any username, 8+ character password); account deletion is in the same screen. The schedule reader (Settings > My classes > Scan) needs an account and sends the photo to our server once; it is not stored. Settings > Test > \"Pretend it's Period 3\" shows the countdown, widgets and Live Activity at any time of day. Widgets: long-press the Home Screen, add \"Studento\"."
     }
   }
 }

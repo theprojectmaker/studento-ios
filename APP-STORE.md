@@ -4,33 +4,44 @@ Prepared 2026-10-25. Nothing here has been submitted. Placeholders to fill in: c
 reviewer contact (name, email, phone) in `store.config.json`, and the contact email in
 `docs/privacy.html`.
 
-## What the app does on the network: nothing of ours
-Verified by grepping `src`, `plugins` and `app.json` for `fetch`, `XMLHttpRequest`, `WebSocket`
-and `http(s)://` on 2026-10-25:
-- The shared-schedule server and the AI scan (`src/lib/api.ts`) are **removed**. Class names,
-  rooms, custom days and the today-switch are kept on the device.
-- Schedule scan = on-device text recognition (Apple Vision via `expo-text-extractor`) + a local
-  parser (`src/lib/scheduleParser.ts`, unit-tested).
-- Time comes from the device clock (`src/lib/nytime.ts`, no NTP).
-- Bell alerts are local notifications; the push entitlement and the remote-notification
-  background mode are stripped by `plugins/no-push.js`.
-- Fonts and icons are bundled.
-- The one remaining contact is Expo's update service (`updates.url` in `app.json`), used for
-  over-the-air JavaScript updates. It receives no user data. Remove the `updates` block and
-  `expo-updates` if the app must make zero outside requests.
+## What the app does on the network
+Verified 2026-10-25. Everything below is optional; the clock, alerts, widgets and themes work
+offline.
+- **Server**: https://studento-app.pages.dev (Cloudflare Pages Functions + D1; code in `server/`;
+  a Pages domain does not drift). Admin kill switches for sign-ups, sharing and the reader
+  (Settings > Admin on the owner account).
+- **Accounts** (optional): username + password only. PBKDF2-SHA256 (100k iterations, the Workers
+  runtime maximum), 16-byte salt; tokens stored hashed; rate limits on sign-up, login and the
+  reader. In-app deletion (Settings > Account) removes the user, token and saved data at once
+  (App Store 5.1.1(v)). The first account ever created is the owner: admin rights + the owner's
+  classes pre-filled.
+- **Shared schools and bell schedules**: searching and picking need no account; adding a school
+  or publishing a schedule needs one.
+- **Schedule reader**: signed in only. The photo (or typed text) goes to the server once and is
+  not stored. The model (Gemini 2.5 Pro when the `GEMINI_API_KEY` Pages secret is set, else
+  Cloudflare Workers AI) returns structured rows with a confidence per cell; the server validates
+  times (ascending, non-overlapping) and cross-checks them against the chosen school's bells; the
+  app highlights doubtful rows on the review screen, which the user confirms before saving.
+  Signed out: on-device text recognition + a local parser instead.
+- Time comes from the device clock; bell alerts are local notifications (push entitlement
+  stripped by `plugins/no-push.js`); fonts and icons are bundled. Expo's update service is also
+  contacted for over-the-air JavaScript updates (no user data).
 
-## Privacy policy URL (needed by App Store Connect)
-`docs/privacy.html` is ready. Options, cheapest first:
-1. **GitHub Pages on this public repo**: repo Settings > Pages > Source "Deploy from a branch",
-   branch `main`, folder `/docs`. URL becomes
-   `https://theprojectmaker.github.io/studento-ios/privacy.html` (already in `store.config.json`).
-2. Cloudflare Pages (any `*.pages.dev`), copy the file there.
-3. Any site the user already owns.
+## Privacy policy URL
+Live at **https://studento-app.pages.dev/privacy.html** (source `server/public/privacy.html`;
+already set in `store.config.json`). Fill in the contact email there.
 
 ## App Privacy answers (App Store Connect > App Privacy)
-- **Data Not Collected.** Studento collects no data types. Photos are processed on-device and not
-  stored by the app; notes/grades/schedule are user content saved only on the device.
-- Tracking: No.
+Data is collected only when the user creates an account. Declare:
+- **Identifiers > User ID** (the username): collected, linked to the user, App Functionality.
+- **User Content > Other User Content** (schedule, class names, settings saved to the account):
+  collected, linked to the user, App Functionality.
+- **User Content > Photos or Videos**: the scanned photo is sent to the server for App
+  Functionality, linked to the user, and not retained (say so in the policy; it does).
+- Contact Info (name, email, phone): **not collected**. Location, purchases, usage data,
+  diagnostics: not collected.
+- Tracking: **No**. Third parties: the AI provider receives the photo or text only to answer that
+  request.
 
 ## Review notes
 In `store.config.json` > `apple.review.notes`. No demo account. Mentions Settings > Test >

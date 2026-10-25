@@ -11,12 +11,16 @@ import { useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Text, TextInput, View } from 'react-native';
 
 import { Button, Note, Screen } from '@/components/ui';
+import { getToken } from '@/lib/account';
+import * as api from '@/lib/api';
 import { setDraft, toPersonal } from '@/lib/draft';
 import { TYPE } from '@/lib/fonts';
 import { setHeavyWork } from '@/lib/heavy';
 import { useTheme } from '@/lib/hooks';
 import { extractLines, ocrSupported } from '@/lib/ocr';
+import { NORTH_BELLS } from '@/lib/schedule';
 import { parsedSomething, parseScheduleText } from '@/lib/scheduleParser';
+import { getState, useStore } from '@/lib/store';
 import { alpha } from '@/lib/themes';
 
 const EXAMPLE = `Period 1  Algebra  8:00-8:41  Room 112
@@ -37,8 +41,10 @@ export default function SetupSchedule() {
   const theme = useTheme();
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const scan = mode !== 'type';
-  const canScan = ocrSupported();
-  const [photo, setPhoto] = useState<{ uri: string } | null>(null);
+  const account = useStore((s) => s.account);
+  // Signed in: the server's reader (any photo). Signed out: on-device text recognition (installed app only).
+  const canScan = !!account || ocrSupported();
+  const [photo, setPhoto] = useState<{ uri: string; data?: string } | null>(null);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -64,8 +70,8 @@ export default function SetupSchedule() {
       ctx = ImageManipulator.manipulate(a.uri);
       if (long > 2000) ctx.resize(a.width >= a.height ? { width: 2000 } : { height: 2000 });
       img = await ctx.renderAsync();
-      const out = await img.saveAsync({ format: SaveFormat.JPEG, compress: 0.85, base64: false });
-      setPhoto({ uri: out.uri });
+      const out = await img.saveAsync({ format: SaveFormat.JPEG, compress: 0.8, base64: true });
+      setPhoto({ uri: out.uri, data: out.base64 ?? undefined });
     } catch (e) {
       setErr(friendly(e, "Couldn't open that photo. Try another one, or a screenshot."));
     } finally {
@@ -82,6 +88,20 @@ export default function SetupSchedule() {
     setErr(null);
     setBusy(true);
     try {
+      // Signed in: ask the server's reader (strongest model, structured output, confidence flags).
+      // If it is paused or unreachable, fall back to reading on the phone.
+      const st = getState();
+      const token = await getToken();
+      if (token && st.account) {
+        try {
+          const r = await api.readScheduleAI(token, scan && photo ? { image: { data: photo.data ?? '', mimeType: 'image/jpeg' } } : { text }, st.bellSet?.days ?? NORTH_BELLS);
+          setDraft(toPersonal(r.schedule), { flags: r.flags, warnings: r.warnings });
+          router.push('/schedule-review');
+          return;
+        } catch (e) {
+          if (!(e instanceof api.ApiError) || !(e.status === 0 || e.status === 503)) throw e;
+        }
+      }
       const source = scan && photo ? (await extractLines(photo.uri)).join('\n') : text;
       const parsed = parseScheduleText(source);
       if (!parsedSomething(parsed)) return setErr(NOTHING);
@@ -103,7 +123,7 @@ export default function SetupSchedule() {
 
         {scan ? (
           <>
-            {!canScan ? <Note tone="error">Scanning works in the installed app (TestFlight or the App Store). Here, type your schedule instead.</Note> : null}
+            {!canScan ? <Note tone="error">Scanning here needs the installed app, or an account (Settings &gt; Account). You can type your schedule instead.</Note> : null}
             {photo ? (
               <Image source={{ uri: photo.uri }} style={{ width: '100%', aspectRatio: 3 / 4, borderRadius: 18, backgroundColor: theme.panel }} contentFit="contain" />
             ) : (
@@ -145,7 +165,7 @@ export default function SetupSchedule() {
         ) : (
           <Button title="Read my schedule" onPress={read} disabled={scan ? !photo : text.trim().length < 3} />
         )}
-        <Note>{scan ? 'Your photo is read on this phone and never uploaded. ' : ''}Next you can check every time and class before it is saved.</Note>
+        <Note>{scan ? (account ? "Your photo is sent once to Studento's reader and isn't kept. " : 'Your photo is read on this phone and never uploaded. ') : ''}The reader can make mistakes: next you check every class and time before anything is saved.</Note>
       </Screen>
     </KeyboardAvoidingView>
   );

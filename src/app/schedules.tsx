@@ -1,4 +1,4 @@
-/** Today's shared schedule switch + dated custom days (assemblies, half days). */
+/** Today's schedule switch (any of the school's schedules) + dated custom days (assemblies, half days). */
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Platform, Pressable, Text, View } from 'react-native';
@@ -7,32 +7,51 @@ import { Button, Divider, Note, Row, Screen, Section, tap } from '@/components/u
 import { TYPE } from '@/lib/fonts';
 import { useTheme } from '@/lib/hooks';
 import { fmtDate, fmtTime, nyParts } from '@/lib/nytime';
-import { scheduleFor, type CustomDay, type OverrideType } from '@/lib/schedule';
+import { scheduleFor, type CustomDay, type OverrideType, type Period, type SchoolDay } from '@/lib/schedule';
 import { deleteCustomDay, setOverride, useStore } from '@/lib/store';
 import { alpha } from '@/lib/themes';
 
-const CHOICES: { id: OverrideType | null; label: string; sub: string }[] = [
-  { id: null, label: 'Normal', sub: 'Regular, or Advisory on Wednesday' },
-  { id: 'assembly', label: 'Assembly', sub: 'Period 3 split around the assembly' },
-  { id: 'custom', label: 'Custom', sub: 'The saved custom-day bell times' },
-];
+interface Choice {
+  key: string;
+  id: OverrideType | null;
+  label: string;
+  sub: string;
+  pick?: { scheduleId: number; days: Record<SchoolDay, Period[]> };
+}
 
 export default function Schedules() {
   const theme = useTheme();
   const shared = useStore((s) => s.shared);
+  const school = useStore((s) => s.school);
+  const bellSet = useStore((s) => s.bellSet);
+  const sets = useStore((s) => s.schoolSchedules);
   const h24 = useStore((s) => s.prefs.h24);
   const [msg, setMsg] = useState<{ text: string; tone: 'ok' | 'error' } | null>(null);
   const [today] = useState(() => nyParts(Date.now()).date);
-  const todaySched = scheduleFor(today, { customDays: shared.customDays, override: shared.override });
+  const todaySched = scheduleFor(today, { customDays: shared.customDays, override: shared.override, bells: bellSet?.days ?? null });
   const dated = shared.customDays.find((d) => d.date === today);
-  const active: OverrideType | null = shared.override?.date === today ? shared.override.type : null;
+  const ov = shared.override?.date === today ? shared.override : null;
+  const active = ov ? (ov.type === 'schedule' ? `s:${ov.scheduleId}` : ov.type) : 'normal';
   const upcoming = shared.customDays.filter((d) => d.date >= today).sort((a, b) => a.date.localeCompare(b.date));
   const past = shared.customDays.filter((d) => d.date < today).sort((a, b) => b.date.localeCompare(a.date));
 
-  const choose = async (type: OverrideType | null) => {
+  // Normal = the chosen schedule; the rest of the school's schedules are one-day switches.
+  // Without a school (built-in Great Neck North), the old Assembly/Custom switches remain.
+  const choices: Choice[] = [
+    { key: 'normal', id: null, label: 'Normal', sub: bellSet ? bellSet.name : 'Regular, or Advisory on Wednesday' },
+    ...sets.filter((s) => s.id !== bellSet?.id).map((s) => ({ key: `s:${s.id}`, id: 'schedule' as const, label: s.name, sub: school?.name ?? '', pick: { scheduleId: s.id, days: s.days } })),
+    ...(!school || sets.length <= 1
+      ? [
+          { key: 'assembly', id: 'assembly' as const, label: 'Assembly', sub: 'Period 3 split around the assembly' },
+          { key: 'custom', id: 'custom' as const, label: 'Custom', sub: 'The saved custom-day bell times' },
+        ]
+      : []),
+  ];
+
+  const choose = async (c: Choice) => {
     tap();
     setMsg(null);
-    await setOverride(type);
+    await setOverride(c.id, c.pick);
     setMsg({ text: 'Changed for today.', tone: 'ok' });
   };
 
@@ -56,19 +75,19 @@ export default function Schedules() {
           dated
             ? `Today uses the custom day "${dated.label}". Delete it below to go back to normal.`
             : todaySched.isSchoolDay
-              ? 'Shared with every device. Goes back to Normal tomorrow by itself.'
+              ? 'Goes back to Normal tomorrow by itself.'
               : 'No school today, so there is nothing to switch.'
         }>
-        {CHOICES.map((c, i) => {
-          const on = active === c.id;
+        {choices.map((c, i) => {
+          const on = active === c.key;
           return (
-            <View key={c.label}>
+            <View key={c.key}>
               {i ? <Divider /> : null}
               <Pressable
                 accessibilityRole="radio"
                 accessibilityState={{ checked: on, disabled: !!dated || !todaySched.isSchoolDay }}
                 disabled={!!dated || !todaySched.isSchoolDay}
-                onPress={() => void choose(c.id)}
+                onPress={() => void choose(c)}
                 style={({ pressed }) => ({ opacity: dated || !todaySched.isSchoolDay ? 0.45 : 1, backgroundColor: pressed ? alpha(theme.ink, 0.06) : 'transparent' })}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 }}>
                   <View
@@ -95,7 +114,7 @@ export default function Schedules() {
       </Section>
       {msg ? <Note tone={msg.tone}>{msg.text}</Note> : null}
 
-      <Section title="Custom days" footer="A custom day replaces the bells on its date, for every device. Past days drop off this list on their own.">
+      <Section title="Custom days" footer="A custom day replaces the bells on its date. Past days drop off this list on their own.">
         {upcoming.length ? (
           upcoming.map((d, i) => (
             <View key={d.id}>
