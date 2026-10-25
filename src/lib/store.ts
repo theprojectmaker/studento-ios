@@ -7,7 +7,6 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSyncExternalStore } from 'react';
 
 import type { AlertPrefs, ClassDetail } from './alerts';
-import * as api from './api';
 import { nyParts } from './nytime';
 import { classifyStorage } from './storageKind';
 import { PERIOD_IDS, type CustomDay, type Override, type OverrideType, type Period, type PersonalSchedule, type ScheduleData } from './schedule';
@@ -86,22 +85,13 @@ export interface Shared {
   override: Override | null;
 }
 
-export interface Pending {
-  names?: boolean;
-  details?: boolean;
-  override?: boolean;
-}
-
-export type SyncStatus = 'idle' | 'syncing' | 'ok' | 'offline';
 
 export interface State {
   loaded: boolean;
   prefs: Prefs;
   shared: Shared;
-  pending: Pending;
   /** A student's own schedule on this phone; null = the shared default. */
   personal: PersonalSchedule | null;
-  sync: { status: SyncStatus; at: number | null; error: string | null };
 }
 
 export type Millis = 'off' | 'tenths' | 'centis' | 'millis';
@@ -157,7 +147,6 @@ const EMPTY_SHARED: Shared = { classNames: {}, classDetails: {}, customDays: [],
 
 const K_PREFS = 'studento:prefs';
 const K_SHARED = 'studento:shared';
-const K_PENDING = 'studento:pending';
 const K_PERSONAL = 'studento:personal';
 /** A second copy of everything, used to recover if the main keys are ever empty or unreadable. */
 const K_BACKUP = 'studento:backup';
@@ -175,9 +164,7 @@ let state: State = {
   loaded: false,
   prefs: DEFAULT_PREFS,
   shared: EMPTY_SHARED,
-  pending: {},
   personal: null,
-  sync: { status: 'idle', at: null, error: null },
 };
 
 const listeners = new Set<() => void>();
@@ -249,7 +236,6 @@ async function persist() {
       [K_INIT, '1'],
       [K_PREFS, JSON.stringify(state.prefs)],
       [K_SHARED, JSON.stringify(state.shared)],
-      [K_PENDING, JSON.stringify(state.pending)],
       [K_PERSONAL, JSON.stringify(state.personal)],
       [K_BACKUP, JSON.stringify({ prefs: state.prefs, shared: state.shared, personal: state.personal, at: Date.now() })],
     ]);
@@ -281,7 +267,7 @@ export async function load(): Promise<boolean> {
   for (let attempt = 0; attempt < 6; attempt++) {
     let m: Record<string, string | null> | null = null;
     try {
-      m = Object.fromEntries(await AsyncStorage.multiGet([K_PREFS, K_SHARED, K_PENDING, K_PERSONAL, K_BACKUP, K_INIT]));
+      m = Object.fromEntries(await AsyncStorage.multiGet([K_PREFS, K_SHARED, K_PERSONAL, K_BACKUP, K_INIT]));
     } catch {
       m = null;
     }
@@ -309,7 +295,6 @@ export async function load(): Promise<boolean> {
       loaded: true,
       prefs,
       shared: { ...EMPTY_SHARED, ...(savedShared ?? {}) },
-      pending: readJson<Record<string, unknown>>(rows[K_PENDING]) ?? {},
       personal: savedPersonal,
     } as Partial<State>);
     if (migrate) void persist();
@@ -335,80 +320,32 @@ function today() {
   return nyParts(Date.now()).date;
 }
 
-let syncing: Promise<void> | null = null;
-
-/** Push any unsent edits, then pull the latest shared data. Safe to call often. */
-export function refresh(): Promise<void> {
-  if (syncing) return syncing;
-  syncing = (async () => {
-    set({ sync: { ...state.sync, status: 'syncing' } });
-    try {
-      const p = state.pending;
-      if (p.names) await api.saveClassNames(state.shared.classNames);
-      if (p.details) await api.saveClassDetails(state.shared.classDetails);
-      if (p.override) {
-        const ov = state.shared.override;
-        await api.saveOverride(ov && ov.date === today() ? ov.type : null);
-      }
-      const remote = await api.fetchAll();
-      set({
-        pending: {},
-        shared: {
-          classNames: remote.classNames,
-          classDetails: remote.classDetails,
-          customDays: remote.customDays,
-          override: remote.overrideType ? { date: today(), type: remote.overrideType } : null,
-        },
-        sync: { status: 'ok', at: Date.now(), error: null },
-      });
-    } catch (e) {
-      set({ sync: { status: 'offline', at: state.sync.at, error: e instanceof Error ? e.message : String(e) } });
-    } finally {
-      await persist();
-      syncing = null;
-    }
-  })();
-  return syncing;
-}
-
-/** Saved on this phone right away; sent to the server now or on the next sync. */
+/** Class names and rooms, kept on this phone. */
 export async function setClassInfo(names: Record<string, string>, details: Record<string, ClassDetail>) {
-  set({ shared: { ...state.shared, classNames: names, classDetails: details }, pending: { ...state.pending, names: true, details: true } });
+  set({ shared: { ...state.shared, classNames: names, classDetails: details } });
   await persist();
-  await refresh();
 }
 
+/** Today's schedule switch (assembly, custom...), on this phone, today only. */
 export async function setOverride(type: OverrideType | null) {
-  set({
-    shared: { ...state.shared, override: type ? { date: today(), type } : null },
-    pending: { ...state.pending, override: true },
-  });
+  set({ shared: { ...state.shared, override: type ? { date: today(), type } : null } });
   await persist();
-  await refresh();
 }
 
-/** Custom days need the server (it assigns the id), so these report failure instead of queueing. */
+const newId = () => `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`;
+
+/** Custom days live on this phone; returns an error message or null. */
 export async function addCustomDay(day: { date: string; label: string; periods: Period[] }): Promise<string | null> {
-  try {
-    const res = await api.addCustomDay(day);
-    if (!res.ok || !res.entry) return res.error ?? 'The server did not save it.';
-    set({ shared: { ...state.shared, customDays: [...state.shared.customDays.filter((d) => d.id !== res.entry!.id), res.entry] } });
-    await persist();
-    return null;
-  } catch (e) {
-    return `Couldn't reach Studento's server (${e instanceof Error ? e.message : e}). Try again when you're online.`;
-  }
+  const entry: CustomDay = { id: newId(), ...day };
+  set({ shared: { ...state.shared, customDays: [...state.shared.customDays.filter((d) => d.date !== day.date), entry] } });
+  await persist();
+  return null;
 }
 
 export async function deleteCustomDay(id: string): Promise<string | null> {
-  try {
-    await api.deleteCustomDay(id);
-    set({ shared: { ...state.shared, customDays: state.shared.customDays.filter((d) => d.id !== id) } });
-    await persist();
-    return null;
-  } catch (e) {
-    return `Couldn't reach Studento's server (${e instanceof Error ? e.message : e}). Try again when you're online.`;
-  }
+  set({ shared: { ...state.shared, customDays: state.shared.customDays.filter((d) => d.id !== id) } });
+  await persist();
+  return null;
 }
 
 /** The student's classes: period ids in order plus their names (shared default or personal). */

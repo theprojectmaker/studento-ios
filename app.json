@@ -2,7 +2,7 @@
   "expo": {
     "name": "Studento",
     "slug": "studento",
-    "version": "1.0.0",
+    "version": "1.1.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "studento",
@@ -32,6 +32,7 @@
       "favicon": "./assets/images/favicon.png"
     },
     "plugins": [
+      "./plugins/no-push",
       "expo-router",
       [
         "expo-splash-screen",
@@ -54,8 +55,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "Studento opens the schedule photo you pick so it can read your class times.",
-          "cameraPermission": "Studento uses the camera to take a photo of your schedule so it can read your class times.",
+          "photosPermission": "Studento reads the schedule photo you pick, on this phone, to fill in your classes. The photo is not uploaded.",
+          "cameraPermission": "Studento uses the camera to take a photo of your schedule and reads it on this phone. The photo is not uploaded.",
           "microphonePermission": false
         }
       ],
@@ -86,14 +87,26 @@
               "name": "StudentoClock",
               "displayName": "Studento Clock",
               "description": "A plain live clock with seconds.",
-              "supportedFamilies": ["systemSmall", "systemMedium", "systemLarge", "accessoryCircular", "accessoryRectangular", "accessoryInline"],
+              "supportedFamilies": [
+                "systemSmall",
+                "systemMedium",
+                "systemLarge",
+                "accessoryCircular",
+                "accessoryRectangular",
+                "accessoryInline"
+              ],
               "contentMarginsDisabled": false
             },
             {
               "name": "StudentoDay",
               "displayName": "Studento Day",
               "description": "Today's classes at a glance.",
-              "supportedFamilies": ["systemSmall", "systemMedium", "systemLarge", "systemExtraLarge"],
+              "supportedFamilies": [
+                "systemSmall",
+                "systemMedium",
+                "systemLarge",
+                "systemExtraLarge"
+              ],
               "contentMarginsDisabled": false
             }
           ]

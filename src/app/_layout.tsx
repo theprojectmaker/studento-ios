@@ -12,7 +12,7 @@ import { useTheme } from '@/lib/hooks';
 import { rescheduleAlerts, setupNotificationHandler, watchForReschedule } from '@/lib/notify';
 import { loadPlanner } from '@/lib/planner';
 import { loadTools, subscribeTools } from '@/lib/tools';
-import { flushStore, load, refresh, subscribe, getState, useStore } from '@/lib/store';
+import { flushStore, load, subscribe, getState, useStore } from '@/lib/store';
 import { FONT_FILES } from '@/lib/typefaces';
 import { refreshWidget, syncFocusActivity, syncLiveActivity } from '@/widgets';
 
@@ -53,7 +53,6 @@ export default function RootLayout() {
       stopWatch = watchForReschedule();
       // Always refill the alert queue on launch, then pull the shared schedule.
       void rescheduleAlerts();
-      void refresh();
       void registerBackgroundRefresh();
       refreshWidget();
       void syncLiveActivity();
@@ -86,7 +85,6 @@ export default function RootLayout() {
       if (st === 'active') void load();
       if (st === 'active' && !isHeavyWork() && Date.now() - lastActive > 20000) {
         lastActive = Date.now();
-        void refresh();
         void rescheduleAlerts();
         refreshWidget();
         void syncLiveActivity();

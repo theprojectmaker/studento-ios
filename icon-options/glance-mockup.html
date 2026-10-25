@@ -1,0 +1,88 @@
+<!doctype html>
+<meta charset="utf-8">
+<style>
+  body{margin:0;background:#101012;font-family:-apple-system,"SF Pro Display","Segoe UI",system-ui,sans-serif;color:#e8e8ea;width:1500px}
+  h1{margin:28px 36px 4px;font-size:26px;font-weight:700;color:#fff}
+  p.sub{margin:0 36px 18px;font-size:15px;color:#9a9aa3}
+  .row{display:flex;gap:28px;padding:10px 36px 26px;align-items:flex-start}
+  .col{display:flex;flex-direction:column;gap:14px;align-items:flex-start}
+  .lab{font-size:12px;letter-spacing:1.6px;color:#8a8a93;font-weight:700}
+  .opt{font-size:20px;font-weight:800;color:#fff;margin:0 36px;padding-top:10px;border-top:1px solid #2a2a30}
+  /* theme: Train Station */
+  .w{background:#0a0a0b;border-radius:28px;color:#f2e8d5;position:relative;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.5)}
+  .w.light{background:#f6efe2;color:#3a2c14}
+  .sm{width:170px;height:170px;padding:16px;box-sizing:border-box}
+  .md{width:364px;height:170px;padding:16px 18px;box-sizing:border-box}
+  .lg{width:364px;height:364px;padding:20px;box-sizing:border-box}
+  .acc{color:#e8b84b}.mut{color:rgba(242,232,213,.55)}.light .mut{color:rgba(58,44,20,.55)}
+  .t{font-size:15px;font-weight:600;line-height:1.15}
+  .l{font-size:11px;font-weight:500;margin-top:2px}
+  .big{font-size:44px;font-weight:900;letter-spacing:-1px;font-variant-numeric:tabular-nums;line-height:1}
+  .md .big{font-size:58px}.lg .big{font-size:84px}
+  .bar{height:4px;border-radius:2px;background:rgba(242,232,213,.14);margin-top:12px;overflow:hidden}.bar i{display:block;height:100%;width:62%;background:#e8b84b;border-radius:2px}
+  .bottom{position:absolute;left:16px;right:16px;bottom:16px}.md .bottom{left:18px;right:18px}.lg .bottom{left:20px;right:20px;bottom:20px}
+  .list{font-size:14px;font-weight:500;line-height:1.75}.list .now{color:#e8b84b;font-weight:700}.list .done{opacity:.4}
+  .bgphone{background:#0b0b0d;border-radius:36px;padding:14px;width:380px}
+  /* banner */
+  .ban{width:360px;border-radius:24px;padding:16px 18px;box-sizing:border-box;background:#0a0a0b;color:#f2e8d5;border:1px solid rgba(255,255,255,.06)}
+  .ban .hd{display:flex;justify-content:space-between;align-items:center}
+  .ban .app{font-size:11px;font-weight:700;letter-spacing:1px;color:rgba(242,232,213,.5)}
+  /* island */
+  .isl{background:#000;border-radius:999px;color:#fff;display:flex;align-items:center;justify-content:space-between;padding:0 18px;box-sizing:border-box;font-weight:700;font-variant-numeric:tabular-nums}
+  .isl.c{width:250px;height:37px;font-size:15px}
+  .isl.x{width:372px;height:142px;border-radius:44px;flex-direction:column;align-items:stretch;justify-content:center;padding:18px 22px}
+  .ring{width:22px;height:22px;border-radius:50%;background:conic-gradient(#e8b84b 62%,rgba(255,255,255,.18) 0);position:relative}
+  .ring:after{content:"";position:absolute;inset:4px;background:#000;border-radius:50%}
+  .chip{background:#e8b84b;color:#111;font-size:11px;font-weight:800;padding:3px 8px;border-radius:999px;letter-spacing:.5px}
+</style>
+
+<h1>Studento at a glance: two directions</h1>
+<p class="sub">Theme shown: Train Station. Both use only what the widget can draw: solid background, text, a thin bar or ring. A = quietest. B = one accent element per surface. Tell me A or B (or mix: e.g. "A widgets, B island").</p>
+
+<div class="opt">A · Quiet</div>
+<div class="row">
+  <div class="col"><div class="lab">SMALL</div>
+    <div class="w sm"><div class="t">Spanish</div><div class="l mut">Period 3 · Rm 204</div>
+      <div class="bottom"><div class="big acc">21:33</div></div></div></div>
+  <div class="col"><div class="lab">MEDIUM</div>
+    <div class="w md"><div class="t">Spanish</div><div class="l mut">Period 3 · Rm 204</div>
+      <div class="bottom" style="display:flex;justify-content:space-between;align-items:flex-end"><div class="big acc">21:33</div><div class="l mut" style="text-align:right">Next<br><span style="color:#f2e8d5;font-size:13px;font-weight:600">Lunch · 10:40</span></div></div></div></div>
+  <div class="col"><div class="lab">LARGE</div>
+    <div class="w lg"><div class="t" style="font-size:20px">Spanish</div><div class="l mut">Period 3 · Rm 204</div>
+      <div class="big acc" style="margin-top:22px">21:33</div>
+      <div class="list" style="margin-top:26px"><div class="done">8:00 &nbsp; Math</div><div class="done">8:44 &nbsp; English</div><div class="now">9:50 &nbsp; Spanish</div><div>10:40 &nbsp; Lunch</div><div>11:24 &nbsp; Biology</div></div></div></div>
+  <div class="col"><div class="lab">AFTER SCHOOL · SMALL</div>
+    <div class="w sm light"><div class="t">Mon · Regular</div><div class="l mut">Done for today</div><div class="bottom"><div class="big" style="font-size:36px;color:#a67c2e">3:47<span style="font-size:18px">:22</span></div></div></div></div>
+</div>
+<div class="row">
+  <div class="col"><div class="lab">LOCK SCREEN BANNER</div>
+    <div class="ban"><div class="hd"><div><div class="t" style="font-size:19px">Spanish</div><div class="l mut">Period 3 · ends 10:35</div></div><div class="big acc" style="font-size:40px">21:33</div></div></div></div>
+  <div class="col"><div class="lab">DYNAMIC ISLAND · COMPACT</div>
+    <div class="isl c"><span class="acc">P3</span><span>21:33</span></div></div>
+  <div class="col"><div class="lab">DYNAMIC ISLAND · EXPANDED</div>
+    <div class="isl x"><div style="display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:20px">Spanish</div><div style="font-size:12px;font-weight:500;color:rgba(255,255,255,.55);margin-top:2px">Period 3 · ends 10:35</div></div><div class="big acc" style="font-size:44px">21:33</div></div></div></div>
+</div>
+
+<div class="opt">B · One accent</div>
+<div class="row">
+  <div class="col"><div class="lab">SMALL</div>
+    <div class="w sm"><div class="t">Spanish</div><div class="l mut">Period 3 · Rm 204</div>
+      <div class="bottom"><div class="big">21:33</div><div class="bar"><i></i></div></div></div></div>
+  <div class="col"><div class="lab">MEDIUM</div>
+    <div class="w md"><div style="display:flex;justify-content:space-between"><div><div class="t">Spanish</div><div class="l mut">Period 3 · Rm 204</div></div><span class="chip">NOW</span></div>
+      <div class="bottom"><div style="display:flex;justify-content:space-between;align-items:flex-end"><div class="big">21:33</div><div class="l mut" style="text-align:right">Next<br><span style="color:#f2e8d5;font-size:13px;font-weight:600">Lunch · 10:40</span></div></div><div class="bar"><i></i></div></div></div></div>
+  <div class="col"><div class="lab">LARGE</div>
+    <div class="w lg"><div style="display:flex;justify-content:space-between"><div><div class="t" style="font-size:20px">Spanish</div><div class="l mut">Period 3 · Rm 204</div></div><span class="chip">NOW</span></div>
+      <div class="big" style="margin-top:18px">21:33</div><div class="bar"><i></i></div>
+      <div class="list" style="margin-top:22px"><div class="done">8:00 &nbsp; Math</div><div class="done">8:44 &nbsp; English</div><div class="now">9:50 &nbsp; Spanish</div><div>10:40 &nbsp; Lunch</div><div>11:24 &nbsp; Biology</div></div></div></div>
+  <div class="col"><div class="lab">AFTER SCHOOL · SMALL</div>
+    <div class="w sm light"><span class="chip" style="background:#a67c2e;color:#fff">DONE</span><div class="bottom"><div class="big" style="font-size:36px">3:47<span style="font-size:18px">:22</span></div><div class="l mut">Mon · Regular</div></div></div></div>
+</div>
+<div class="row">
+  <div class="col"><div class="lab">LOCK SCREEN BANNER</div>
+    <div class="ban"><div class="hd"><div><span class="chip">PERIOD 3</span><div class="t" style="font-size:19px;margin-top:8px">Spanish</div></div><div class="big" style="font-size:40px">21:33</div></div><div class="bar"><i></i></div><div class="l mut" style="margin-top:8px">Next: Lunch · 10:40</div></div></div>
+  <div class="col"><div class="lab">DYNAMIC ISLAND · COMPACT</div>
+    <div class="isl c"><span class="ring"></span><span>21:33</span></div></div>
+  <div class="col"><div class="lab">DYNAMIC ISLAND · EXPANDED</div>
+    <div class="isl x"><div style="display:flex;justify-content:space-between;align-items:center"><div><span class="chip">PERIOD 3</span><div style="font-size:20px;margin-top:6px">Spanish</div></div><div class="big acc" style="font-size:44px">21:33</div></div><div class="bar" style="margin-top:14px"><i></i></div></div></div>
+</div>

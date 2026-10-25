@@ -1,13 +1,13 @@
 /**
- * The schedule being set up (AI result or the current personal one), handed
+ * The schedule being set up (parsed from a scan or typed text, or the current personal one), handed
  * from the scan/type screen to the review screen without stuffing it in a URL.
  */
-import type { AiSchedule } from './api';
+import type { AiSchedule } from './scheduleParser';
 import type { PersonalSchedule, SchoolDay } from './schedule';
 
 export const SCHOOL_DAYS: SchoolDay[] = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri'];
 
-/** AI rows -> the app schedule shape (class name in the label, room on the period). */
+/** Parsed rows -> the app schedule shape (class name in the label, room on the period). */
 export function toPersonal(ai: AiSchedule): PersonalSchedule {
   const days = {} as PersonalSchedule['days'];
   for (const d of SCHOOL_DAYS) {

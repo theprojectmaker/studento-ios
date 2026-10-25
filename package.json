@@ -44,7 +44,7 @@
     "expo-image-picker": "~57.0.20",
     "expo-keep-awake": "~57.0.2",
     "expo-linking": "~57.0.13",
-    "expo-notifications": "~57.0.23",
+    "expo-notifications": "~57.0.24",
     "expo-router": "~57.0.29",
     "expo-speech": "~57.0.3",
     "expo-splash-screen": "~57.0.10",
@@ -52,6 +52,7 @@
     "expo-symbols": "~57.0.3",
     "expo-system-ui": "~57.0.4",
     "expo-task-manager": "~57.0.21",
+    "expo-text-extractor": "^2.0.0",
     "expo-updates": "~57.0.26",
     "expo-web-browser": "~57.0.3",
     "expo-widgets": "~57.0.27",
@@ -80,7 +81,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "expo lint",
-    "test": "tsx --test tests/engine.test.ts",
+    "test": "tsx --test tests/engine.test.ts tests/parser.test.ts",
     "typecheck": "tsc --noEmit"
   },
   "private": true

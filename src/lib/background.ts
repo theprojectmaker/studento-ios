@@ -1,6 +1,7 @@
 /**
- * A best-effort background refresh (iOS decides when, roughly every 12h+), so
- * alerts keep rolling forward even if the app isn't opened for a while.
+ * A best-effort background top-up (iOS decides when, roughly every 12h+), so
+ * bell alerts and the widget keep rolling forward even if the app isn't opened for a while.
+ * Everything is local: no network.
  * Not available in Expo Go on iOS; there the alerts refill on each app open.
  */
 import * as BackgroundTask from 'expo-background-task';
@@ -9,7 +10,7 @@ import { Platform } from 'react-native';
 
 import { refreshWidget, syncLiveActivity } from '../widgets';
 import { rescheduleAlerts } from './notify';
-import { load, refresh } from './store';
+import { load } from './store';
 
 const TASK = 'studento-refresh-bells';
 
@@ -19,7 +20,6 @@ if (Platform.OS !== 'web') {
       try {
         // Phone locked / storage unreadable: do nothing rather than act on (or save) empty defaults.
         if (!(await load())) return BackgroundTask.BackgroundTaskResult.Failed;
-        await refresh();
         await rescheduleAlerts();
         refreshWidget();
         await syncLiveActivity();

@@ -8,7 +8,7 @@ import { TYPE } from '@/lib/fonts';
 import { useTheme } from '@/lib/hooks';
 import { fmtDate, fmtTime, nyParts } from '@/lib/nytime';
 import { scheduleFor, type CustomDay, type OverrideType } from '@/lib/schedule';
-import { deleteCustomDay, getState, setOverride, useStore } from '@/lib/store';
+import { deleteCustomDay, setOverride, useStore } from '@/lib/store';
 import { alpha } from '@/lib/themes';
 
 const CHOICES: { id: OverrideType | null; label: string; sub: string }[] = [
@@ -33,11 +33,7 @@ export default function Schedules() {
     tap();
     setMsg(null);
     await setOverride(type);
-    setMsg(
-      getState().sync.status === 'offline'
-        ? { text: 'Changed on this phone. Other devices will see it once you are back online.', tone: 'error' }
-        : { text: 'Changed for every device, today only.', tone: 'ok' }
-    );
+    setMsg({ text: 'Changed for today.', tone: 'ok' });
   };
 
   const remove = (d: CustomDay) => {
@@ -46,7 +42,7 @@ export default function Schedules() {
       setMsg(err ? { text: err, tone: 'error' } : { text: `Deleted ${d.label}.`, tone: 'ok' });
     };
     if (Platform.OS === 'web') return void go();
-    Alert.alert(`Delete "${d.label}"?`, 'This removes it for every device.', [
+    Alert.alert(`Delete "${d.label}"?`, 'This removes it from this phone.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: () => void go() },
     ]);

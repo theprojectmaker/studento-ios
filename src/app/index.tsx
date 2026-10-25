@@ -41,7 +41,6 @@ export default function ClockScreen() {
   const baseTheme = useTheme();
   const rawPrefs = useStore((s) => s.prefs);
   const prefs = focusPrefs(rawPrefs);
-  const syncStatus = useStore((s) => s.sync.status);
   const homework = usePlanner((p) => p.homework);
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -142,7 +141,6 @@ export default function ClockScreen() {
     clock: clockParts(parts.hour, parts.minute, parts.second, prefs.h24, prefs.seconds),
     bigText: inSchool ? countdownText(copy.countdownSec!, prefs.seconds) : clockParts(parts.hour, parts.minute, parts.second, prefs.h24, false).text,
     inSchool,
-    offline: syncStatus === 'offline',
     editing,
     names: sched.names,
     blink,
@@ -284,7 +282,6 @@ interface V {
   clock: { text: string; suffix: string };
   bigText: string;
   inSchool: boolean;
-  offline: boolean;
   editing: boolean;
   names: Record<string, string>;
   blink: boolean;

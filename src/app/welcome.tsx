@@ -41,7 +41,7 @@ export default function Welcome() {
         icon="camera.viewfinder"
         color="#007aff"
         title="Scan my schedule"
-        sub="Snap a photo or screenshot. The AI fills in your classes and rooms and keeps North High's real bell times."
+        sub="Snap a photo or screenshot. Studento reads it on your phone, fills in your classes and rooms, and keeps North High's real bell times."
         recommended
         onPress={() => router.push({ pathname: '/setup-schedule', params: { mode: 'scan' } })}
       />

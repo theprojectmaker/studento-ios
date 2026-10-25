@@ -1,4 +1,8 @@
-/** Scan (photo) or type a schedule; the server's AI reads it, then the review screen lets you fix it. */
+/**
+ * Scan (photo) or type a schedule. Everything happens on the phone: text recognition
+ * reads the photo, a local parser turns the lines into periods, and the review screen
+ * lets the student fix anything. Nothing is uploaded.
+ */
 import { Image } from 'expo-image';
 import { ImageManipulator, SaveFormat, type ImageManipulatorContext, type ImageRef } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
@@ -7,11 +11,12 @@ import { useState } from 'react';
 import { ActivityIndicator, KeyboardAvoidingView, Platform, Text, TextInput, View } from 'react-native';
 
 import { Button, Note, Screen } from '@/components/ui';
-import { readScheduleAI } from '@/lib/api';
 import { setDraft, toPersonal } from '@/lib/draft';
 import { TYPE } from '@/lib/fonts';
-import { useTheme } from '@/lib/hooks';
 import { setHeavyWork } from '@/lib/heavy';
+import { useTheme } from '@/lib/hooks';
+import { extractLines, ocrSupported } from '@/lib/ocr';
+import { parsedSomething, parseScheduleText } from '@/lib/scheduleParser';
 import { alpha } from '@/lib/themes';
 
 const EXAMPLE = `Period 1  Algebra  8:00-8:41  Room 112
@@ -19,11 +24,12 @@ Period 2  English  8:44-9:25
 Period 3  Biology  9:28-10:09  Lab B
 Lunch  10:12-10:53
 ...
-Same every day (or say what's different on Wednesday)`;
+Same every day (or add a "Wednesday" line before the rows that differ)`;
+
+const NOTHING = "Couldn't find your classes. Try a clearer, straight-on photo, or type it out.";
 
 function friendly(e: unknown, fallback: string): string {
   const msg = e instanceof Error ? e.message : typeof e === 'string' ? e : '';
-  // Server messages are already written for people; native/JS errors are not.
   return msg && msg.length < 140 && !/undefined|null|native|exception|TypeError/i.test(msg) ? msg : fallback;
 }
 
@@ -31,7 +37,8 @@ export default function SetupSchedule() {
   const theme = useTheme();
   const { mode } = useLocalSearchParams<{ mode?: string }>();
   const scan = mode !== 'type';
-  const [photo, setPhoto] = useState<{ uri: string; data: string } | null>(null);
+  const canScan = ocrSupported();
+  const [photo, setPhoto] = useState<{ uri: string } | null>(null);
   const [text, setText] = useState('');
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
@@ -39,7 +46,7 @@ export default function SetupSchedule() {
   const pick = async (camera: boolean) => {
     setErr(null);
     // Coming back from the camera/photos makes the app "active" again; hold off the
-    // foreground refresh until the photo is shrunk so the two never pile up.
+    // foreground work until the photo is shrunk so the two never pile up.
     setHeavyWork(true);
     let ctx: ImageManipulatorContext | null = null;
     let img: ImageRef | null = null;
@@ -50,16 +57,15 @@ export default function SetupSchedule() {
         ? await ImagePicker.launchCameraAsync({ mediaTypes: ['images'], quality: 1, exif: false, base64: false })
         : await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1, exif: false, base64: false, allowsMultipleSelection: false });
       if (res.canceled || !res.assets?.[0]) return;
-      // Shrink ONCE to a sharp-enough small JPEG (long side 1500 px); the preview and
-      // the upload both use this copy, never the full-size original.
+      // Shrink ONCE to a sharp-enough copy (long side 2000 px, plenty for text recognition);
+      // the preview and the reader both use this copy, never the full-size original.
       const a = res.assets[0];
-      const long = Math.max(a.width || 1500, a.height || 1500);
+      const long = Math.max(a.width || 2000, a.height || 2000);
       ctx = ImageManipulator.manipulate(a.uri);
-      if (long > 1500) ctx.resize(a.width >= a.height ? { width: 1500 } : { height: 1500 });
+      if (long > 2000) ctx.resize(a.width >= a.height ? { width: 2000 } : { height: 2000 });
       img = await ctx.renderAsync();
-      const out = await img.saveAsync({ format: SaveFormat.JPEG, compress: 0.7, base64: true });
-      if (!out.base64) return setErr("Couldn't read that photo. Try another.");
-      setPhoto({ uri: out.uri, data: out.base64 });
+      const out = await img.saveAsync({ format: SaveFormat.JPEG, compress: 0.85, base64: false });
+      setPhoto({ uri: out.uri });
     } catch (e) {
       setErr(friendly(e, "Couldn't open that photo. Try another one, or a screenshot."));
     } finally {
@@ -76,11 +82,13 @@ export default function SetupSchedule() {
     setErr(null);
     setBusy(true);
     try {
-      const ai = await readScheduleAI(scan && photo ? { image: { data: photo.data, mimeType: 'image/jpeg' } } : { text });
-      setDraft(toPersonal(ai));
+      const source = scan && photo ? (await extractLines(photo.uri)).join('\n') : text;
+      const parsed = parseScheduleText(source);
+      if (!parsedSomething(parsed)) return setErr(NOTHING);
+      setDraft(toPersonal(parsed));
       router.push('/schedule-review');
     } catch (e) {
-      setErr(friendly(e, "Couldn't read your schedule. Check your internet and try again."));
+      setErr(friendly(e, NOTHING));
     } finally {
       setBusy(false);
     }
@@ -95,6 +103,7 @@ export default function SetupSchedule() {
 
         {scan ? (
           <>
+            {!canScan ? <Note tone="error">Scanning works in the installed app (TestFlight or the App Store). Here, type your schedule instead.</Note> : null}
             {photo ? (
               <Image source={{ uri: photo.uri }} style={{ width: '100%', aspectRatio: 3 / 4, borderRadius: 18, backgroundColor: theme.panel }} contentFit="contain" />
             ) : (
@@ -105,13 +114,14 @@ export default function SetupSchedule() {
             <View style={{ flexDirection: 'row', gap: 10 }}>
               {Platform.OS !== 'web' ? (
                 <View style={{ flex: 1 }}>
-                  <Button title="Take photo" kind="plain" onPress={() => pick(true)} />
+                  <Button title="Take photo" kind="plain" disabled={!canScan} onPress={() => pick(true)} />
                 </View>
               ) : null}
               <View style={{ flex: 1 }}>
-                <Button title={photo ? 'Pick another' : 'Pick a photo'} kind="plain" onPress={() => pick(false)} />
+                <Button title={photo ? 'Pick another' : 'Pick a photo'} kind="plain" disabled={!canScan} onPress={() => pick(false)} />
               </View>
             </View>
+            {!canScan ? <Button title="Type it out instead" kind="plain" onPress={() => router.replace({ pathname: '/setup-schedule', params: { mode: 'type' } })} /> : null}
           </>
         ) : (
           <TextInput
@@ -130,12 +140,12 @@ export default function SetupSchedule() {
         {busy ? (
           <View style={{ alignItems: 'center', gap: 10, paddingVertical: 8 }}>
             <ActivityIndicator color={theme.accent} />
-            <Text style={{ ...TYPE.medium, fontSize: 15, color: theme.muted }}>Reading your schedule… (10–20 seconds)</Text>
+            <Text style={{ ...TYPE.medium, fontSize: 15, color: theme.muted }}>Reading your schedule…</Text>
           </View>
         ) : (
-          <Button title="Read my schedule" onPress={read} disabled={scan ? !photo : text.trim().length < 10} />
+          <Button title="Read my schedule" onPress={read} disabled={scan ? !photo : text.trim().length < 3} />
         )}
-        <Note>{scan ? "Your photo is sent once to read it and isn't kept. " : ''}Next you can check every time and class before it is saved.</Note>
+        <Note>{scan ? 'Your photo is read on this phone and never uploaded. ' : ''}Next you can check every time and class before it is saved.</Note>
       </Screen>
     </KeyboardAvoidingView>
   );

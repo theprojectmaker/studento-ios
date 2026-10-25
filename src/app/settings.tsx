@@ -3,18 +3,17 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Linking, Platform, Text, View } from 'react-native';
 
-import { Button, Divider, Note, Row, Screen, Section, Segmented, ToggleRow } from '@/components/ui';
+import { Divider, Note, Row, Screen, Section, Segmented, ToggleRow } from '@/components/ui';
 import { iconsSupported } from '@/lib/appIcon';
 import { TYPE } from '@/lib/fonts';
 import { useTheme } from '@/lib/hooks';
 import { getPermission, requestPermission, rescheduleAlerts, sendTestAlert, type Permission } from '@/lib/notify';
-import { refresh, setPref, useStore } from '@/lib/store';
+import { setPref, useStore } from '@/lib/store';
 import { endLiveActivities, syncLiveActivity } from '@/widgets';
 
 export default function Settings() {
   const prefs = useStore((s) => s.prefs);
   const personal = useStore((s) => s.personal);
-  const sync = useStore((s) => s.sync);
   const theme = useTheme();
   const [perm, setPerm] = useState<Permission | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -261,14 +260,6 @@ export default function Settings() {
       <Section title="Tools" footer="Focus timer, this week, homework, countdowns, notes and grades all live in the Hub (bottom-left button on the clock).">
         <Row label="Open the Hub" icon={{ name: 'square.grid.2x2.fill', color: '#34c759' }} onPress={() => router.push('/hub')} />
       </Section>
-
-      <Section title="Sync">
-        <Row
-          label={sync.status === 'syncing' ? 'Syncing…' : sync.status === 'offline' ? 'Offline' : 'Up to date'}
-          sub={sync.at ? `Last synced ${new Date(sync.at).toLocaleString()}` : sync.error ?? 'Not synced yet'}
-        />
-      </Section>
-      <Button title="Sync now" kind="plain" onPress={() => void refresh()} />
 
       <Section title="Test" footer="Shows the clock as if it's the middle of Period 3 on a school day, so you can try the app anytime. Bell alerts still use the real time.">
         <ToggleRow

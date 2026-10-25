@@ -8,7 +8,7 @@ import type { ClassDetail } from '@/lib/alerts';
 import { TYPE } from '@/lib/fonts';
 import { useTheme } from '@/lib/hooks';
 import { PERIOD_IDS } from '@/lib/schedule';
-import { getState, setClassInfo, useStore } from '@/lib/store';
+import { setClassInfo, useStore } from '@/lib/store';
 
 export default function Classes() {
   const theme = useTheme();
@@ -33,14 +33,13 @@ export default function Classes() {
     }
     await setClassInfo(cleanNames, cleanDetails);
     setSaving(false);
-    if (getState().sync.status === 'offline') setMsg({ text: 'Saved on this phone. It will sync when you are back online.', tone: 'error' });
-    else router.back();
+    router.back();
   };
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
       <Screen>
-        <Note>These show on the clock and in your alerts, on every device.</Note>
+        <Note>These show on the clock and in your alerts. They stay on this phone.</Note>
         <Section>
           {PERIOD_IDS.map((id, i) => {
             const label = id === 'advisory' ? 'Advisory' : `Period ${id}`;
