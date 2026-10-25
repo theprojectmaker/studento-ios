@@ -15,6 +15,8 @@
 interface Env {
   DB: D1Database;
   AI: Ai;
+  /** Pages secrets. Reader order: Groq (Qwen 3.8, best + fastest in tests) -> Gemini -> Workers AI. */
+  GROQ_API_KEY?: string;
   GEMINI_API_KEY?: string;
 }
 type Ctx = EventContext<Env, string, unknown>;
@@ -214,10 +216,25 @@ function extractJson(text: string): Record<string, unknown> {
   return JSON.parse(s.slice(a, b + 1));
 }
 
+/** Groq, OpenAI-style chat with an image. Qwen 3.8 27B read a test schedule photo perfectly in 4 s. */
+async function askGroq(env: Env, text: string | undefined, image: { data: string; mimeType: string } | undefined): Promise<string> {
+  const content: unknown[] = [{ type: 'text', text: READ_PROMPT + (text ? `\n\nThe student's schedule:\n${text.slice(0, 4000)}` : '') }];
+  if (image) content.push({ type: 'image_url', image_url: { url: `data:${image.mimeType || 'image/jpeg'};base64,${image.data}` } });
+  const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${env.GROQ_API_KEY!}` },
+    body: JSON.stringify({ model: 'qwen/qwen3.8-27b', temperature: 0.1, max_tokens: 2500, reasoning_format: 'hidden', messages: [{ role: 'user', content }] }),
+  });
+  if (!res.ok) throw new HttpError(502, `Reader error ${res.status}`);
+  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  return data.choices?.[0]?.message?.content || '';
+}
+
 async function askGemini(env: Env, text: string | undefined, image: { data: string; mimeType: string } | undefined): Promise<string> {
   const parts: unknown[] = [{ text: READ_PROMPT + (text ? `\n\nThe student's schedule:\n${text.slice(0, 4000)}` : '') }];
   if (image) parts.push({ inline_data: { mime_type: image.mimeType || 'image/jpeg', data: image.data } });
-  const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent', {
+  // gemini-3.6-flash: answered every time in tests; the newer 3.8 was mostly 503 and the pro models are quota-locked.
+  const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent', {
     method: 'POST',
     headers: { 'content-type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY! },
     body: JSON.stringify({ contents: [{ parts }], generationConfig: { temperature: 0.1, responseMimeType: 'application/json' } }),
@@ -309,21 +326,24 @@ async function readSchedule(env: Env, body: { image?: { data: string; mimeType: 
     bells = null;
   }
 
-  let raw: string;
-  let provider: string;
-  if (env.GEMINI_API_KEY) {
-    provider = 'gemini-2.5-pro';
+  // Try the readers in order of accuracy; each one is skipped when its key is missing or it fails.
+  const chain: [string, () => Promise<string>][] = [];
+  if (env.GROQ_API_KEY) chain.push(['groq-qwen3.8', () => askGroq(env, text, image)]);
+  if (env.GEMINI_API_KEY) chain.push(['gemini-3.6-flash', () => askGemini(env, text, image)]);
+  chain.push(['workers-ai', () => askWorkersAi(env, text, image)]);
+  let parsed: Record<string, unknown> | null = null;
+  let provider = '';
+  let lastErr: unknown = null;
+  for (const [name, ask] of chain) {
     try {
-      raw = await askGemini(env, text, image);
-    } catch {
-      provider = 'workers-ai';
-      raw = await askWorkersAi(env, text, image);
+      parsed = extractJson(await ask());
+      provider = name;
+      break;
+    } catch (e) {
+      lastErr = e;
     }
-  } else {
-    provider = 'workers-ai';
-    raw = await askWorkersAi(env, text, image);
   }
-  const parsed = extractJson(raw);
+  if (!parsed) throw lastErr instanceof HttpError ? lastErr : new HttpError(502, "The reader didn't answer. Try again in a moment.");
 
   const regular = cleanAiRows(parsed.regular);
   const days: Record<string, AiRow[]> = {};
