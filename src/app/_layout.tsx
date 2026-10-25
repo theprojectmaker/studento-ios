@@ -139,6 +139,7 @@ export default function RootLayout() {
         <Stack.Screen name="classes" options={{ title: 'My Classes' }} />
         <Stack.Screen name="themes" options={{ title: 'Themes' }} />
         <Stack.Screen name="app-icon" options={{ title: 'App Icon' }} />
+        <Stack.Screen name="clock-options" options={{ title: 'Clock Screen' }} />
         <Stack.Screen name="school" options={{ title: 'Your School' }} />
         <Stack.Screen name="schedule-publish" options={{ title: 'New Bell Schedule' }} />
         <Stack.Screen name="account" options={{ title: 'Account' }} />

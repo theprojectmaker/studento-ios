@@ -1,15 +1,14 @@
 /** iOS-style grouped lists on Liquid Glass, used by every settings-type screen. */
 import * as Haptics from 'expo-haptics';
 import type { SFSymbol } from 'expo-symbols';
-import { Children, isValidElement, type ReactNode } from 'react';
-import Animated, { FadeInDown, useAnimatedStyle, useSharedValue, withSpring } from 'react-native-reanimated';
+import type { ReactNode } from 'react';
 import { Platform, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View, type TextInputProps } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path } from 'react-native-svg';
 
 import { TYPE } from '@/lib/fonts';
 import { useTheme } from '@/lib/hooks';
-import { getState, useStore } from '@/lib/store';
+import { getState } from '@/lib/store';
 import { alpha, readableOn } from '@/lib/themes';
 
 import { Glass, IconTile } from './glass';
@@ -18,23 +17,11 @@ export function tap() {
   if (Platform.OS !== 'web' && getState().prefs.haptics) void Haptics.selectionAsync();
 }
 
-/** Press feedback: the pressed element springs down a little and back (respects the Motion setting). */
-export function PressScale({ children, onPress, style, disabled, to = 0.97, ...rest }: React.ComponentProps<typeof Pressable> & { to?: number }) {
-  const motion = useStore((s) => s.prefs.motion);
-  const k = useSharedValue(1);
-  const anim = useAnimatedStyle(() => ({ transform: [{ scale: k.value }] }));
+/** Press feedback: a quiet dim while pressed. No springs, no scaling. */
+export function PressScale({ children, onPress, style, disabled, to: _to, ...rest }: React.ComponentProps<typeof Pressable> & { to?: number }) {
   return (
-    <Pressable
-      {...rest}
-      disabled={disabled}
-      onPress={onPress}
-      onPressIn={() => {
-        if (motion) k.set(withSpring(to, { damping: 16, stiffness: 340 }));
-      }}
-      onPressOut={() => {
-        if (motion) k.set(withSpring(1, { damping: 12, stiffness: 260 }));
-      }}>
-      <Animated.View style={[typeof style === 'function' ? undefined : style, anim]}>{children as ReactNode}</Animated.View>
+    <Pressable {...rest} disabled={disabled} onPress={onPress} style={({ pressed }) => [typeof style === 'function' ? undefined : style, { opacity: pressed ? 0.6 : 1 }]}>
+      {children as ReactNode}
     </Pressable>
   );
 }
@@ -42,7 +29,6 @@ export function PressScale({ children, onPress, style, disabled, to = 0.97, ...r
 export function Screen({ children }: { children: ReactNode }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
-  const motion = useStore((s) => s.prefs.motion);
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
       <ScrollView
@@ -50,15 +36,7 @@ export function Screen({ children }: { children: ReactNode }) {
         contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 40, gap: 24, maxWidth: 680, width: '100%', alignSelf: 'center' }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive">
-        {Children.toArray(children).map((c, i) =>
-          motion ? (
-            <Animated.View key={isValidElement(c) && c.key != null ? c.key : i} entering={FadeInDown.delay(Math.min(i, 9) * 55).duration(420).springify().damping(18)}>
-              {c}
-            </Animated.View>
-          ) : (
-            c
-          )
-        )}
+        {children}
       </ScrollView>
     </View>
   );

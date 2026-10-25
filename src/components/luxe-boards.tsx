@@ -51,7 +51,7 @@ function ReelChar({ ch, w, h, theme, style, motion }: { ch: string; w: number; h
   useEffect(() => {
     if (!motion || prev === cur) return;
     p.value = 0;
-    p.value = withTiming(1, { duration: 560, easing: Easing.out(Easing.back(1.5)) });
+    p.value = withTiming(1, { duration: 480, easing: Easing.out(Easing.cubic) }); // rolls down and settles, no overshoot
   }, [cur, prev, motion, p]);
   // The strip moves down: it starts showing the old digit (bottom) and lands on the new one (top).
   const roll = useAnimatedStyle(() => ({ transform: [{ translateY: motion ? -travel * (1 - p.value) : 0 }] }));

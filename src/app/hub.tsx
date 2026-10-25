@@ -1,6 +1,6 @@
 /** Hub: today at a glance plus big tiles for every tool. Opened from the clock's bottom-left button. */
 import { router, type Href } from 'expo-router';
-import Animated, { ZoomIn } from 'react-native-reanimated';
+import Animated, { FadeIn } from 'react-native-reanimated';
 import type { SFSymbol } from 'expo-symbols';
 import { Pressable, Text, useWindowDimensions, View } from 'react-native';
 
@@ -98,17 +98,7 @@ export default function Hub() {
 
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
         {tiles.map((t, i) => (
-          <Animated.View
-            key={t.title}
-            entering={
-              prefsMotion
-                ? ZoomIn.delay(i * 50)
-                    .duration(380)
-                    .springify()
-                    .damping(15)
-                : undefined
-            }
-          >
+          <Animated.View key={t.title} entering={prefsMotion ? FadeIn.delay(Math.min(i, 8) * 25).duration(180) : undefined}>
             <Pressable
               accessibilityRole="button"
               accessibilityLabel={`${t.title}. ${t.sub}`}

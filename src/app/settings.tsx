@@ -1,11 +1,11 @@
+/** Settings: a short list. The many clock options live under "Clock screen". */
 import Constants from 'expo-constants';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Linking, Platform, Text, View } from 'react-native';
+import { Linking, Platform } from 'react-native';
 
-import { Divider, Note, Row, Screen, Section, Segmented, ToggleRow } from '@/components/ui';
+import { Divider, Note, Row, Screen, Section, ToggleRow } from '@/components/ui';
 import { iconsSupported } from '@/lib/appIcon';
-import { TYPE } from '@/lib/fonts';
 import { useTheme } from '@/lib/hooks';
 import { getPermission, requestPermission, rescheduleAlerts, sendTestAlert, type Permission } from '@/lib/notify';
 import { setPref, useStore } from '@/lib/store';
@@ -32,145 +32,41 @@ export default function Settings() {
 
   return (
     <Screen>
-      <Section title="Look">
-        {iconsSupported() ? (
+      <Section title="Schedule">
+        <Row label={school ? school.name : 'Pick your school'} sub={school ? (bellSet?.name ?? 'Bell schedule') : 'Search, pick a bell schedule, or add your school'} icon={{ name: 'building.columns.fill', color: '#ff9500' }} onPress={() => router.push('/school')} />
+        <Divider />
+        <Row label={personal ? personal.name : 'My classes'} sub={personal ? 'Scan again, type, or edit' : 'Scan or type your classes'} icon={{ name: 'calendar.badge.clock', color: '#34c759' }} onPress={() => router.push('/welcome')} />
+        {personal ? (
           <>
-            <Row label="App icon" sub="Change the icon on your home screen" icon={{ name: 'app.fill', color: '#007aff' }} onPress={() => router.push('/app-icon')} />
             <Divider />
+            <Row label="Edit my classes" icon={{ name: 'pencil', color: '#007aff' }} onPress={() => router.push({ pathname: '/schedule-review', params: { edit: '1' } })} />
           </>
         ) : null}
-        <Row label="Theme"
-              icon={{ name: 'paintpalette.fill', color: '#af52de' }} value={theme.name} onPress={() => router.push('/themes')} />
         <Divider />
-        <Row
-          label="Customize clock screen"
-          sub="Hide or show parts of the clock screen"
-          icon={{ name: 'square.grid.2x2.fill', color: '#5856d6' }}
-          onPress={() => router.navigate({ pathname: '/', params: { edit: String(Date.now()) } })}
-        />
-        <Divider />
-        <ToggleRow label="Show seconds"
-              icon={{ name: 'stopwatch.fill', color: '#8e8e93' }} value={prefs.seconds} onChange={(v) => setPref('seconds', v)} />
-        <Divider />
-        <View style={{ padding: 12, gap: 8 }}>
-          <Text style={{ ...TYPE.medium, fontSize: 15, color: theme.ink }}>Sub-second readout</Text>
-          <Segmented
-            value={prefs.millis}
-            options={[
-              { value: 'off', label: 'Off' },
-              { value: 'tenths', label: '.1' },
-              { value: 'centis', label: '.01' },
-              { value: 'millis', label: '.001' },
-            ]}
-            onChange={(v) => setPref('millis', v)}
-          />
-          <Text style={{ ...TYPE.regular, fontSize: 13, color: theme.muted }}>Milliseconds next to the clock and under the countdown.</Text>
-        </View>
-        <Divider />
-        <View style={{ padding: 12, gap: 8 }}>
-          <Text style={{ ...TYPE.medium, fontSize: 15, color: theme.ink }}>Countdown size</Text>
-          <Segmented
-            value={prefs.digitSize}
-            options={[
-              { value: 'small', label: 'Small' },
-              { value: 'normal', label: 'Normal' },
-              { value: 'large', label: 'Large' },
-            ]}
-            onChange={(v) => setPref('digitSize', v)}
-          />
-        </View>
-        <Divider />
-        <ToggleRow label="24-hour time"
-              icon={{ name: 'clock.fill', color: '#8e8e93' }} value={prefs.h24} onChange={(v) => setPref('h24', v)} />
-        <Divider />
-        <ToggleRow label="Keep screen on"
-              icon={{ name: 'sun.max.fill', color: '#ffcc00' }} sub="While the clock is open" value={prefs.keepAwake} onChange={(v) => setPref('keepAwake', v)} />
-        <Divider />
-        <ToggleRow label="Haptics"
-              icon={{ name: 'iphone.radiowaves.left.and.right', color: '#8e8e93' }} value={prefs.haptics} onChange={(v) => setPref('haptics', v)} />
+        <Row label="Today and custom days" sub="Switch today's schedule, add an assembly or half day" icon={{ name: 'calendar', color: '#ff3b30' }} onPress={() => router.push('/schedules')} />
       </Section>
 
-      <Section title="Lock mode" footer="Hides every button and setting so the clock can just sit there. To unlock, press and hold the small red dot in the top-right corner for 2 seconds.">
-        <Row
-          label="Lock the clock"
-          sub="Only the clock shows. Hold the red dot to unlock."
-          icon={{ name: 'lock.fill', color: '#ff3b30' }}
-          onPress={() => {
-            setPref('locked', true);
-            router.dismissAll();
-            router.replace('/');
-          }}
-        />
-      </Section>
-
-      <Section title="On the clock screen" footer="The same options as the Studento website.">
-        <ToggleRow label="Tap the countdown to switch" sub="Seconds or whole minutes" icon={{ name: 'hand.tap.fill', color: '#30b0c7' }} value={prefs.tapToggle} onChange={(v) => setPref('tapToggle', v)} />
+      <Section title="Look">
+        <Row label="Theme" icon={{ name: 'paintpalette.fill', color: '#af52de' }} value={theme.name} onPress={() => router.push('/themes')} />
         <Divider />
-        <ToggleRow label="Dim when idle" sub="The clock softens a little after 15 seconds without a touch" icon={{ name: 'circle.lefthalf.filled', color: '#8e8e93' }} value={prefs.idleDim} onChange={(v) => setPref('idleDim', v)} />
-        <Divider />
-        <ToggleRow label="Always show the corner buttons" icon={{ name: 'square.grid.2x2', color: '#5856d6' }} value={prefs.corners} onChange={(v) => setPref('corners', v)} />
-        <Divider />
-        <ToggleRow label="Focus mode" sub="Just the class and the countdown" icon={{ name: 'scope', color: '#ff3b30' }} value={prefs.focus} onChange={(v) => setPref('focus', v)} />
-        <Divider />
-        <ToggleRow label="Show the period number" sub="Now · Period 3" icon={{ name: 'number', color: '#007aff' }} value={prefs.periodNum} onChange={(v) => setPref('periodNum', v)} />
-        <Divider />
-        <ToggleRow label="Show when it ends" sub="left · ends 1:52 PM" icon={{ name: 'clock.badge.checkmark', color: '#34c759' }} value={prefs.endTime} onChange={(v) => setPref('endTime', v)} />
-        <Divider />
-        <ToggleRow label="Show today's date" icon={{ name: 'calendar', color: '#ff9500' }} value={prefs.showDate} onChange={(v) => setPref('showDate', v)} />
-        <Divider />
-        <ToggleRow label="Dim at night" sub="Softens the screen from 9 PM to 6 AM" icon={{ name: 'moon.fill', color: '#5856d6' }} value={prefs.night} onChange={(v) => setPref('night', v)} />
-        <Divider />
-        <ToggleRow label="Burn-in protection" sub="Nudges the clock a few pixels every minute" icon={{ name: 'rectangle.dashed', color: '#8e8e93' }} value={prefs.burnin} onChange={(v) => setPref('burnin', v)} />
-        <Divider />
-        <ToggleRow label="New theme every period" icon={{ name: 'shuffle', color: '#af52de' }} value={prefs.shuffle} onChange={(v) => setPref('shuffle', v)} />
-        <Divider />
-        <ToggleRow label="New theme every day" icon={{ name: 'sparkles', color: '#ff2d55' }} value={prefs.daily} onChange={(v) => setPref('daily', v)} />
-      </Section>
-
-      <Section title="Warnings while open" footer="Happens at the 5-minute warning while the app is open. Bell alerts are separate.">
-        <ToggleRow label="Flash the screen" icon={{ name: 'bolt.fill', color: '#ffcc00' }} value={prefs.flashWarn} onChange={(v) => setPref('flashWarn', v)} />
-        <Divider />
-        <ToggleRow label="Announce out loud" sub="“Biology ends in five minutes. Next up, Lunch.”" icon={{ name: 'speaker.wave.2.fill', color: '#007aff' }} value={prefs.speak} onChange={(v) => setPref('speak', v)} />
-        <Divider />
-        <ToggleRow label="Buzz" icon={{ name: 'iphone.radiowaves.left.and.right', color: '#8e8e93' }} value={prefs.warnBuzz} onChange={(v) => setPref('warnBuzz', v)} />
-        <Divider />
-        <ToggleRow label="Blink the countdown in the last minute" icon={{ name: 'timer', color: '#ff3b30' }} value={prefs.blinkLast} onChange={(v) => setPref('blinkLast', v)} />
-      </Section>
-
-      <Section title="Layout">
-        <View style={{ padding: 12 }}>
-          <Segmented
-            value={prefs.layout}
-            options={[
-              { value: 'classic', label: 'Classic' },
-              { value: 'minimal', label: 'Minimal' },
-              { value: 'glass', label: 'Cards' },
-            ]}
-            onChange={(v) => setPref('layout', v)}
-          />
-        </View>
-      </Section>
-
-      <Section title="Motion" footer="Live effects are the falling snow, petals, stars and so on that some themes have.">
-        <ToggleRow
-          label="Animations & live effects"
-          icon={{ name: 'sparkles', color: '#ff2d55' }}
-          value={prefs.motion}
-          onChange={(v) => setPref('motion', v)}
-        />
+        <Row label="Clock screen" sub="Layout, countdown, what shows, motion" icon={{ name: 'clock.fill', color: '#5856d6' }} onPress={() => router.push('/clock-options')} />
+        {iconsSupported() ? (
+          <>
+            <Divider />
+            <Row label="App icon" icon={{ name: 'app.fill', color: '#007aff' }} onPress={() => router.push('/app-icon')} />
+          </>
+        ) : null}
       </Section>
 
       <Section
-        title="Bell alerts"
-        footer={
-          Platform.OS === 'web'
-            ? 'Alerts work in the phone app, not in a browser.'
-            : 'Set on this phone, so they work offline. Studento plans a few school days ahead and tops up every time you open it.'
-        }>
+        title="Alerts"
+        footer={Platform.OS === 'web' ? 'Alerts work in the phone app, not in a browser.' : 'Set on this phone, so they work offline. The flash, voice and buzz happen at the 5-minute mark while the app is open.'}
+      >
         {perm === 'granted' || Platform.OS === 'web' ? (
           <>
             <ToggleRow
               label="Bell alerts"
+              sub="3 minutes into class and 5 minutes before the bell"
               icon={{ name: 'bell.fill', color: '#ff3b30' }}
               value={prefs.alerts}
               onChange={(v) => {
@@ -182,7 +78,6 @@ export default function Settings() {
             <ToggleRow
               label="Welcome to class"
               icon={{ name: 'hand.wave.fill', color: '#34c759' }}
-              sub="3 minutes after each period starts"
               value={prefs.welcome}
               disabled={!prefs.alerts}
               onChange={(v) => {
@@ -194,7 +89,6 @@ export default function Settings() {
             <ToggleRow
               label="5-minute warning"
               icon={{ name: 'timer', color: '#ff9500' }}
-              sub="5 minutes before each period ends"
               value={prefs.endWarning}
               disabled={!prefs.alerts}
               onChange={(v) => {
@@ -205,7 +99,7 @@ export default function Settings() {
             <Divider />
             <ToggleRow
               label="Lock Screen countdown"
-              sub="Live Activity for the current class (installed app, not Expo Go)"
+              sub="Live Activity for the current class"
               icon={{ name: 'lock.iphone', color: '#5856d6' }}
               value={prefs.liveActivity}
               onChange={(v) => {
@@ -215,15 +109,22 @@ export default function Settings() {
               }}
             />
             <Divider />
-            <Row label="Send a test alert"
-              icon={{ name: 'paperplane.fill', color: '#007aff' }} onPress={async () => setMsg(await sendTestAlert())} />
+            <ToggleRow label="Flash the screen" icon={{ name: 'bolt.fill', color: '#ffcc00' }} value={prefs.flashWarn} onChange={(v) => setPref('flashWarn', v)} />
+            <Divider />
+            <ToggleRow label="Announce out loud" sub="“Biology ends in five minutes. Next up, Lunch.”" icon={{ name: 'speaker.wave.2.fill', color: '#007aff' }} value={prefs.speak} onChange={(v) => setPref('speak', v)} />
+            <Divider />
+            <ToggleRow label="Buzz" icon={{ name: 'iphone.radiowaves.left.and.right', color: '#8e8e93' }} value={prefs.warnBuzz} onChange={(v) => setPref('warnBuzz', v)} />
+            <Divider />
+            <ToggleRow label="Blink in the last minute" icon={{ name: 'timer', color: '#ff3b30' }} value={prefs.blinkLast} onChange={(v) => setPref('blinkLast', v)} />
+            <Divider />
+            <Row label="Send a test alert" icon={{ name: 'paperplane.fill', color: '#007aff' }} onPress={async () => setMsg(await sendTestAlert())} />
           </>
         ) : perm === 'denied' ? (
           <Row label="Notifications are off for Studento" sub="Turn them on in the Settings app" onPress={() => void Linking.openSettings()} />
         ) : (
           <Row
             label="Turn on bell alerts"
-              icon={{ name: 'bell.badge.fill', color: '#ff3b30' }}
+            icon={{ name: 'bell.badge.fill', color: '#ff3b30' }}
             sub="3 min into class and 5 min before the bell"
             onPress={async () => {
               const p = await requestPermission();
@@ -252,49 +153,20 @@ export default function Settings() {
         ) : null}
       </Section>
 
-      <Section title="School" footer="Your school's bell times. Switch to another of its schedules for a day under Schedules.">
-        <Row
-          label={school ? school.name : 'Pick your school'}
-          sub={school ? (bellSet?.name ?? 'Schedule') : 'Search, pick a bell schedule, or add your school'}
-          icon={{ name: 'building.columns.fill', color: '#ff9500' }}
-          onPress={() => router.push('/school')}
-        />
-      </Section>
-
-      <Section title="My classes" footer={personal ? 'Your classes and rooms.' : 'Scan or type your classes so the clock shows class names.'}>
-        <Row
-          label={personal ? personal.name : 'No classes yet'}
-          sub="Scan, type, or edit"
-          icon={{ name: 'calendar.badge.clock', color: '#34c759' }}
-          onPress={() => router.push('/welcome')}
-        />
-        {personal ? (
-          <>
-            <Divider />
-            <Row label="Edit my schedule" icon={{ name: 'pencil', color: '#007aff' }} onPress={() => router.push({ pathname: '/schedule-review', params: { edit: '1' } })} />
-          </>
-        ) : null}
-      </Section>
-
-      <Section title="Shared schedule" footer="Shared with every device that uses the default schedule.">
-        <Row label="My classes"
-              icon={{ name: 'book.fill', color: '#ff9500' }} sub="Names, rooms and notes" onPress={() => router.push('/classes')} />
+      <Section title="More" footer="Lock mode hides every button so the clock can just sit there. Hold the red dot in the top-right corner for 2 seconds to unlock.">
+        <Row label="Open the Hub" sub="Focus timer, this week, homework, notes, grades" icon={{ name: 'square.grid.2x2.fill', color: '#34c759' }} onPress={() => router.push('/hub')} />
         <Divider />
-        <Row label="Schedules"
-              icon={{ name: 'calendar', color: '#ff3b30' }} sub="Today's schedule and custom days" onPress={() => router.push('/schedules')} />
-      </Section>
-
-      <Section title="Tools" footer="Focus timer, this week, homework, countdowns, notes and grades all live in the Hub (bottom-left button on the clock).">
-        <Row label="Open the Hub" icon={{ name: 'square.grid.2x2.fill', color: '#34c759' }} onPress={() => router.push('/hub')} />
-      </Section>
-
-      <Section title="Test" footer="Shows the clock as if it's the middle of Period 3 on a school day, so you can try the app anytime. Bell alerts still use the real time.">
-        <ToggleRow
-          label="Pretend it's Period 3"
-          icon={{ name: 'testtube.2', color: '#30b0c7' }}
-          value={prefs.testPeriod3}
-          onChange={(v) => setPref('testPeriod3', v)}
+        <Row
+          label="Lock the clock"
+          icon={{ name: 'lock.fill', color: '#ff3b30' }}
+          onPress={() => {
+            setPref('locked', true);
+            router.dismissAll();
+            router.replace('/');
+          }}
         />
+        <Divider />
+        <ToggleRow label="Pretend it's Period 3" sub="Try the countdown at any time of day" icon={{ name: 'testtube.2', color: '#30b0c7' }} value={prefs.testPeriod3} onChange={(v) => setPref('testPeriod3', v)} />
       </Section>
 
       <Note>Studento {Constants.expoConfig?.version ?? ''}</Note>
