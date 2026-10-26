@@ -45,3 +45,4 @@ example
 .claude/
 store.config.local.json
 .eas-metadata/
+.shots/
