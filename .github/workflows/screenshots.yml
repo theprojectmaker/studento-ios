@@ -69,7 +69,11 @@ jobs:
             xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
             xcrun simctl install "$UDID" build-sim/Studento.app
             mkdir -p "shots/$NAME"
-            (cd "shots/$NAME" && maestro --device "$UDID" test ../../maestro/shots.yaml --format junit --output ../$NAME-report.xml) || echo "maestro had a problem on $NAME (keeping what was captured)"
+            rm -rf "$HOME/.maestro/tests"
+            maestro --device "$UDID" test maestro/shots.yaml --test-output-dir "$PWD/shots/$NAME/maestro-out" || echo "maestro had a problem on $NAME (keeping what was captured)"
+            # Maestro keeps screenshots in its output folders: gather every PNG into shots/$NAME
+            find "$PWD/shots/$NAME/maestro-out" "$HOME/.maestro/tests" -name "*.png" 2>/dev/null | while read -r f; do cp -n "$f" "shots/$NAME/$(basename "$f")" || true; done
+            xcrun simctl io "$UDID" screenshot "shots/$NAME/zz-final-state.png" || true
             xcrun simctl shutdown "$UDID" || true
           }
           shoot iphone "$IPHONE"
