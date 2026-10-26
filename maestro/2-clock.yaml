@@ -1,0 +1,32 @@
+appId: com.solyapps.studento
+---
+- launchApp
+- waitForAnimationToEnd
+# ---- Turn on the Period 3 demo so the clock shows a class countdown ----
+- openLink: studento://settings
+- tapOn:
+    text: "Open"
+    optional: true
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element: "Pretend it's Period 3"
+    direction: DOWN
+    timeout: 30000
+    optional: true
+- tapOn:
+    text: "Pretend it's Period 3"
+    optional: true
+- waitForAnimationToEnd
+
+# ---- The clock ----
+- openLink: studento://
+- tapOn:
+    text: "Open"
+    optional: true
+- waitForAnimationToEnd
+- extendedWaitUntil:
+    visible: ".*Period 3.*"
+    timeout: 15000
+    optional: true
+- takeScreenshot: 09-clock
+

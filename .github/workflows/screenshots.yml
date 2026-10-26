@@ -60,19 +60,28 @@ jobs:
           echo "iPhone=$IPHONE iPad=$IPAD"
 
       - name: Take the screenshots
+        env:
+          MAESTRO_DRIVER_STARTUP_TIMEOUT: "600000"
         run: |
           shoot() {
             NAME=$1; UDID=$2
             [ -n "$UDID" ] || { echo "no simulator for $NAME"; return 0; }
+            xcrun simctl shutdown all || true; pkill -f xctest || true
             xcrun simctl boot "$UDID" || true
             xcrun simctl bootstatus "$UDID" -b
             xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
             xcrun simctl install "$UDID" build-sim/Studento.app
             mkdir -p "shots/$NAME"
             rm -rf "$HOME/.maestro/tests"
-            maestro --device "$UDID" test maestro/shots.yaml --test-output-dir "$PWD/shots/$NAME/maestro-out" || echo "maestro had a problem on $NAME (keeping what was captured)"
+            for FLOW in 1-wizard 2-clock 3-themes; do
+              for ATTEMPT in 1 2 3; do
+                echo "== $NAME $FLOW attempt $ATTEMPT"
+                if maestro --device "$UDID" test "maestro/$FLOW.yaml" --test-output-dir "$PWD/shots/$NAME/out-$FLOW-$ATTEMPT"; then break; fi
+                echo "flow $FLOW failed on attempt $ATTEMPT"
+              done
+            done
             # Maestro keeps screenshots in its output folders: gather every PNG into shots/$NAME
-            find "$PWD/shots/$NAME/maestro-out" "$HOME/.maestro/tests" -name "*.png" 2>/dev/null | while read -r f; do cp -n "$f" "shots/$NAME/$(basename "$f")" || true; done
+            find "$PWD/shots/$NAME" "$HOME/.maestro/tests" -name "*.png" 2>/dev/null | while read -r f; do cp -n "$f" "shots/$NAME/$(basename "$f")" || true; done
             xcrun simctl io "$UDID" screenshot "shots/$NAME/zz-final-state.png" || true
             xcrun simctl shutdown "$UDID" || true
           }

@@ -1,0 +1,81 @@
+appId: com.solyapps.studento
+---
+- launchApp
+- waitForAnimationToEnd
+# ---- Themes ----
+- openLink: studento://themes
+- tapOn:
+    text: "Open"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: 10-themes
+- openLink: studento://themes
+- tapOn:
+    text: "Open"
+    optional: true
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element: "Jackpot"
+    direction: DOWN
+    timeout: 40000
+    optional: true
+- takeScreenshot: 11-clock-jackpot-picker
+- tapOn:
+    text: "Jackpot"
+    optional: true
+- openLink: studento://
+- tapOn:
+    text: "Open"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: 11-clock-jackpot
+
+- openLink: studento://themes
+- tapOn:
+    text: "Open"
+    optional: true
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element: "Gatsby"
+    direction: DOWN
+    timeout: 40000
+    optional: true
+- takeScreenshot: 12-clock-gatsby-picker
+- tapOn:
+    text: "Gatsby"
+    optional: true
+- openLink: studento://
+- tapOn:
+    text: "Open"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: 12-clock-gatsby
+
+- openLink: studento://themes
+- tapOn:
+    text: "Open"
+    optional: true
+- waitForAnimationToEnd
+- scrollUntilVisible:
+    element: "Arctic"
+    direction: DOWN
+    timeout: 40000
+    optional: true
+- takeScreenshot: 13-clock-arctic-picker
+- tapOn:
+    text: "Arctic"
+    optional: true
+- openLink: studento://
+- tapOn:
+    text: "Open"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: 13-clock-arctic
+
+# ---- Settings ----
+- openLink: studento://settings
+- tapOn:
+    text: "Open"
+    optional: true
+- waitForAnimationToEnd
+- takeScreenshot: 14-settings
