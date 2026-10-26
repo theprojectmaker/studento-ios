@@ -1,0 +1,84 @@
+# App Store screenshots from real iOS simulators on a free GitHub Mac (no signing, no Expo build quota).
+# Run: Actions > "App Store screenshots" > Run workflow. Download the "screenshots" artifact.
+# Builds the app for the simulator (cached while the source is unchanged), boots the largest
+# iPhone and the 13-inch iPad, and drives the app with Maestro (maestro/shots.yaml).
+name: App Store screenshots
+
+on:
+  workflow_dispatch:
+
+jobs:
+  shots:
+    runs-on: macos-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: latest-stable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Simulator build cache
+        id: simcache
+        uses: actions/cache@v4
+        with:
+          path: build-sim
+          key: studento-sim-${{ hashFiles('src/**', 'app.json', 'package-lock.json', 'plugins/**', 'assets/**', 'modules/**') }}
+
+      - name: Build the app for the simulator
+        if: steps.simcache.outputs.cache-hit != 'true'
+        run: |
+          npx expo prebuild --platform ios
+          WS=$(ls -d ios/*.xcworkspace | head -1)
+          xcodebuild -workspace "$WS" -scheme Studento -configuration Release \
+            -sdk iphonesimulator -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath ios/build CODE_SIGNING_ALLOWED=NO -quiet
+          mkdir -p build-sim
+          cp -R ios/build/Build/Products/Release-iphonesimulator/Studento.app build-sim/
+
+      - name: Install Maestro
+        run: |
+          curl -Ls "https://get.maestro.mobile.dev" | bash
+          echo "$HOME/.maestro/bin" >> "$GITHUB_PATH"
+
+      - name: Pick simulators
+        run: |
+          xcrun simctl list devices available
+          pick() { xcrun simctl list devices available | grep -E "$1" | tail -1 | grep -oE '[0-9A-F]{8}-([0-9A-F]{4}-){3}[0-9A-F]{12}' | head -1; }
+          IPHONE=$(pick 'iPhone (17|16|15) Pro Max')
+          IPAD=$(pick 'iPad Pro 13-inch')
+          echo "IPHONE=$IPHONE" >> "$GITHUB_ENV"
+          echo "IPAD=$IPAD" >> "$GITHUB_ENV"
+          echo "iPhone=$IPHONE iPad=$IPAD"
+
+      - name: Take the screenshots
+        run: |
+          shoot() {
+            NAME=$1; UDID=$2
+            [ -n "$UDID" ] || { echo "no simulator for $NAME"; return 0; }
+            xcrun simctl boot "$UDID" || true
+            xcrun simctl bootstatus "$UDID" -b
+            xcrun simctl status_bar "$UDID" override --time 9:41 --batteryState charged --batteryLevel 100 --cellularBars 4 --wifiBars 3 || true
+            xcrun simctl install "$UDID" build-sim/Studento.app
+            mkdir -p "shots/$NAME"
+            (cd "shots/$NAME" && maestro --device "$UDID" test ../../maestro/shots.yaml --format junit --output ../$NAME-report.xml) || echo "maestro had a problem on $NAME (keeping what was captured)"
+            xcrun simctl shutdown "$UDID" || true
+          }
+          shoot iphone "$IPHONE"
+          shoot ipad "$IPAD"
+          for f in shots/*/*.png; do echo "$f $(sips -g pixelWidth -g pixelHeight "$f" | tr '\n' ' ')"; done
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: screenshots
+          path: shots
+          retention-days: 14
