@@ -14,7 +14,7 @@ import { getDraft, getDraftFlags, SCHOOL_DAYS } from '@/lib/draft';
 import { TYPE } from '@/lib/fonts';
 import { useTheme } from '@/lib/hooks';
 import { NORTH_BELLS, periodIdsFor, sortPeriods, validatePeriods, type Period, type PersonalSchedule, type SchoolDay } from '@/lib/schedule';
-import { getState, setPersonal, useStore } from '@/lib/store';
+import { getState, setPersonal, setPref, useStore } from '@/lib/store';
 import { alpha, readableOn } from '@/lib/themes';
 import { parseTime } from '@/lib/timeinput';
 
@@ -94,9 +94,11 @@ export default function ScheduleReview() {
 
   const finish = async (p: PersonalSchedule) => {
     try {
+      const inSetup = !getState().prefs.onboarded;
       await setPersonal(p);
+      if (inSetup) setPref('onboarded', false); // setPersonal marks onboarded; the wizard is still running
       router.dismissAll();
-      router.replace('/');
+      router.replace(inSetup ? '/setup' : '/');
     } catch {
       setErr("Couldn't save that. Try again.");
     }

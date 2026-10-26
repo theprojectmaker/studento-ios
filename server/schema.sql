@@ -50,3 +50,16 @@ CREATE TABLE IF NOT EXISTS limits (
   count INTEGER NOT NULL,
   window_start INTEGER NOT NULL
 );
+-- Reports on shared content (Apple 1.2): a user flags a school or schedule; the admin reviews.
+CREATE TABLE IF NOT EXISTS reports (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  kind TEXT NOT NULL,          -- 'school' | 'schedule'
+  target_id INTEGER NOT NULL,
+  target_name TEXT NOT NULL,
+  reason TEXT NOT NULL,
+  note TEXT NOT NULL DEFAULT '',
+  user_id INTEGER,
+  status TEXT NOT NULL DEFAULT 'open',   -- 'open' | 'dismissed'
+  created_at INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS reports_status ON reports(status);

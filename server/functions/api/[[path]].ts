@@ -6,6 +6,7 @@
  *   sharing    GET /api/schools?q=, POST /api/schools, GET /api/schools/:id, POST /api/schools/:id/schedules,
  *              PATCH|DELETE /api/schools/:id, PATCH|DELETE /api/schedules/:id   (admin or creator)
  *   AI reader  POST /api/ai-schedule  (signed in; image or text -> rows with confidence)
+ *   reports    POST /api/reports (signed in), GET /api/reports, PATCH|DELETE /api/reports/:id (admin)
  * plus GET /api/config (kill switches: signup, sharing, ai; PATCH by admin) and GET /api/health.
  *
  * Passwords: PBKDF2-SHA256, 100k iterations (the Workers runtime maximum), 16-byte salt. Tokens: 32 random bytes, stored hashed.
@@ -586,6 +587,44 @@ export const onRequest = async (ctx: Ctx): Promise<Response> => {
       if (typeof body.name === 'string' && body.name.trim().length >= 2) await env.DB.prepare('UPDATE schedules SET name = ? WHERE id = ?').bind(body.name.replace(/\s+/g, ' ').trim().slice(0, 40), id).run();
       if (body.days !== undefined) await env.DB.prepare('UPDATE schedules SET days = ? WHERE id = ?').bind(JSON.stringify(cleanDays(body.days)), id).run();
       if (typeof body.hidden === 'boolean' && u.is_admin) await env.DB.prepare('UPDATE schedules SET hidden = ? WHERE id = ?').bind(body.hidden ? 1 : 0, id).run();
+      return json({ ok: true });
+    }
+
+    /* reports on shared content (Apple 1.2): anyone signed in can flag; admins review */
+    if (path === '/api/reports' && req.method === 'POST') {
+      const u = await requireUser(env, req);
+      await limit(env, `user:${u.id}:report`, 20, 86400);
+      const body = await readJson<{ kind?: string; targetId?: number; reason?: string; note?: string }>(req);
+      const kind = body.kind === 'school' ? 'school' : body.kind === 'schedule' ? 'schedule' : null;
+      const targetId = Number(body.targetId);
+      const reason = String(body.reason ?? '')
+        .trim()
+        .slice(0, 40);
+      const note = String(body.note ?? '')
+        .trim()
+        .slice(0, 500);
+      if (!kind || !Number.isInteger(targetId) || !reason) throw new HttpError(400, 'Pick what to report and why.');
+      const row =
+        kind === 'school'
+          ? await env.DB.prepare('SELECT name FROM schools WHERE id = ?').bind(targetId).first<{ name: string }>()
+          : await env.DB.prepare('SELECT s.name || \' · \' || c.name AS name FROM schedules s JOIN schools c ON c.id = s.school_id WHERE s.id = ?').bind(targetId).first<{ name: string }>();
+      if (!row) throw new HttpError(404, 'That item no longer exists.');
+      await env.DB.prepare('INSERT INTO reports (kind, target_id, target_name, reason, note, user_id, status, created_at) VALUES (?, ?, ?, ?, ?, ?, \'open\', ?)').bind(kind, targetId, row.name, reason, note, u.id, Date.now()).run();
+      return json({ ok: true });
+    }
+    if (path === '/api/reports' && req.method === 'GET') {
+      const u = await requireUser(env, req);
+      if (!u.is_admin) throw new HttpError(403, 'Admins only.');
+      const rows = await env.DB.prepare('SELECT id, kind, target_id, target_name, reason, note, status, created_at FROM reports ORDER BY (status = \'open\') DESC, created_at DESC LIMIT 200').all();
+      return json({ ok: true, reports: (rows.results ?? []).map((r) => ({ id: r.id, kind: r.kind, targetId: r.target_id, targetName: r.target_name, reason: r.reason, note: r.note, status: r.status, createdAt: r.created_at })) });
+    }
+    m = path.match(/^\/api\/reports\/(\d+)$/);
+    if (m && (req.method === 'PATCH' || req.method === 'DELETE')) {
+      const u = await requireUser(env, req);
+      if (!u.is_admin) throw new HttpError(403, 'Admins only.');
+      const id = Number(m[1]);
+      if (req.method === 'DELETE') await env.DB.prepare('DELETE FROM reports WHERE id = ?').bind(id).run();
+      else await env.DB.prepare('UPDATE reports SET status = \'dismissed\' WHERE id = ?').bind(id).run();
       return json({ ok: true });
     }
 

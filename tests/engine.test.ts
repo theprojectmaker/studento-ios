@@ -298,3 +298,40 @@ test('storage read: an unreadable saved copy is never mistaken for a fresh insta
   // Installs from before the marker existed still load fine.
   assert.equal(classifyStorage({ p: '{}', b: null, i: null }, keys), 'ok');
 });
+
+test('generic names: with no classes entered, every surface says "Period N" (never the owner classes)', async () => {
+  // (The store module pulls in theme fonts Node cannot load, so this tests the pure pieces it uses.)
+  const { nameFor, periodTitle, REGULAR_SCHEDULE, WEDNESDAY_SCHEDULE } = await import('../src/lib/schedule');
+  // Fresh install: no class names at all.
+  const names: Record<string, string> = {};
+  assert.equal(nameFor(REGULAR_SCHEDULE[0], names), 'Period 1');
+  assert.equal(nameFor(REGULAR_SCHEDULE[8], names), 'Period 9');
+  assert.equal(nameFor(WEDNESDAY_SCHEDULE[0], names), 'Advisory');
+  assert.equal(periodTitle({ period: 'lunch', label: 'Lunch', start: '10:12', end: '10:53' }), 'Lunch');
+  // Alerts and the widget read the same way.
+  const plan = planAlerts(nyWallToMs('2026-10-19', '06:00'), EMPTY, names, {}, ALL);
+  const first = plan.find((a) => a.id === 'bell-2026-10-19-2-start')!;
+  assert.equal(first.title, 'Welcome to Period 3');
+  assert.ok(!/Biology|Geometry|Hebrew/.test(plan.map((a) => a.title + a.body).join(' ')), 'no owner classes leak');
+  const { bellProps } = await import('../src/lib/widgetData');
+  const theme = { bg: '#000000', ink: '#ffffff', muted: '#999999', accent: '#e8b84b', engine: 'flap', font: 'sans', light: false } as unknown as import('../src/lib/themes').Theme;
+  const t = nyWallToMs('2026-10-19', '09:30');
+  assert.equal(bellProps(nowState(t, EMPTY), names, {}, theme, false, t, t).title, 'Period 3');
+});
+
+test('setup wizard flow: steps, skipping the schedule step without a school, clamping', async () => {
+  const { SETUP_STEPS, LAST_STEP, clampStep, nextStep, prevStep, visibleSteps } = await import('../src/lib/setupFlow');
+  assert.equal(SETUP_STEPS[0].id, 'welcome');
+  assert.equal(SETUP_STEPS[LAST_STEP].id, 'done');
+  assert.equal(clampStep(undefined), 0);
+  assert.equal(clampStep(99), LAST_STEP);
+  assert.equal(clampStep(-3), 0);
+  // With a school: welcome -> school -> schedule -> classes ...
+  assert.equal(SETUP_STEPS[nextStep(1, { hasSchool: true })].id, 'schedule');
+  // Without one: the schedule step is skipped both ways.
+  assert.equal(SETUP_STEPS[nextStep(1, { hasSchool: false })].id, 'classes');
+  assert.equal(SETUP_STEPS[prevStep(3, { hasSchool: false })].id, 'school');
+  assert.equal(visibleSteps({ hasSchool: false }).length, SETUP_STEPS.length - 1);
+  assert.equal(nextStep(LAST_STEP, { hasSchool: true }), LAST_STEP);
+  assert.ok(SETUP_STEPS.filter((s) => s.optional).length >= 6, 'nearly everything is skippable');
+});

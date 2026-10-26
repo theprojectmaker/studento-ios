@@ -140,6 +140,8 @@ export default function RootLayout() {
         <Stack.Screen name="themes" options={{ title: 'Themes' }} />
         <Stack.Screen name="app-icon" options={{ title: 'App Icon' }} />
         <Stack.Screen name="clock-options" options={{ title: 'Clock Screen' }} />
+        <Stack.Screen name="setup" options={{ headerShown: false, gestureEnabled: false }} />
+        <Stack.Screen name="report" options={{ title: 'Report' }} />
         <Stack.Screen name="school" options={{ title: 'Your School' }} />
         <Stack.Screen name="schedule-publish" options={{ title: 'New Bell Schedule' }} />
         <Stack.Screen name="account" options={{ title: 'Account' }} />

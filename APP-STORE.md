@@ -28,8 +28,16 @@ offline.
   contacted for over-the-air JavaScript updates (no user data).
 
 ## Privacy policy URL
-Live at **https://studento-app.pages.dev/privacy.html** (source `server/public/privacy.html`;
-already set in `store.config.json`). Fill in the contact email there.
+Live at **https://studento-app.pages.dev/privacy** (source `server/public/privacy.html`; Pages
+serves clean URLs, `/privacy.html` 308-redirects there). Contact: studentoclockapp@gmail.com.
+
+## Reviewer contact phone (kept OUT of the public repo)
+`store.config.json` is committed to a public repo, so the phone number lives only in the
+gitignored `store.config.local.json` on this PC (`{"apple":{"review":{"phone":"..."}}}`).
+`node scripts/store-config-merge.mjs` merges it into `.eas-metadata/store.config.json`
+(gitignored), which `eas.json` names as `submit.production.ios.metadataPath`, so
+`npx eas-cli@latest metadata:push --profile production` sends the full contact. Alternative:
+type the phone by hand in App Store Connect > App Information > App Review contact.
 
 ## App Privacy answers (App Store Connect > App Privacy)
 Data is collected only when the user creates an account. Declare:

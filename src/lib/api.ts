@@ -120,6 +120,23 @@ export const deleteSchool = (token: string, id: number) => call<object>(`/api/sc
 export const renameSchedule = (token: string, id: number, name: string) => call<object>(`/api/schedules/${id}`, { method: 'PATCH', body: { name }, token });
 export const deleteSchedule = (token: string, id: number) => call<object>(`/api/schedules/${id}`, { method: 'DELETE', token });
 
+/* ---------------- reports on shared content ---------------- */
+export interface Report {
+  id: number;
+  kind: 'school' | 'schedule';
+  targetId: number;
+  targetName: string;
+  reason: string;
+  note: string;
+  status: 'open' | 'dismissed';
+  createdAt: number;
+}
+export const sendReport = (token: string, kind: 'school' | 'schedule', targetId: number, reason: string, note: string) =>
+  call<object>('/api/reports', { method: 'POST', body: { kind, targetId, reason, note }, token });
+export const listReports = (token: string) => call<{ reports: Report[] }>('/api/reports', { token }).then((r) => r.reports);
+export const dismissReport = (token: string, id: number) => call<object>(`/api/reports/${id}`, { method: 'PATCH', token });
+export const deleteReport = (token: string, id: number) => call<object>(`/api/reports/${id}`, { method: 'DELETE', token });
+
 /* ---------------- schedule reader ---------------- */
 export const readScheduleAI = (token: string, input: { image?: { data: string; mimeType: string }; text?: string }, bells?: Record<SchoolDay, Period[]> | null) =>
   call<AiResult>('/api/ai-schedule', { method: 'POST', body: { ...input, bells: bells ?? undefined }, token, timeoutMs: 90_000 });

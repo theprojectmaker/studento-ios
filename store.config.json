@@ -1,7 +1,7 @@
 {
   "configVersion": 0,
   "apple": {
-    "copyright": "2026 YOUR NAME HERE",
+    "copyright": "2026 Moses Sasson",
     "categories": [
       "EDUCATION",
       "UTILITIES"
@@ -23,19 +23,19 @@
         ],
         "releaseNotes": "First release.",
         "promoText": "Count down every class. Runs entirely on your phone.",
-        "privacyPolicyUrl": "https://studento-app.pages.dev/privacy.html",
+        "privacyPolicyUrl": "https://studento-app.pages.dev/privacy",
         "supportUrl": "https://studento-app.pages.dev/"
       }
     },
     "review": {
-      "firstName": "YOUR FIRST NAME",
-      "lastName": "YOUR LAST NAME",
-      "email": "your@email.com",
-      "phone": "+1 000 000 0000",
+      "firstName": "Moses",
+      "lastName": "Sasson",
+      "email": "studentoclockapp@gmail.com",
+      "phone": "(kept out of the public repo: see store.config.local.json + scripts/store-config-merge.mjs)",
       "demoUsername": "",
       "demoPassword": "",
       "demoRequired": false,
-      "notes": "No account is needed to review the app: on first launch tap \"Skip for now\", or pick \"Great Neck North High School\" under step 1. To test accounts, create one in Settings > Account (any username, 8+ character password); account deletion is in the same screen. The schedule reader (Settings > My classes > Scan) needs an account and sends the photo to our server once; it is not stored. Settings > Test > \"Pretend it's Period 3\" shows the countdown, widgets and Live Activity at any time of day. Widgets: long-press the Home Screen, add \"Studento\"."
+      "notes": "No account is needed. First launch runs a short setup wizard; every step has Skip: tap Get started, Skip (school), Skip for now (classes), Not now (alerts), Skip (theme), Skip for now (account), Open the clock. Or pick \"Great Neck North High School\" on the school step to see a real bell schedule. Accounts (optional, username + password only) can be created on the last wizard step or in Settings > Account; deletion is in Settings > Account. The schedule reader (Settings > Schedule > My classes > Scan) needs an account and sends the photo to our server once; it is not stored. User-generated content: shared schools and bell schedules have a Report action (reason + note) that goes to the admin, who can remove them (Settings > Admin on the owner account). Settings > More > \"Pretend it's Period 3\" shows the countdown, widgets and Live Activity at any time of day. Widgets: long-press the Home Screen, add \"Studento\". Support: studentoclockapp@gmail.com."
     }
   }
 }

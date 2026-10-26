@@ -109,7 +109,17 @@ export default function School() {
             return (
               <View key={s.id}>
                 {i ? <Divider /> : null}
-                <Row label={s.name} sub={`${days} ${days === 1 ? 'day' : 'days'} · ${(s.days.Mon ?? s.days[SCHOOL_DAY_LIST.find((d) => s.days[d]?.length) ?? 'Mon'] ?? []).length} periods`} value={on ? 'In use' : undefined} onPress={() => void choose(s)} />
+                <Row
+                  label={s.name}
+                  sub={`${days} ${days === 1 ? 'day' : 'days'} · ${(s.days.Mon ?? s.days[SCHOOL_DAY_LIST.find((d) => s.days[d]?.length) ?? 'Mon'] ?? []).length} periods`}
+                  value={on ? 'In use' : undefined}
+                  onPress={() => void choose(s)}
+                  right={
+                    <Pressable accessibilityRole="button" accessibilityLabel={`Report ${s.name}`} hitSlop={8} onPress={() => router.push({ pathname: '/report', params: { kind: 'schedule', id: String(s.id), name: `${s.name} · ${picked.school.name}` } })} style={{ paddingHorizontal: 6 }}>
+                      <Text style={{ ...TYPE.medium, fontSize: 12, color: theme.muted }}>Report</Text>
+                    </Pressable>
+                  }
+                />
               </View>
             );
           })}
@@ -121,6 +131,9 @@ export default function School() {
         />
         {!account ? <Note>Sign in to add a schedule.</Note> : null}
         <Button title="Back to search" kind="plain" onPress={() => setPicked(null)} />
+        <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/report', params: { kind: 'school', id: String(picked.school.id), name: picked.school.name } })} style={{ alignSelf: 'center', padding: 8 }}>
+          <Text style={{ ...TYPE.medium, fontSize: 13, color: theme.muted }}>Report this school or one of its schedules</Text>
+        </Pressable>
         {err ? <Note tone="error">{err}</Note> : null}
       </Screen>
     );

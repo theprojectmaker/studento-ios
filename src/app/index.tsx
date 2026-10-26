@@ -149,7 +149,7 @@ export default function ClockScreen() {
   const glassy = prefs.layout !== 'minimal';
 
   // First launch: ask whose schedule to run (default, scan, or type it).
-  if (!prefs.onboarded) return <Redirect href="/welcome" />;
+  if (!prefs.onboarded) return <Redirect href="/setup" />;
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }} onTouchStart={wake}>

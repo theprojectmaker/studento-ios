@@ -66,6 +66,8 @@ export interface Prefs extends AlertPrefs {
   alertsAsked: boolean;
   /** The first-launch "whose schedule?" screen was answered. */
   onboarded: boolean;
+  /** Where the first-launch setup wizard is (resumes here if the app is killed mid-way). */
+  setupStep: number;
   /** Lock Screen / Dynamic Island countdown (installed app only). */
   liveActivity: boolean;
   prefsVersion: number;
@@ -152,6 +154,7 @@ export const DEFAULT_PREFS: Prefs = {
   endWarning: true,
   alertsAsked: false,
   onboarded: false,
+  setupStep: 0,
   liveActivity: true,
   /** Bumped when defaults change so existing installs pick them up once. */
   prefsVersion: 2,

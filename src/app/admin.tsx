@@ -14,11 +14,14 @@ export default function Admin() {
   const [open, setOpen] = useState<{ school: { id: number; name: string }; schedules: api.BellSet[] } | null>(null);
   const [rename, setRename] = useState('');
   const [msg, setMsg] = useState<{ text: string; tone: 'ok' | 'error' } | null>(null);
+  const [reports, setReports] = useState<api.Report[] | null>(null);
 
   const refresh = async () => {
     try {
       setCfg(await api.getConfig());
       setSchools(await api.searchSchools(''));
+      const t = await getToken();
+      if (t) setReports(await api.listReports(t));
     } catch (e) {
       setMsg({ text: e instanceof Error ? e.message : 'Offline', tone: 'error' });
     }
@@ -32,6 +35,10 @@ export default function Admin() {
       .searchSchools('')
       .then(setSchools)
       .catch(() => undefined);
+    void getToken()
+      .then((t) => (t ? api.listReports(t) : []))
+      .then(setReports)
+      .catch(() => setReports([]));
   }, []);
 
   const run = async (label: string, fn: (token: string) => Promise<unknown>) => {
@@ -66,6 +73,26 @@ export default function Admin() {
 
   return (
     <Screen>
+      <Section title="Reports" footer="What students flagged on shared schools and schedules. Delete removes the flagged item; Dismiss just clears the report.">
+        {reports === null ? <Note>Loading…</Note> : reports.length === 0 ? <Note>No reports.</Note> : null}
+        {(reports ?? []).map((r, i) => (
+          <View key={r.id}>
+            {i ? <Divider /> : null}
+            <View style={{ padding: 14, gap: 8 }}>
+              <Row label={`${r.kind === 'school' ? 'School' : 'Schedule'}: ${r.targetName}`} sub={`${r.reason}${r.note ? ` · ${r.note}` : ''} · ${new Date(r.createdAt).toLocaleDateString()}${r.status === 'dismissed' ? ' · dismissed' : ''}`} />
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <View style={{ flex: 1 }}>
+                  <Button title={r.kind === 'school' ? 'Delete school' : 'Delete schedule'} kind="danger" onPress={() => confirm(`Delete “${r.targetName}”?`, 'This removes the flagged item for everyone and closes the report.', () => void run('Removed.', async (t) => { if (r.kind === 'school') await api.deleteSchool(t, r.targetId); else await api.deleteSchedule(t, r.targetId); await api.deleteReport(t, r.id); }))} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Button title={r.status === 'dismissed' ? 'Clear' : 'Dismiss'} kind="plain" onPress={() => void run('Report cleared.', (t) => (r.status === 'dismissed' ? api.deleteReport(t, r.id) : api.dismissReport(t, r.id)))} />
+                </View>
+              </View>
+            </View>
+          </View>
+        ))}
+      </Section>
+
       <Section title="Kill switches" footer="Off = that feature pauses for everyone right away. The clock and alerts keep working.">
         {cfg ? (
           <>

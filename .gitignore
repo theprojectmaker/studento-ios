@@ -43,3 +43,5 @@ example
 /android
 .env.eas-simulator
 .claude/
+store.config.local.json
+.eas-metadata/

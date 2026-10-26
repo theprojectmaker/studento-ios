@@ -167,6 +167,18 @@ export default function Settings() {
         />
         <Divider />
         <ToggleRow label="Pretend it's Period 3" sub="Try the countdown at any time of day" icon={{ name: 'testtube.2', color: '#30b0c7' }} value={prefs.testPeriod3} onChange={(v) => setPref('testPeriod3', v)} />
+        <Divider />
+        <Row
+          label="Run setup again"
+          sub="School, schedule, classes, alerts, theme, account"
+          icon={{ name: 'arrow.counterclockwise', color: '#8e8e93' }}
+          onPress={() => {
+            setPref('setupStep', 0);
+            router.push('/setup');
+          }}
+        />
+        <Divider />
+        <Row label="Help" sub="studentoclockapp@gmail.com" icon={{ name: 'envelope.fill', color: '#007aff' }} onPress={() => void Linking.openURL('mailto:studentoclockapp@gmail.com?subject=Studento')} />
       </Section>
 
       <Note>Studento {Constants.expoConfig?.version ?? ''}</Note>
