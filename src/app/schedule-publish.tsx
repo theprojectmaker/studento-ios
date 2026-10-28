@@ -15,6 +15,7 @@ import { REGULAR_SCHEDULE, SCHOOL_DAY_LIST, sortPeriods, validatePeriods, type P
 import { getState, setSchool, useStore } from '@/lib/store';
 import { alpha, readableOn } from '@/lib/themes';
 import { parseTime } from '@/lib/timeinput';
+import { sz } from '@/lib/scale';
 
 interface Row {
   period: string;
@@ -83,7 +84,7 @@ export default function SchedulePublish() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
       <Screen>
-        <Text style={{ ...TYPE.regular, fontSize: 15, lineHeight: 21, color: theme.muted, textAlign: 'center' }}>
+        <Text style={{ ...TYPE.regular, fontSize: sz(15), lineHeight: sz(21), color: theme.muted, textAlign: 'center' }}>
           {`Bell times for ${schoolName ?? 'your school'}. Other students there will be able to pick this.`}
         </Text>
         {!account ? <Note tone="error">Sign in to publish a schedule.</Note> : null}
@@ -110,7 +111,7 @@ export default function SchedulePublish() {
                   }}
                   style={{ paddingHorizontal: 18, paddingVertical: 9, borderRadius: 999, backgroundColor: on ? theme.accent : alpha(theme.ink, 0.08) }}
                 >
-                  <Text style={{ ...TYPE.semibold, fontSize: 15, color: on ? readableOn(theme.accent) : theme.ink }}>{d}</Text>
+                  <Text style={{ ...TYPE.semibold, fontSize: sz(15), color: on ? readableOn(theme.accent) : theme.ink }}>{d}</Text>
                 </Pressable>
               );
             })}
@@ -134,7 +135,7 @@ export default function SchedulePublish() {
                   }}
                   style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: alpha('#ff453a', 0.14) }}
                 >
-                  <Text style={{ ...TYPE.bold, color: '#ff453a', fontSize: 18, lineHeight: 20 }}>−</Text>
+                  <Text style={{ ...TYPE.bold, color: '#ff453a', fontSize: sz(18), lineHeight: sz(20) }}>−</Text>
                 </Pressable>
               </View>
             </View>

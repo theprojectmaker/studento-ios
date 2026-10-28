@@ -33,6 +33,7 @@ import { syncLiveActivity } from '@/widgets';
 import { fmtCountdown, nameFor, nowState, type NowState, periodTitle, rangeText, roomOf } from '@/lib/schedule';
 import { type Prefs, setPref, useSchedule, useStore } from '@/lib/store';
 import { alpha, readableOn, type Theme } from '@/lib/themes';
+import { sz } from '@/lib/scale';
 
 const CHROME_MS = 15000;
 
@@ -166,13 +167,13 @@ export default function ClockScreen() {
           paddingRight: insets.right + 18,
         }}
       >
-        <Animated.View style={[{ flex: 1, maxWidth: 900, width: '100%', alignSelf: 'center', transform: [{ translateX: nudge.x }, { translateY: nudge.y }] }, rawPrefs.idleDim ? dimStyle : null]}>
+        <Animated.View style={[{ flex: 1, maxWidth: sz(900), width: '100%', alignSelf: 'center', transform: [{ translateX: nudge.x }, { translateY: nudge.y }] }, rawPrefs.idleDim ? dimStyle : null]}>
           {prefs.layout === 'minimal' ? <Minimal v={v} /> : prefs.layout === 'glass' ? <Cards v={v} /> : <Classic v={v} />}
         </Animated.View>
         {askAlerts && !locked ? (
           <View
             style={{
-              maxWidth: 640,
+              maxWidth: sz(640),
               width: '100%',
               alignSelf: 'center',
               marginTop: 12,
@@ -218,7 +219,7 @@ export default function ClockScreen() {
               styles.testText,
               {
                 color: readableOn(theme.accent),
-                fontSize: 14,
+                fontSize: sz(14),
                 letterSpacing: 0.3,
               },
             ]}
@@ -302,10 +303,10 @@ function Classic({ v }: { v: V }) {
   const { theme, copy, st, prefs } = v;
   // Landscape (iPad, phone on its side): countdown on the left, the rest on the right.
   // Everything is one centered column of equal width (also in landscape).
-  const heroW = v.landscape ? Math.min(v.width - 36, 600) : Math.min(v.width - 36, 820);
+  const heroW = v.landscape ? Math.min(v.width - 36, sz(600)) : Math.min(v.width - 36, sz(820));
   // Leave room for the widgets so nothing overlaps on smaller phones.
   const rows = Math.ceil(Math.min(prefs.widgets.length, 4) / 2);
-  const maxDigit = v.landscape ? v.height * 0.18 : v.width >= 700 ? Math.min(v.height * (0.27 - rows * 0.02), 340) : Math.min(v.height * (0.17 - rows * 0.025), 210);
+  const maxDigit = v.landscape ? v.height * 0.18 : v.width >= 700 ? Math.min(v.height * (0.27 - rows * 0.02), sz(340)) : Math.min(v.height * (0.17 - rows * 0.025), 210);
   const heroBlock = (
     <View
       style={{
@@ -341,7 +342,7 @@ function Classic({ v }: { v: V }) {
   );
   // Landscape: widgets, clock and next/timeline sit side by side in ONE row under the countdown.
   const infoBlock = (
-    <View style={v.landscape ? { gap: 10, alignItems: 'center', width: '100%', maxWidth: 470, alignSelf: 'center' } : { gap: 12, alignItems: 'center' }}>
+    <View style={v.landscape ? { gap: 10, alignItems: 'center', width: '100%', maxWidth: sz(470), alignSelf: 'center' } : { gap: 12, alignItems: 'center' }}>
       {v.inSchool ? (
         <Piece v={v} k="showClock" label="clock">
           <SmallClock text={v.clock.text} suffix={v.clock.suffix} theme={theme} motion={prefs.motion} glass />
@@ -441,14 +442,14 @@ function Minimal({ v }: { v: V }) {
 
 function Cards({ v }: { v: V }) {
   const { theme, copy, st } = v;
-  const colW = Math.min(v.width - 36, 640);
-  const maxDigit = v.landscape ? v.height * 0.26 : Math.min(v.height * 0.15, 180);
+  const colW = Math.min(v.width - 36, sz(640));
+  const maxDigit = v.landscape ? v.height * 0.26 : Math.min(v.height * 0.15, sz(180));
   return (
     <View
       style={{
         flex: 1,
         justifyContent: 'space-between',
-        maxWidth: 640,
+        maxWidth: sz(640),
         width: '100%',
         alignSelf: 'center',
       }}
@@ -458,7 +459,7 @@ function Cards({ v }: { v: V }) {
           <Piece v={v} k="showEyebrow" label="period label">
             <Text style={[styles.eyebrow, label(theme), { color: theme.muted }]}>{copy.eyebrow}</Text>
           </Piece>
-          <Title v={v} size={Math.min(v.width * 0.11, 56)} />
+          <Title v={v} size={Math.min(v.width * 0.11, sz(56))} />
           {copy.times ? (
             <Piece v={v} k="showTimes" label="period times">
               <Text style={[styles.times, fontStyle(theme.type.label, '500'), { color: theme.muted }]}>{copy.times}</Text>
@@ -658,7 +659,7 @@ function Corner({
           <Text
             style={{
               ...TYPE.bold,
-              fontSize: 11,
+              fontSize: sz(11),
               color: readableOn(theme.accent),
             }}
           >
@@ -674,12 +675,12 @@ function AlertsCard({ theme, blocked, onDone }: { theme: Theme; blocked: boolean
   return (
     <Glass theme={theme} radius={22} style={{ padding: 16, gap: 12 }}>
       <View>
-        <Text style={{ ...TYPE.semibold, fontSize: 17, color: theme.ink }}>{blocked ? 'Bell alerts are blocked' : 'Turn on bell alerts'}</Text>
+        <Text style={{ ...TYPE.semibold, fontSize: sz(17), color: theme.ink }}>{blocked ? 'Bell alerts are blocked' : 'Turn on bell alerts'}</Text>
         <Text
           style={{
             ...TYPE.regular,
-            fontSize: 14,
-            lineHeight: 19,
+            fontSize: sz(14),
+            lineHeight: sz(19),
             color: theme.muted,
           }}
         >
@@ -850,18 +851,18 @@ function clockParts(h: number, m: number, s: number, h24: boolean, withSec: bool
 const styles = StyleSheet.create({
   eyebrow: {
     ...TYPE.semibold,
-    fontSize: 14,
+    fontSize: sz(14),
     letterSpacing: 2.4,
     textAlign: 'center',
   },
   times: {
     ...TYPE.medium,
-    fontSize: 16,
+    fontSize: sz(16),
     letterSpacing: -0.2,
     fontVariant: ['tabular-nums'],
     textAlign: 'center',
   },
-  unit: { ...TYPE.medium, fontSize: 16, marginTop: 12, textAlign: 'center' },
+  unit: { ...TYPE.medium, fontSize: sz(16), marginTop: 12, textAlign: 'center' },
   nextRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -870,7 +871,7 @@ const styles = StyleSheet.create({
   },
   nextPill: {
     ...TYPE.heavy,
-    fontSize: 11,
+    fontSize: sz(11),
     letterSpacing: 1.2,
     paddingHorizontal: 8,
     paddingVertical: 3,
@@ -878,20 +879,20 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     flexShrink: 0,
   },
-  nextName: { ...TYPE.semibold, fontSize: 16, flexShrink: 1 },
+  nextName: { ...TYPE.semibold, fontSize: sz(16), flexShrink: 1 },
   nextTime: {
     ...TYPE.medium,
-    fontSize: 14,
+    fontSize: sz(14),
     fontVariant: ['tabular-nums'],
     flexShrink: 0,
   },
-  dayLabel: { ...TYPE.medium, fontSize: 14, textAlign: 'center' },
-  minimalFoot: { ...TYPE.medium, fontSize: 15, fontVariant: ['tabular-nums'] },
+  dayLabel: { ...TYPE.medium, fontSize: sz(14), textAlign: 'center' },
+  minimalFoot: { ...TYPE.medium, fontSize: sz(15), fontVariant: ['tabular-nums'] },
   tile: { flex: 1, paddingHorizontal: 16, paddingVertical: 12, gap: 2 },
-  tileLabel: { ...TYPE.semibold, fontSize: 11.5, letterSpacing: 0.8 },
+  tileLabel: { ...TYPE.semibold, fontSize: sz(11.5), letterSpacing: 0.8 },
   tileValue: {
     ...TYPE.semibold,
-    fontSize: 19,
+    fontSize: sz(19),
     letterSpacing: -0.4,
     fontVariant: ['tabular-nums'],
   },
@@ -920,5 +921,5 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
   },
-  testText: { ...TYPE.bold, fontSize: 11, letterSpacing: 1 },
+  testText: { ...TYPE.bold, fontSize: sz(11), letterSpacing: 1 },
 });

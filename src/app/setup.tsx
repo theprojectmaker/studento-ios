@@ -21,6 +21,7 @@ import { clampStep, nextStep, prevStep, SETUP_STEPS, visibleSteps } from '@/lib/
 import { setPref, useStore } from '@/lib/store';
 import { alpha, readableOn, themeById, type Theme } from '@/lib/themes';
 import { fontStyle } from '@/lib/typefaces';
+import { sz } from '@/lib/scale';
 
 const THEME_PICKS = ['departure', 'jackpot', 'gatsby', 'arctic'];
 
@@ -132,7 +133,7 @@ export default function Setup() {
           ) : null}
           {def.optional && def.id !== 'alerts' && def.id !== 'account' && !(def.id === 'classes' && !personal) ? (
             <Pressable accessibilityRole="button" onPress={next} style={{ alignSelf: 'center', padding: 8 }}>
-              <Text style={{ ...TYPE.medium, fontSize: 14, color: theme.muted }}>Skip this step</Text>
+              <Text style={{ ...TYPE.medium, fontSize: sz(14), color: theme.muted }}>Skip this step</Text>
             </Pressable>
           ) : null}
         </ScrollView>
@@ -147,7 +148,7 @@ function StepText({ theme, title, sub, children }: { theme: Theme; title: string
       <Text style={{ ...fontStyle(theme.type.title, '800'), fontSize: 30 * Math.min(1.1, theme.type.titleScale ?? 1), color: theme.ink }} maxFontSizeMultiplier={1.4}>
         {title}
       </Text>
-      <Text style={{ ...TYPE.regular, fontSize: 16, lineHeight: 22, color: theme.muted }} maxFontSizeMultiplier={1.6}>
+      <Text style={{ ...TYPE.regular, fontSize: sz(16), lineHeight: sz(22), color: theme.muted }} maxFontSizeMultiplier={1.6}>
         {sub}
       </Text>
       {children}
@@ -166,11 +167,11 @@ function Choice({ theme, title, sub, onPress, recommended }: { theme: Theme; tit
       }}
       style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, backgroundColor: theme.panel, borderRadius: 20, padding: 16, gap: 4, borderWidth: recommended ? 2 : 0, borderColor: theme.accent })}
     >
-      {recommended ? <Text style={{ ...TYPE.bold, fontSize: 11, letterSpacing: 0.8, color: theme.accent }}>RECOMMENDED</Text> : null}
-      <Text style={{ ...TYPE.bold, fontSize: 17, color: theme.ink }} maxFontSizeMultiplier={1.4}>
+      {recommended ? <Text style={{ ...TYPE.bold, fontSize: sz(11), letterSpacing: 0.8, color: theme.accent }}>RECOMMENDED</Text> : null}
+      <Text style={{ ...TYPE.bold, fontSize: sz(17), color: theme.ink }} maxFontSizeMultiplier={1.4}>
         {title}
       </Text>
-      <Text style={{ ...TYPE.regular, fontSize: 14, lineHeight: 19, color: theme.muted }} maxFontSizeMultiplier={1.6}>
+      <Text style={{ ...TYPE.regular, fontSize: sz(14), lineHeight: sz(19), color: theme.muted }} maxFontSizeMultiplier={1.6}>
         {sub}
       </Text>
     </Pressable>
@@ -181,14 +182,14 @@ function WelcomeStep({ theme, width }: { theme: Theme; width: number }) {
   return (
     <View style={{ gap: 18, alignItems: 'center', paddingTop: 10 }}>
       <View style={{ width, borderRadius: 24, backgroundColor: theme.panel, padding: 18, alignItems: 'center', gap: 8 }}>
-        <Text style={{ ...TYPE.semibold, fontSize: 12, letterSpacing: 2, color: theme.muted }}>PERIOD 3 · BIOLOGY</Text>
+        <Text style={{ ...TYPE.semibold, fontSize: sz(12), letterSpacing: 2, color: theme.muted }}>PERIOD 3 · BIOLOGY</Text>
         <Board text="21:33" theme={theme} width={width - 36} maxSize={width * 0.2} remaining={0.6} secondsLeft={21 * 60 + 33} motion={false} />
-        <Text style={{ ...TYPE.medium, fontSize: 14, color: theme.muted }}>until the bell</Text>
+        <Text style={{ ...TYPE.medium, fontSize: sz(14), color: theme.muted }}>until the bell</Text>
       </View>
       <Text style={{ ...fontStyle(theme.type.title, '800'), fontSize: 32 * Math.min(1.1, theme.type.titleScale ?? 1), color: theme.ink, textAlign: 'center' }} maxFontSizeMultiplier={1.4}>
         Welcome to Studento
       </Text>
-      <Text style={{ ...TYPE.regular, fontSize: 16, lineHeight: 22, color: theme.muted, textAlign: 'center' }} maxFontSizeMultiplier={1.6}>
+      <Text style={{ ...TYPE.regular, fontSize: sz(16), lineHeight: sz(22), color: theme.muted, textAlign: 'center' }} maxFontSizeMultiplier={1.6}>
         A clock for school: it counts down to every bell, on your phone, your Lock Screen and your widgets. Setup takes about a minute, and every step can be skipped.
       </Text>
     </View>
@@ -218,7 +219,7 @@ function ThemeGrid({ current, width }: { current: string; width: number }) {
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
                 <Board text="21:33" theme={t} width={w - 24} maxSize={t.engine === 'dial' ? w * 0.13 : w * 0.19} remaining={0.6} secondsLeft={21 * 60 + 33} motion={false} />
               </View>
-              <Text style={{ ...fontStyle(t.type.title, '600'), fontSize: 14, color: t.ink }} numberOfLines={1}>
+              <Text style={{ ...fontStyle(t.type.title, '600'), fontSize: sz(14), color: t.ink }} numberOfLines={1}>
                 {on ? `✓ ${t.name}` : t.name}
               </Text>
             </View>
@@ -311,7 +312,7 @@ function AccountStep({ theme, signedIn, username, onDone }: { theme: Theme; sign
       <View style={{ flexDirection: 'row', gap: 8 }}>
         {(['new', 'in'] as const).map((m) => (
           <Pressable key={m} accessibilityRole="button" accessibilityState={{ selected: mode === m }} onPress={() => setMode(m)} style={{ flex: 1, paddingVertical: 10, borderRadius: 999, alignItems: 'center', backgroundColor: mode === m ? theme.accent : alpha(theme.ink, 0.08) }}>
-            <Text style={{ ...TYPE.semibold, fontSize: 15, color: mode === m ? readableOn(theme.accent) : theme.ink }}>{m === 'new' ? 'Sign up' : 'I already have an account'}</Text>
+            <Text style={{ ...TYPE.semibold, fontSize: sz(15), color: mode === m ? readableOn(theme.accent) : theme.ink }}>{m === 'new' ? 'Sign up' : 'I already have an account'}</Text>
           </Pressable>
         ))}
       </View>
@@ -320,13 +321,13 @@ function AccountStep({ theme, signedIn, username, onDone }: { theme: Theme; sign
         <Field value={p1} onChangeText={setP1} placeholder={mode === 'new' ? 'Password (8+ characters)' : 'Password'} secureTextEntry={!show} autoCapitalize="none" textContentType={mode === 'new' ? 'newPassword' : 'password'} accessibilityLabel="Password" />
         {mode === 'new' ? <Field value={p2} onChangeText={setP2} placeholder="Confirm password" secureTextEntry={!show} autoCapitalize="none" textContentType="newPassword" accessibilityLabel="Confirm password" /> : null}
         <Pressable accessibilityRole="button" onPress={() => setShow((s) => !s)} style={{ alignSelf: 'flex-start', padding: 4 }}>
-          <Text style={{ ...TYPE.medium, fontSize: 14, color: theme.accent }}>{show ? 'Hide password' : 'Show password'}</Text>
+          <Text style={{ ...TYPE.medium, fontSize: sz(14), color: theme.accent }}>{show ? 'Hide password' : 'Show password'}</Text>
         </Pressable>
       </View>
       {err ? <Note tone="error">{err}</Note> : null}
       <Button title={busy ? 'One moment…' : mode === 'new' ? 'Create account' : 'Sign in'} onPress={() => void submit()} disabled={busy} />
       <Button title="Skip for now" kind="plain" onPress={onDone} />
-      <Text style={{ ...TYPE.regular, fontSize: 12, color: theme.muted, textAlign: 'center' }}>We never ask for your name, email or phone. Delete the account anytime in Settings.</Text>
+      <Text style={{ ...TYPE.regular, fontSize: sz(12), color: theme.muted, textAlign: 'center' }}>We never ask for your name, email or phone. Delete the account anytime in Settings.</Text>
     </StepText>
   );
 }

@@ -15,6 +15,7 @@ import { useTheme } from '@/lib/hooks';
 import { NORTH_BELLS, SCHOOL_DAY_LIST } from '@/lib/schedule';
 import { setSchool, useStore } from '@/lib/store';
 import { alpha } from '@/lib/themes';
+import { sz } from '@/lib/scale';
 
 /** Works with no server at all: the built-in Great Neck North week. */
 export const BUILT_IN_SCHOOL = { id: 1, name: 'Great Neck North High School' };
@@ -99,8 +100,8 @@ export default function School() {
   if (picked) {
     return (
       <Screen>
-        <Text style={{ ...TYPE.bold, fontSize: 24, color: theme.ink, textAlign: 'center' }}>{picked.school.name}</Text>
-        <Text style={{ ...TYPE.regular, fontSize: 15, color: theme.muted, textAlign: 'center' }}>Pick the bell schedule your school uses on a normal day. You can switch for a day anytime.</Text>
+        <Text style={{ ...TYPE.bold, fontSize: sz(24), color: theme.ink, textAlign: 'center' }}>{picked.school.name}</Text>
+        <Text style={{ ...TYPE.regular, fontSize: sz(15), color: theme.muted, textAlign: 'center' }}>Pick the bell schedule your school uses on a normal day. You can switch for a day anytime.</Text>
         <Section title="Bell schedules">
           {picked.schedules.length === 0 ? <Note>No schedules yet for this school. Add the first one below.</Note> : null}
           {picked.schedules.map((s, i) => {
@@ -116,7 +117,7 @@ export default function School() {
                   onPress={() => void choose(s)}
                   right={
                     <Pressable accessibilityRole="button" accessibilityLabel={`Report ${s.name}`} hitSlop={8} onPress={() => router.push({ pathname: '/report', params: { kind: 'schedule', id: String(s.id), name: `${s.name} · ${picked.school.name}` } })} style={{ paddingHorizontal: 6 }}>
-                      <Text style={{ ...TYPE.medium, fontSize: 12, color: theme.muted }}>Report</Text>
+                      <Text style={{ ...TYPE.medium, fontSize: sz(12), color: theme.muted }}>Report</Text>
                     </Pressable>
                   }
                 />
@@ -132,7 +133,7 @@ export default function School() {
         {!account ? <Note>Sign in to add a schedule.</Note> : null}
         <Button title="Back to search" kind="plain" onPress={() => setPicked(null)} />
         <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/report', params: { kind: 'school', id: String(picked.school.id), name: picked.school.name } })} style={{ alignSelf: 'center', padding: 8 }}>
-          <Text style={{ ...TYPE.medium, fontSize: 13, color: theme.muted }}>Report this school or one of its schedules</Text>
+          <Text style={{ ...TYPE.medium, fontSize: sz(13), color: theme.muted }}>Report this school or one of its schedules</Text>
         </Pressable>
         {err ? <Note tone="error">{err}</Note> : null}
       </Screen>
@@ -142,7 +143,7 @@ export default function School() {
   const exact = hits?.some((h) => h.name.toLowerCase() === q.trim().toLowerCase());
   return (
     <Screen>
-      <Text style={{ ...TYPE.bold, fontSize: 24, color: theme.ink, textAlign: 'center' }}>What school do you go to?</Text>
+      <Text style={{ ...TYPE.bold, fontSize: sz(24), color: theme.ink, textAlign: 'center' }}>What school do you go to?</Text>
       <Field value={q} onChangeText={setQ} placeholder="Search schools" autoCapitalize="words" autoCorrect={false} accessibilityLabel="Search schools" />
       {offline ? (
         <Note tone="error">{"Can't reach Studento's server right now. You can use the built-in Great Neck North schedule and pick your school later."}</Note>
@@ -165,8 +166,8 @@ export default function School() {
           onPress={() => void addSchool()}
           style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, flexDirection: 'row', alignItems: 'center', gap: 10, padding: 14, borderRadius: 16, backgroundColor: alpha(theme.accent, 0.12) })}
         >
-          <Icon name="plus.circle.fill" color={theme.accent} size={20} fallback={<Text style={{ color: theme.accent, fontSize: 18 }}>+</Text>} />
-          <Text style={{ ...TYPE.semibold, fontSize: 15, color: theme.ink, flex: 1 }}>{account ? `Add “${q.trim()}” as a new school` : `Sign in to add “${q.trim()}”`}</Text>
+          <Icon name="plus.circle.fill" color={theme.accent} size={20} fallback={<Text style={{ color: theme.accent, fontSize: sz(18) }}>+</Text>} />
+          <Text style={{ ...TYPE.semibold, fontSize: sz(15), color: theme.ink, flex: 1 }}>{account ? `Add “${q.trim()}” as a new school` : `Sign in to add “${q.trim()}”`}</Text>
         </Pressable>
       ) : null}
       <Button title="Use Great Neck North (built in, works offline)" kind="plain" onPress={() => void pickBuiltIn()} />

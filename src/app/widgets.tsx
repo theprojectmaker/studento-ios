@@ -7,6 +7,7 @@ import { TYPE } from '@/lib/fonts';
 import { useTheme } from '@/lib/hooks';
 import { setPref, useStore, WIDGET_IDS, type WidgetId } from '@/lib/store';
 import { alpha } from '@/lib/themes';
+import { sz } from '@/lib/scale';
 
 const MAX = 4;
 
@@ -35,8 +36,8 @@ export default function Widgets() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 10 }}>
                 <RoundBtn label={`Remove ${WIDGET_INFO[id].name}`} color="#ff3b30" sign="−" onPress={() => save(ids.filter((x) => x !== id))} />
                 <View style={{ flex: 1 }}>
-                  <Text style={{ ...TYPE.medium, fontSize: 16, color: theme.ink }}>{WIDGET_INFO[id].name}</Text>
-                  <Text style={{ ...TYPE.regular, fontSize: 13, color: theme.muted }}>{WIDGET_INFO[id].about}</Text>
+                  <Text style={{ ...TYPE.medium, fontSize: sz(16), color: theme.ink }}>{WIDGET_INFO[id].name}</Text>
+                  <Text style={{ ...TYPE.regular, fontSize: sz(13), color: theme.muted }}>{WIDGET_INFO[id].about}</Text>
                 </View>
                 <Arrow label="Move up" disabled={i === 0} up onPress={() => move(i, -1)} />
                 <Arrow label="Move down" disabled={i === ids.length - 1} onPress={() => move(i, 1)} />
@@ -44,7 +45,7 @@ export default function Widgets() {
             </View>
           ))
         ) : (
-          <Text style={{ ...TYPE.regular, fontSize: 15, color: theme.muted, padding: 16 }}>No widgets. The clock stays clean.</Text>
+          <Text style={{ ...TYPE.regular, fontSize: sz(15), color: theme.muted, padding: 16 }}>No widgets. The clock stays clean.</Text>
         )}
       </Section>
 
@@ -56,8 +57,8 @@ export default function Widgets() {
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 14, paddingVertical: 10, opacity: ids.length >= MAX ? 0.4 : 1 }}>
                 <RoundBtn label={`Add ${WIDGET_INFO[id].name}`} color="#34c759" sign="+" disabled={ids.length >= MAX} onPress={() => save([...ids, id])} />
                 <View style={{ flex: 1 }}>
-                  <Text style={{ ...TYPE.medium, fontSize: 16, color: theme.ink }}>{WIDGET_INFO[id].name}</Text>
-                  <Text style={{ ...TYPE.regular, fontSize: 13, color: theme.muted }}>{WIDGET_INFO[id].about}</Text>
+                  <Text style={{ ...TYPE.medium, fontSize: sz(16), color: theme.ink }}>{WIDGET_INFO[id].name}</Text>
+                  <Text style={{ ...TYPE.regular, fontSize: sz(13), color: theme.muted }}>{WIDGET_INFO[id].about}</Text>
                 </View>
               </View>
             </View>
@@ -72,7 +73,7 @@ export default function Widgets() {
 function RoundBtn({ label, color, sign, onPress, disabled }: { label: string; color: string; sign: string; onPress: () => void; disabled?: boolean }) {
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled} hitSlop={8} onPress={onPress} style={{ width: 28, height: 28, borderRadius: 14, backgroundColor: color, alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ ...TYPE.heavy, color: '#ffffff', fontSize: 18, lineHeight: 20 }}>{sign}</Text>
+      <Text style={{ ...TYPE.heavy, color: '#ffffff', fontSize: sz(18), lineHeight: sz(20) }}>{sign}</Text>
     </Pressable>
   );
 }
@@ -81,7 +82,7 @@ function Arrow({ label, up, disabled, onPress }: { label: string; up?: boolean; 
   const theme = useTheme();
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={label} disabled={disabled} hitSlop={6} onPress={onPress} style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', backgroundColor: alpha(theme.ink, 0.07), opacity: disabled ? 0.3 : 1 }}>
-      <Text style={{ ...TYPE.bold, color: theme.ink, fontSize: 14 }}>{up ? '↑' : '↓'}</Text>
+      <Text style={{ ...TYPE.bold, color: theme.ink, fontSize: sz(14) }}>{up ? '↑' : '↓'}</Text>
     </Pressable>
   );
 }

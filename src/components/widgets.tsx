@@ -11,6 +11,7 @@ import { focusLeft, useTools } from '@/lib/tools';
 import { nameFor, type NowState } from '@/lib/schedule';
 import { setPref, type WidgetId } from '@/lib/store';
 import { alpha, type Theme } from '@/lib/themes';
+import { sz } from '@/lib/scale';
 
 import { Glass } from './glass';
 import { tap } from './ui';
@@ -129,7 +130,7 @@ export function WidgetArea({ ids, st, theme, names, h24, editing = false }: { id
                 <View style={{ width: `${w.bar * 100}%`, height: '100%', backgroundColor: theme.accent }} />
               </View>
             ) : null}
-            <Text style={{ ...TYPE.regular, fontSize: 12.5, color: theme.muted, textAlign: 'center' }} numberOfLines={1}>
+            <Text style={{ ...TYPE.regular, fontSize: sz(12.5), color: theme.muted, textAlign: 'center' }} numberOfLines={1}>
               {w.small}
             </Text>
           </Tile>
@@ -143,8 +144,8 @@ export function WidgetArea({ ids, st, theme, names, h24, editing = false }: { id
             tap();
             router.push('/widgets');
           }}
-          style={{ flexGrow: 1, flexBasis: '46%', minHeight: 64, borderRadius: 18, borderWidth: 1.5, borderStyle: 'dashed', borderColor: alpha(theme.ink, 0.3), alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ ...TYPE.semibold, fontSize: 14, color: theme.muted }}>+ Add widget</Text>
+          style={{ flexGrow: 1, flexBasis: '46%', minHeight: sz(64), borderRadius: 18, borderWidth: 1.5, borderStyle: 'dashed', borderColor: alpha(theme.ink, 0.3), alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ ...TYPE.semibold, fontSize: sz(14), color: theme.muted }}>+ Add widget</Text>
         </Pressable>
       ) : null}
     </View>
@@ -163,12 +164,12 @@ function Tile({ theme, label, onPress, children, editing, onRemove }: { theme: T
       }}
       style={({ pressed }) => ({ flexGrow: 1, flexBasis: '46%', opacity: pressed ? 0.75 : 1 })}>
       <Glass theme={theme} radius={18} style={{ paddingHorizontal: 14, paddingVertical: 11, gap: 1, alignItems: 'center' }}>
-        <Text style={{ ...TYPE.semibold, fontSize: 11, letterSpacing: 0.8, color: theme.muted, textAlign: 'center' }}>{label.toUpperCase()}</Text>
+        <Text style={{ ...TYPE.semibold, fontSize: sz(11), letterSpacing: 0.8, color: theme.muted, textAlign: 'center' }}>{label.toUpperCase()}</Text>
         {children}
       </Glass>
       {editing ? (
         <View style={{ position: 'absolute', top: -8, left: -6, width: 24, height: 24, borderRadius: 12, backgroundColor: '#ff3b30', alignItems: 'center', justifyContent: 'center', borderWidth: 2, borderColor: 'rgba(255,255,255,0.9)' }}>
-          <Text style={{ ...TYPE.heavy, color: '#ffffff', fontSize: 16, lineHeight: 18 }}>−</Text>
+          <Text style={{ ...TYPE.heavy, color: '#ffffff', fontSize: sz(16), lineHeight: sz(18) }}>−</Text>
         </View>
       ) : null}
     </Pressable>

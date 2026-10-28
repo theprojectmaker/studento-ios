@@ -10,6 +10,7 @@ import { fontStyle } from '@/lib/typefaces';
 import { useTheme } from '@/lib/hooks';
 import { setPref } from '@/lib/store';
 import { alpha, GROUPS, THEMES, type Effect, type Theme } from '@/lib/themes';
+import { sz } from '@/lib/scale';
 
 const EFFECT_LABEL: Record<Effect, string> = {
   none: '',
@@ -40,12 +41,12 @@ export default function Themes() {
   }, [shown]);
   return (
     <Screen>
-      <Text style={{ ...TYPE.regular, fontSize: 15, color: current.muted, paddingHorizontal: 4 }}>
+      <Text style={{ ...TYPE.regular, fontSize: sz(15), color: current.muted, paddingHorizontal: 4 }}>
         All {THEMES.length} themes from Studento. Some have a live effect; turn effects off in Settings.
       </Text>
       {GROUPS.slice(0, shown).map((g) => (
         <View key={g} style={{ gap: 10 }}>
-          <Text style={{ ...TYPE.bold, fontSize: 20, letterSpacing: -0.4, color: current.ink, paddingHorizontal: 4 }}>{g}</Text>
+          <Text style={{ ...TYPE.bold, fontSize: sz(20), letterSpacing: -0.4, color: current.ink, paddingHorizontal: 4 }}>{g}</Text>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
             {THEMES.filter((t) => t.group === g).map((t) => (
               <Card key={t.id} t={t} on={t.id === current.id} w={cardW} />
@@ -79,7 +80,7 @@ function Card({ t, on, w }: { t: Theme; on: boolean; w: number }) {
               {t.type.titleCaps ? t.name.toUpperCase() : t.name}
             </Text>
             {t.effect !== 'none' ? (
-              <Text style={{ ...TYPE.regular, fontSize: 11, color: alpha(t.ink, 0.55) }} numberOfLines={1}>
+              <Text style={{ ...TYPE.regular, fontSize: sz(11), color: alpha(t.ink, 0.55) }} numberOfLines={1}>
                 {EFFECT_LABEL[t.effect]}
               </Text>
             ) : null}

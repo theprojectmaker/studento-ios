@@ -9,6 +9,7 @@ import { addDays, fmtDate, nyParts, weekdayOf } from '@/lib/nytime';
 import { nameFor, periodTitle, rangeText, roomOf, scheduleFor } from '@/lib/schedule';
 import { useSchedule, useStore } from '@/lib/store';
 import { alpha, readableOn } from '@/lib/themes';
+import { sz } from '@/lib/scale';
 
 export default function Week() {
   const theme = useTheme();
@@ -43,8 +44,8 @@ export default function Week() {
                 setPick(d);
               }}
               style={{ width: 64, paddingVertical: 10, borderRadius: 16, alignItems: 'center', gap: 2, backgroundColor: on ? theme.accent : theme.panel }}>
-              <Text style={{ ...TYPE.semibold, fontSize: 12, color: on ? readableOn(theme.accent) : theme.muted }}>{weekdayOf(d).toUpperCase()}</Text>
-              <Text style={{ ...TYPE.heavy, fontSize: 22, color: on ? readableOn(theme.accent) : theme.ink }}>{Number(d.slice(8))}</Text>
+              <Text style={{ ...TYPE.semibold, fontSize: sz(12), color: on ? readableOn(theme.accent) : theme.muted }}>{weekdayOf(d).toUpperCase()}</Text>
+              <Text style={{ ...TYPE.heavy, fontSize: sz(22), color: on ? readableOn(theme.accent) : theme.ink }}>{Number(d.slice(8))}</Text>
               <View style={{ width: 5, height: 5, borderRadius: 3, backgroundColor: isToday ? (on ? readableOn(theme.accent) : theme.accent) : kind !== 'Regular' && kind !== 'Wednesday Advisory' ? alpha(theme.ink, 0.4) : 'transparent' }} />
             </Pressable>
           );
@@ -59,14 +60,14 @@ export default function Week() {
               {i ? <Divider /> : null}
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 12 }}>
                 <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={{ ...TYPE.semibold, fontSize: 16, color: theme.ink }} numberOfLines={1}>
+                  <Text style={{ ...TYPE.semibold, fontSize: sz(16), color: theme.ink }} numberOfLines={1}>
                     {nameFor(p, sched.names)}
                   </Text>
-                  <Text style={{ ...TYPE.regular, fontSize: 13, color: theme.muted }} numberOfLines={1}>
+                  <Text style={{ ...TYPE.regular, fontSize: sz(13), color: theme.muted }} numberOfLines={1}>
                     {[nameFor(p, sched.names) !== periodTitle(p) ? periodTitle(p) : null, d?.room ? `Room ${d.room}` : null].filter(Boolean).join(' · ')}
                   </Text>
                 </View>
-                <Text style={{ ...TYPE.medium, fontSize: 14, color: theme.muted, fontVariant: ['tabular-nums'] }}>{rangeText(p, h24)}</Text>
+                <Text style={{ ...TYPE.medium, fontSize: sz(14), color: theme.muted, fontVariant: ['tabular-nums'] }}>{rangeText(p, h24)}</Text>
               </View>
             </View>
           );

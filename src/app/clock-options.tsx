@@ -6,6 +6,7 @@ import { Divider, Row, Screen, Section, Segmented, ToggleRow } from '@/component
 import { TYPE } from '@/lib/fonts';
 import { useTheme } from '@/lib/hooks';
 import { setPref, useStore } from '@/lib/store';
+import { sz } from '@/lib/scale';
 
 export default function ClockOptions() {
   const prefs = useStore((s) => s.prefs);
@@ -30,7 +31,7 @@ export default function ClockOptions() {
 
       <Section title="Countdown">
         <View style={{ padding: 12, gap: 8 }}>
-          <Text style={{ ...TYPE.medium, fontSize: 15, color: theme.ink }}>Size</Text>
+          <Text style={{ ...TYPE.medium, fontSize: sz(15), color: theme.ink }}>Size</Text>
           <Segmented
             value={prefs.digitSize}
             options={[
@@ -47,7 +48,7 @@ export default function ClockOptions() {
         <ToggleRow label="Tap the countdown to switch" sub="Seconds or whole minutes" icon={{ name: 'hand.tap.fill', color: '#30b0c7' }} value={prefs.tapToggle} onChange={(v) => setPref('tapToggle', v)} />
         <Divider />
         <View style={{ padding: 12, gap: 8 }}>
-          <Text style={{ ...TYPE.medium, fontSize: 15, color: theme.ink }}>Sub-second readout</Text>
+          <Text style={{ ...TYPE.medium, fontSize: sz(15), color: theme.ink }}>Sub-second readout</Text>
           <Segmented
             value={prefs.millis}
             options={[

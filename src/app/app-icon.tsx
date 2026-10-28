@@ -9,6 +9,7 @@ import { TYPE } from '@/lib/fonts';
 import { useTheme } from '@/lib/hooks';
 import { APP_ICONS, chooseIcon, currentIcon, iconsSupported } from '@/lib/appIcon';
 import { alpha } from '@/lib/themes';
+import { sz } from '@/lib/scale';
 
 export default function AppIcon() {
   const theme = useTheme();
@@ -30,7 +31,7 @@ export default function AppIcon() {
 
   return (
     <Screen>
-      <Text style={{ ...TYPE.regular, fontSize: 15, lineHeight: 21, color: theme.muted, textAlign: 'center' }}>
+      <Text style={{ ...TYPE.regular, fontSize: sz(15), lineHeight: sz(21), color: theme.muted, textAlign: 'center' }}>
         {supported ? 'Pick the icon on your home screen. iOS will show a short confirmation popup when it changes.' : 'Changing the icon works in the installed app (TestFlight or the App Store), not in Expo Go.'}
       </Text>
 
@@ -55,7 +56,7 @@ export default function AppIcon() {
                   </View>
                 ) : null}
               </View>
-              <Text numberOfLines={1} style={{ ...TYPE.medium, fontSize: 12, color: on ? theme.ink : theme.muted, textAlign: 'center' }}>
+              <Text numberOfLines={1} style={{ ...TYPE.medium, fontSize: sz(12), color: on ? theme.ink : theme.muted, textAlign: 'center' }}>
                 {ic.label}
               </Text>
             </Pressable>

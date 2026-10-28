@@ -22,6 +22,7 @@ import { NORTH_BELLS } from '@/lib/schedule';
 import { parsedSomething, parseScheduleText } from '@/lib/scheduleParser';
 import { getState, useStore } from '@/lib/store';
 import { alpha } from '@/lib/themes';
+import { sz } from '@/lib/scale';
 
 const EXAMPLE = `Period 1  Algebra  8:00-8:41  Room 112
 Period 2  English  8:44-9:25
@@ -117,7 +118,7 @@ export default function SetupSchedule() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
       <Screen>
-        <Text style={{ ...TYPE.regular, fontSize: 16, lineHeight: 22, color: theme.muted, textAlign: 'center' }}>
+        <Text style={{ ...TYPE.regular, fontSize: sz(16), lineHeight: sz(22), color: theme.muted, textAlign: 'center' }}>
           {scan ? 'Take a clear photo of your schedule, or pick a screenshot of it.' : 'List your classes and times. Any format works.'}
         </Text>
 
@@ -128,7 +129,7 @@ export default function SetupSchedule() {
               <Image source={{ uri: photo.uri }} style={{ width: '100%', aspectRatio: 3 / 4, borderRadius: 18, backgroundColor: theme.panel }} contentFit="contain" />
             ) : (
               <View style={{ height: 180, borderRadius: 18, borderWidth: 1.5, borderStyle: 'dashed', borderColor: alpha(theme.ink, 0.25), alignItems: 'center', justifyContent: 'center' }}>
-                <Text style={{ ...TYPE.medium, fontSize: 15, color: theme.muted }}>No photo yet</Text>
+                <Text style={{ ...TYPE.medium, fontSize: sz(15), color: theme.muted }}>No photo yet</Text>
               </View>
             )}
             <View style={{ flexDirection: 'row', gap: 10 }}>
@@ -151,7 +152,7 @@ export default function SetupSchedule() {
             placeholder={EXAMPLE}
             placeholderTextColor={alpha(theme.ink, 0.35)}
             selectionColor={theme.accent}
-            style={{ ...TYPE.regular, minHeight: 220, borderRadius: 18, padding: 14, fontSize: 16, lineHeight: 22, color: theme.ink, backgroundColor: theme.panel, textAlignVertical: 'top' }}
+            style={{ ...TYPE.regular, minHeight: sz(220), borderRadius: 18, padding: 14, fontSize: sz(16), lineHeight: sz(22), color: theme.ink, backgroundColor: theme.panel, textAlignVertical: 'top' }}
             accessibilityLabel="Your schedule"
           />
         )}
@@ -160,7 +161,7 @@ export default function SetupSchedule() {
         {busy ? (
           <View style={{ alignItems: 'center', gap: 10, paddingVertical: 8 }}>
             <ActivityIndicator color={theme.accent} />
-            <Text style={{ ...TYPE.medium, fontSize: 15, color: theme.muted }}>Reading your schedule…</Text>
+            <Text style={{ ...TYPE.medium, fontSize: sz(15), color: theme.muted }}>Reading your schedule…</Text>
           </View>
         ) : (
           <Button title="Read my schedule" onPress={read} disabled={scan ? !photo : text.trim().length < 3} />

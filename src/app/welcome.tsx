@@ -13,6 +13,7 @@ import { useTheme } from '@/lib/hooks';
 import { setPref, useStore } from '@/lib/store';
 import { alpha } from '@/lib/themes';
 import { fontStyle } from '@/lib/typefaces';
+import { sz } from '@/lib/scale';
 
 export default function Welcome() {
   const theme = useTheme();
@@ -34,7 +35,7 @@ export default function Welcome() {
         <Text style={{ ...fontStyle(theme.type.title, '800'), fontSize: 34 * Math.min(1.1, theme.type.titleScale ?? 1), color: theme.ink, textAlign: 'center' }}>
           {onboarded ? 'Your schedule' : 'Welcome to Studento'}
         </Text>
-        <Text style={{ ...TYPE.regular, fontSize: 16, lineHeight: 22, color: theme.muted, textAlign: 'center', maxWidth: 340 }}>Studento counts down to every bell. Two quick steps.</Text>
+        <Text style={{ ...TYPE.regular, fontSize: sz(16), lineHeight: sz(22), color: theme.muted, textAlign: 'center', maxWidth: 340 }}>Studento counts down to every bell. Two quick steps.</Text>
       </View>
 
       <Step n={1} title="Your school's bell times" />
@@ -69,7 +70,7 @@ export default function Welcome() {
         onPress={finish}
       />
 
-      <Text style={{ ...TYPE.regular, fontSize: 13, color: theme.muted, textAlign: 'center', paddingHorizontal: 12 }}>
+      <Text style={{ ...TYPE.regular, fontSize: sz(13), color: theme.muted, textAlign: 'center', paddingHorizontal: 12 }}>
         {account ? `Saved to your account (${account.user.username}).` : 'Everything stays on this phone. Create an account in Settings to keep it across devices.'}
       </Text>
     </Screen>
@@ -81,9 +82,9 @@ function Step({ n, title }: { n: number; title: string }) {
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingHorizontal: 4, marginBottom: -10 }}>
       <View style={{ width: 24, height: 24, borderRadius: 12, backgroundColor: theme.accent, alignItems: 'center', justifyContent: 'center' }}>
-        <Text style={{ ...TYPE.bold, fontSize: 13, color: '#111111' }}>{n}</Text>
+        <Text style={{ ...TYPE.bold, fontSize: sz(13), color: '#111111' }}>{n}</Text>
       </View>
-      <Text style={{ ...TYPE.semibold, fontSize: 13, letterSpacing: 1.2, color: theme.muted }}>{title.toUpperCase()}</Text>
+      <Text style={{ ...TYPE.semibold, fontSize: sz(13), letterSpacing: 1.2, color: theme.muted }}>{title.toUpperCase()}</Text>
     </View>
   );
 }
@@ -107,11 +108,11 @@ function Choice({ icon, color, title, sub, onPress, selected, recommended }: { i
         <View style={{ flex: 1, gap: 3 }}>
           {recommended ? (
             <View style={{ alignSelf: 'flex-start', backgroundColor: '#007aff', borderRadius: 999, paddingHorizontal: 8, paddingVertical: 2 }}>
-              <Text style={{ ...TYPE.bold, fontSize: 11, letterSpacing: 0.8, color: '#ffffff' }}>RECOMMENDED</Text>
+              <Text style={{ ...TYPE.bold, fontSize: sz(11), letterSpacing: 0.8, color: '#ffffff' }}>RECOMMENDED</Text>
             </View>
           ) : null}
-          <Text style={{ ...TYPE.bold, fontSize: 17, color: theme.ink }}>{title}</Text>
-          <Text style={{ ...TYPE.regular, fontSize: 14, lineHeight: 19, color: theme.muted }}>{sub}</Text>
+          <Text style={{ ...TYPE.bold, fontSize: sz(17), color: theme.ink }}>{title}</Text>
+          <Text style={{ ...TYPE.regular, fontSize: sz(14), lineHeight: sz(19), color: theme.muted }}>{sub}</Text>
         </View>
       </View>
     </Pressable>

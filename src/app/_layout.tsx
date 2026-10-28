@@ -15,6 +15,7 @@ import { loadPlanner } from '@/lib/planner';
 import { loadTools, subscribeTools } from '@/lib/tools';
 import { flushStore, load, subscribe, getState, useStore } from '@/lib/store';
 import { FONT_FILES } from '@/lib/typefaces';
+import { sz } from '@/lib/scale';
 import { refreshWidget, syncFocusActivity, syncLiveActivity } from '@/widgets';
 
 void SplashScreen.preventAutoHideAsync();
@@ -24,12 +25,12 @@ setupNotificationHandler();
 export function ErrorBoundary({ error, retry }: ErrorBoundaryProps) {
   return (
     <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 28, gap: 14, backgroundColor: '#0a0a0b' }}>
-      <Text style={{ fontSize: 22, fontWeight: '700', color: '#f2eee6', textAlign: 'center' }}>Something went wrong</Text>
-      <Text style={{ fontSize: 15, lineHeight: 21, color: 'rgba(242,238,230,0.6)', textAlign: 'center' }}>Your schedule and settings are safe. Tap below to go back.</Text>
+      <Text style={{ fontSize: sz(22), fontWeight: '700', color: '#f2eee6', textAlign: 'center' }}>Something went wrong</Text>
+      <Text style={{ fontSize: sz(15), lineHeight: sz(21), color: 'rgba(242,238,230,0.6)', textAlign: 'center' }}>Your schedule and settings are safe. Tap below to go back.</Text>
       <Pressable accessibilityRole="button" onPress={() => void retry()} style={{ marginTop: 6, paddingHorizontal: 22, paddingVertical: 12, borderRadius: 999, backgroundColor: '#e8b84b' }}>
-        <Text style={{ fontSize: 16, fontWeight: '700', color: '#111111' }}>Try again</Text>
+        <Text style={{ fontSize: sz(16), fontWeight: '700', color: '#111111' }}>Try again</Text>
       </Pressable>
-      {__DEV__ ? <Text style={{ fontSize: 12, color: 'rgba(242,238,230,0.4)', textAlign: 'center' }}>{error.message}</Text> : null}
+      {__DEV__ ? <Text style={{ fontSize: sz(12), color: 'rgba(242,238,230,0.4)', textAlign: 'center' }}>{error.message}</Text> : null}
     </View>
   );
 }

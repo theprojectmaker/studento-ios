@@ -8,6 +8,7 @@ import { useTheme } from '@/lib/hooks';
 import { useClasses } from '@/lib/store';
 import { addGrade, deleteGrade, gradeSummary, letter, updateGrade, useTools } from '@/lib/tools';
 import { alpha, readableOn } from '@/lib/themes';
+import { sz } from '@/lib/scale';
 
 const LEVELS = [
   { w: 1, label: 'Regular' },
@@ -45,8 +46,8 @@ export default function Grades() {
             [sum ? sum.gpa.toFixed(2) : '–', 'GPA (weighted)'],
           ].map(([big, small]) => (
             <View key={small} style={{ flex: 1, backgroundColor: theme.panel, borderRadius: 18, padding: 14, alignItems: 'center' }}>
-              <Text style={{ ...TYPE.heavy, fontSize: 26, color: theme.ink, fontVariant: ['tabular-nums'] }}>{big}</Text>
-              <Text style={{ ...TYPE.medium, fontSize: 12, color: theme.muted }}>{small}</Text>
+              <Text style={{ ...TYPE.heavy, fontSize: sz(26), color: theme.ink, fontVariant: ['tabular-nums'] }}>{big}</Text>
+              <Text style={{ ...TYPE.medium, fontSize: sz(12), color: theme.muted }}>{small}</Text>
             </View>
           ))}
         </View>
@@ -58,14 +59,14 @@ export default function Grades() {
                 {i ? <Divider /> : null}
                 <View style={{ paddingHorizontal: 14, paddingVertical: 12, gap: 8 }}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    <Text style={{ ...TYPE.semibold, fontSize: 16, color: theme.ink, flex: 1 }} numberOfLines={1}>
+                    <Text style={{ ...TYPE.semibold, fontSize: sz(16), color: theme.ink, flex: 1 }} numberOfLines={1}>
                       {g.name}
                     </Text>
-                    <Text style={{ ...TYPE.heavy, fontSize: 17, color: theme.ink, fontVariant: ['tabular-nums'] }}>
+                    <Text style={{ ...TYPE.heavy, fontSize: sz(17), color: theme.ink, fontVariant: ['tabular-nums'] }}>
                       {g.score}% · {letter(g.score)}
                     </Text>
                     <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${g.name}`} hitSlop={8} onPress={() => deleteGrade(g.id)}>
-                      <Text style={{ fontSize: 20, color: alpha(theme.ink, 0.35) }}>×</Text>
+                      <Text style={{ fontSize: sz(20), color: alpha(theme.ink, 0.35) }}>×</Text>
                     </Pressable>
                   </View>
                   <View style={{ flexDirection: 'row', gap: 6 }}>
@@ -79,7 +80,7 @@ export default function Grades() {
                             updateGrade(g.id, { weight: l.w });
                           }}
                           style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: on ? theme.accent : alpha(theme.ink, 0.08) }}>
-                          <Text style={{ ...TYPE.semibold, fontSize: 13, color: on ? readableOn(theme.accent) : theme.ink }}>{l.label}</Text>
+                          <Text style={{ ...TYPE.semibold, fontSize: sz(13), color: on ? readableOn(theme.accent) : theme.ink }}>{l.label}</Text>
                         </Pressable>
                       );
                     })}
@@ -106,7 +107,7 @@ export default function Grades() {
                       setName(n);
                     }}
                     style={{ paddingHorizontal: 10, paddingVertical: 6, borderRadius: 999, backgroundColor: alpha(theme.ink, 0.08) }}>
-                    <Text style={{ ...TYPE.medium, fontSize: 13, color: theme.ink }}>{n}</Text>
+                    <Text style={{ ...TYPE.medium, fontSize: sz(13), color: theme.ink }}>{n}</Text>
                   </Pressable>
                 ))}
               </View>

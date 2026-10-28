@@ -9,6 +9,7 @@ import { TYPE } from '@/lib/fonts';
 import { useTheme } from '@/lib/hooks';
 import { periodIdsFor } from '@/lib/schedule';
 import { setClassInfo, useStore } from '@/lib/store';
+import { sz } from '@/lib/scale';
 
 export default function Classes() {
   const theme = useTheme();
@@ -48,7 +49,7 @@ export default function Classes() {
               <View key={id}>
                 {i ? <Divider /> : null}
                 <View style={{ padding: 14, gap: 8 }}>
-                  <Text style={{ ...TYPE.bold, fontSize: 12, letterSpacing: 1, color: theme.accent }}>{label.toUpperCase()}</Text>
+                  <Text style={{ ...TYPE.bold, fontSize: sz(12), letterSpacing: 1, color: theme.accent }}>{label.toUpperCase()}</Text>
                   <Field
                     value={names[id] ?? ''}
                     placeholder={label}

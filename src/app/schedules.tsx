@@ -10,6 +10,7 @@ import { fmtDate, fmtTime, nyParts } from '@/lib/nytime';
 import { scheduleFor, type CustomDay, type OverrideType, type Period, type SchoolDay } from '@/lib/schedule';
 import { deleteCustomDay, setOverride, useStore } from '@/lib/store';
 import { alpha } from '@/lib/themes';
+import { sz } from '@/lib/scale';
 
 interface Choice {
   key: string;
@@ -103,8 +104,8 @@ export default function Schedules() {
                     {on ? <View style={{ width: 11, height: 11, borderRadius: 6, backgroundColor: theme.accent }} /> : null}
                   </View>
                   <View style={{ flex: 1 }}>
-                    <Text style={{ ...TYPE.semibold, fontSize: 16, color: theme.ink }}>{c.label}</Text>
-                    <Text style={{ ...TYPE.regular, fontSize: 13, color: theme.muted }}>{c.sub}</Text>
+                    <Text style={{ ...TYPE.semibold, fontSize: sz(16), color: theme.ink }}>{c.label}</Text>
+                    <Text style={{ ...TYPE.regular, fontSize: sz(13), color: theme.muted }}>{c.sub}</Text>
                   </View>
                 </View>
               </Pressable>
@@ -148,8 +149,8 @@ function DayRow({ day, h24, onEdit, onDelete, editLabel = 'Edit' }: { day: Custo
   const last = day.periods[day.periods.length - 1];
   return (
     <View style={{ padding: 14, gap: 8 }}>
-      <Text style={{ ...TYPE.bold, fontSize: 16, color: theme.ink }}>{day.label}</Text>
-      <Text style={{ ...TYPE.regular, fontSize: 13, color: theme.muted }}>
+      <Text style={{ ...TYPE.bold, fontSize: sz(16), color: theme.ink }}>{day.label}</Text>
+      <Text style={{ ...TYPE.regular, fontSize: sz(13), color: theme.muted }}>
         {fmtDate(day.date)} · {day.periods.length} periods{first && last ? ` · ${fmtTime(first.start, h24)} – ${fmtTime(last.end, h24)}` : ''}
       </Text>
       <View style={{ flexDirection: 'row', gap: 8 }}>

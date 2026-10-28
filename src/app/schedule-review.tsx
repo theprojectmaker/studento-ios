@@ -17,6 +17,7 @@ import { NORTH_BELLS, periodIdsFor, sortPeriods, validatePeriods, type Period, t
 import { getState, setPersonal, setPref, useStore } from '@/lib/store';
 import { alpha, readableOn } from '@/lib/themes';
 import { parseTime } from '@/lib/timeinput';
+import { sz } from '@/lib/scale';
 
 interface Row {
   period: string;
@@ -138,7 +139,7 @@ export default function ScheduleReview() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
       <Screen>
-        <Text style={{ ...TYPE.regular, fontSize: 15, lineHeight: 21, color: theme.muted, textAlign: 'center' }}>
+        <Text style={{ ...TYPE.regular, fontSize: sz(15), lineHeight: sz(21), color: theme.muted, textAlign: 'center' }}>
           {edit ? 'Change anything, then save.' : 'Here is what the reader found. It can make mistakes, so check each row, then save.'}
         </Text>
         {fl?.warnings.length ? <Note tone="error">{fl.warnings.join(' ')}</Note> : null}
@@ -162,7 +163,7 @@ export default function ScheduleReview() {
               <View key={id}>
                 {i ? <Divider /> : null}
                 <View style={[{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8 }, fl?.flags[id] ? { backgroundColor: alpha('#ff9f0a', 0.14) } : null]}>
-                  <Text style={{ ...TYPE.semibold, fontSize: 13, color: theme.accent, width: 70 }}>{periodName(id)}</Text>
+                  <Text style={{ ...TYPE.semibold, fontSize: sz(13), color: theme.accent, width: 70 }}>{periodName(id)}</Text>
                   <Field style={{ flex: 1 }} value={names[id] ?? ''} onChangeText={(v) => setNames((n) => ({ ...n, [id]: v }))} placeholder="Class" accessibilityLabel={`${periodName(id)} class`} maxLength={60} />
                   <Field style={{ width: 76 }} value={rooms[id] ?? ''} onChangeText={(v) => setRooms((r) => ({ ...r, [id]: v }))} placeholder="Room" accessibilityLabel={`${periodName(id)} room`} maxLength={20} />
                 </View>
@@ -188,7 +189,7 @@ export default function ScheduleReview() {
                         setDay(d);
                       }}
                       style={{ paddingHorizontal: 18, paddingVertical: 9, borderRadius: 999, backgroundColor: on ? theme.accent : alpha(theme.ink, 0.08) }}>
-                      <Text style={{ ...TYPE.semibold, fontSize: 15, color: on ? readableOn(theme.accent) : theme.ink }}>{d}</Text>
+                      <Text style={{ ...TYPE.semibold, fontSize: sz(15), color: on ? readableOn(theme.accent) : theme.ink }}>{d}</Text>
                     </Pressable>
                   );
                 })}
@@ -211,7 +212,7 @@ export default function ScheduleReview() {
                           setRows(rows.filter((_, j) => j !== i));
                         }}
                         style={{ width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center', backgroundColor: alpha('#ff453a', 0.14) }}>
-                        <Text style={{ ...TYPE.bold, color: '#ff453a', fontSize: 18, lineHeight: 20 }}>−</Text>
+                        <Text style={{ ...TYPE.bold, color: '#ff453a', fontSize: sz(18), lineHeight: sz(20) }}>−</Text>
                       </Pressable>
                     </View>
                     <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -243,7 +244,7 @@ export default function ScheduleReview() {
 
         <Section>
           <View style={{ padding: 14, gap: 6 }}>
-            <Text style={{ ...TYPE.semibold, fontSize: 12, letterSpacing: 1, color: theme.muted }}>SCHEDULE NAME</Text>
+            <Text style={{ ...TYPE.semibold, fontSize: sz(12), letterSpacing: 1, color: theme.muted }}>SCHEDULE NAME</Text>
             <Field value={name} onChangeText={setName} placeholder="My schedule" maxLength={40} accessibilityLabel="Schedule name" />
           </View>
         </Section>

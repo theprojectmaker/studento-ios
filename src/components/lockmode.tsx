@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { TYPE } from '@/lib/fonts';
 import { setPref } from '@/lib/store';
 import type { Theme } from '@/lib/themes';
+import { sz } from '@/lib/scale';
 
 const HOLD_MS = 2000;
 const RED = '#ff3b30';
@@ -58,7 +59,7 @@ export function LockButton({ theme }: { theme: Theme }) {
       </Pressable>
       {hint ? (
         <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(220)} pointerEvents="none" style={{ position: 'absolute', top: insets.top + 48, right: insets.right + 12, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.75)' }}>
-          <Text style={{ ...TYPE.semibold, fontSize: 13, color: '#ffffff' }}>Hold the red button to unlock</Text>
+          <Text style={{ ...TYPE.semibold, fontSize: sz(13), color: '#ffffff' }}>Hold the red button to unlock</Text>
         </Animated.View>
       ) : null}
       {/* Keep the theme type happy and let future per-theme styling in without touching callers. */}

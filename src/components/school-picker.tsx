@@ -14,6 +14,7 @@ import { fmtTime, nyParts, weekdayOf } from '@/lib/nytime';
 import { NORTH_BELLS, SCHOOL_DAY_LIST, type SchoolDay } from '@/lib/schedule';
 import { setSchool, useStore } from '@/lib/store';
 import { alpha } from '@/lib/themes';
+import { sz } from '@/lib/scale';
 
 import { Button, Divider, Field, Note, Row, Section } from './ui';
 
@@ -99,8 +100,8 @@ export function SchoolSearch({ onPicked }: { onPicked: (school: { id: number; na
       )}
       {q.trim().length >= 3 && !exact && !offline ? (
         <Pressable accessibilityRole="button" onPress={() => void addSchool()} style={({ pressed }) => ({ opacity: pressed ? 0.7 : 1, padding: 14, borderRadius: 16, backgroundColor: alpha(theme.accent, 0.12) })}>
-          <Text style={{ ...TYPE.semibold, fontSize: 15, color: theme.ink }}>{`Add “${q.trim()}” as a new school`}</Text>
-          {!account ? <Text style={{ ...TYPE.regular, fontSize: 13, color: theme.muted, marginTop: 2 }}>Needs an account (you can make one in a later step).</Text> : null}
+          <Text style={{ ...TYPE.semibold, fontSize: sz(15), color: theme.ink }}>{`Add “${q.trim()}” as a new school`}</Text>
+          {!account ? <Text style={{ ...TYPE.regular, fontSize: sz(13), color: theme.muted, marginTop: 2 }}>Needs an account (you can make one in a later step).</Text> : null}
         </Pressable>
       ) : null}
       <Button title="Use the built-in Great Neck North schedule" kind="plain" onPress={() => onPicked(BUILT_IN_SCHOOL, [BUILT_IN_SET])} />
@@ -143,8 +144,8 @@ export function SchedulePick({ school, schedules, onPicked }: { school: { id: nu
             <View key={`${p.period}-${p.start}`}>
               {i ? <Divider /> : null}
               <View style={{ flexDirection: 'row', justifyContent: 'space-between', paddingHorizontal: 14, paddingVertical: 9 }}>
-                <Text style={{ ...TYPE.medium, fontSize: 15, color: theme.ink }}>{p.label}</Text>
-                <Text style={{ ...TYPE.regular, fontSize: 15, color: theme.muted, fontVariant: ['tabular-nums'] }}>{`${fmtTime(p.start, h24)} – ${fmtTime(p.end, h24)}`}</Text>
+                <Text style={{ ...TYPE.medium, fontSize: sz(15), color: theme.ink }}>{p.label}</Text>
+                <Text style={{ ...TYPE.regular, fontSize: sz(15), color: theme.muted, fontVariant: ['tabular-nums'] }}>{`${fmtTime(p.start, h24)} – ${fmtTime(p.end, h24)}`}</Text>
               </View>
             </View>
           ))}

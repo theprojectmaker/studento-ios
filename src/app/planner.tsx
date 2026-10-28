@@ -22,6 +22,7 @@ import {
 import { useClasses } from '@/lib/store';
 import { alpha, readableOn } from '@/lib/themes';
 import { parseDate } from '@/lib/timeinput';
+import { sz } from '@/lib/scale';
 
 const EMOJI = ['🎉', '🏖️', '🎄', '📚', '🎂', '✈️', '🏆', '🎓'];
 
@@ -108,7 +109,7 @@ function HomeworkTab() {
             </Animated.View>
           ))
         ) : (
-          <Text style={{ ...TYPE.regular, fontSize: 15, color: theme.muted, padding: 16 }}>Nothing due. Nice.</Text>
+          <Text style={{ ...TYPE.regular, fontSize: sz(15), color: theme.muted, padding: 16 }}>Nothing due. Nice.</Text>
         )}
       </Section>
 
@@ -160,13 +161,13 @@ function HwRow({ h, today, names }: { h: Homework; today: string; names: Record<
         ) : null}
       </Pressable>
       <View style={{ flex: 1, gap: 2 }}>
-        <Text style={{ ...TYPE.medium, fontSize: 16, color: theme.ink, textDecorationLine: h.done ? 'line-through' : 'none', opacity: h.done ? 0.5 : 1 }}>{h.title}</Text>
-        <Text style={{ ...TYPE.regular, fontSize: 13, color: overdue ? '#ff6b5e' : theme.muted }}>
+        <Text style={{ ...TYPE.medium, fontSize: sz(16), color: theme.ink, textDecorationLine: h.done ? 'line-through' : 'none', opacity: h.done ? 0.5 : 1 }}>{h.title}</Text>
+        <Text style={{ ...TYPE.regular, fontSize: sz(13), color: overdue ? '#ff6b5e' : theme.muted }}>
           {[classLabel(h.period, names), dueLabel(h.due, today)].filter(Boolean).join(' · ')}
         </Text>
       </View>
       <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${h.title}`} hitSlop={10} onPress={() => deleteHomework(h.id)}>
-        <Text style={{ fontSize: 20, color: alpha(theme.ink, 0.35) }}>×</Text>
+        <Text style={{ fontSize: sz(20), color: alpha(theme.ink, 0.35) }}>×</Text>
       </Pressable>
     </View>
   );
@@ -200,17 +201,17 @@ function CountdownTab() {
         return (
           <Animated.View key={c.id} entering={FadeInDown.duration(300)} exiting={FadeOut.duration(200)} layout={LinearTransition}>
             <View style={{ backgroundColor: theme.panel, borderRadius: 22, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-              <Text style={{ fontSize: 34 }}>{c.emoji}</Text>
+              <Text style={{ fontSize: sz(34) }}>{c.emoji}</Text>
               <View style={{ flex: 1 }}>
-                <Text style={{ ...TYPE.semibold, fontSize: 17, color: theme.ink }}>{c.title}</Text>
-                <Text style={{ ...TYPE.regular, fontSize: 13, color: theme.muted }}>{fmtDate(c.date)}</Text>
+                <Text style={{ ...TYPE.semibold, fontSize: sz(17), color: theme.ink }}>{c.title}</Text>
+                <Text style={{ ...TYPE.regular, fontSize: sz(13), color: theme.muted }}>{fmtDate(c.date)}</Text>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
-                <Text style={{ ...TYPE.heavy, fontSize: 34, color: n <= 0 ? theme.accent : theme.ink, fontVariant: ['tabular-nums'] }}>{Math.max(0, n)}</Text>
-                <Text style={{ ...TYPE.medium, fontSize: 12, color: theme.muted }}>{n <= 0 ? 'today!' : n === 1 ? 'day' : 'days'}</Text>
+                <Text style={{ ...TYPE.heavy, fontSize: sz(34), color: n <= 0 ? theme.accent : theme.ink, fontVariant: ['tabular-nums'] }}>{Math.max(0, n)}</Text>
+                <Text style={{ ...TYPE.medium, fontSize: sz(12), color: theme.muted }}>{n <= 0 ? 'today!' : n === 1 ? 'day' : 'days'}</Text>
               </View>
               <Pressable accessibilityRole="button" accessibilityLabel={`Delete ${c.title}`} hitSlop={10} onPress={() => deleteCountdown(c.id)}>
-                <Text style={{ fontSize: 20, color: alpha(theme.ink, 0.35) }}>×</Text>
+                <Text style={{ fontSize: sz(20), color: alpha(theme.ink, 0.35) }}>×</Text>
               </Pressable>
             </View>
           </Animated.View>
@@ -252,7 +253,7 @@ function Chip({ label, on, onPress }: { label: string; on: boolean; onPress: () 
         onPress();
       }}
       style={{ paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, backgroundColor: on ? theme.accent : alpha(theme.ink, 0.08) }}>
-      <Text style={{ ...TYPE.semibold, fontSize: 14, color: on ? readableOn(theme.accent) : theme.ink }}>{label}</Text>
+      <Text style={{ ...TYPE.semibold, fontSize: sz(14), color: on ? readableOn(theme.accent) : theme.ink }}>{label}</Text>
     </Pressable>
   );
 }

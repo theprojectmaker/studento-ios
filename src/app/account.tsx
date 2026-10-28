@@ -11,6 +11,7 @@ import { deleteMyAccount, pushNow, signIn, signOut, signUp } from '@/lib/account
 import { TYPE } from '@/lib/fonts';
 import { useTheme } from '@/lib/hooks';
 import { useStore } from '@/lib/store';
+import { sz } from '@/lib/scale';
 
 export default function Account() {
   const theme = useTheme();
@@ -98,7 +99,7 @@ export default function Account() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
       <Screen>
-        <Text style={{ ...TYPE.regular, fontSize: 15, lineHeight: 21, color: theme.muted, textAlign: 'center' }}>
+        <Text style={{ ...TYPE.regular, fontSize: sz(15), lineHeight: sz(21), color: theme.muted, textAlign: 'center' }}>
           Optional. An account saves your classes, school and settings so you can get them back on another phone, and turns on the schedule reader. Just a username and a password, nothing else.
         </Text>
         <Segmented

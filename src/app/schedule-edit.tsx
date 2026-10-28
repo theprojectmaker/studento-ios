@@ -14,6 +14,7 @@ import { ASSEMBLY_SCHEDULE, CUSTOM_SCHEDULE, periodTitle, REGULAR_SCHEDULE, sort
 import { addCustomDay, deleteCustomDay, useStore } from '@/lib/store';
 import { alpha } from '@/lib/themes';
 import { parseDate, parseTime } from '@/lib/timeinput';
+import { sz } from '@/lib/scale';
 
 interface Draft {
   period: string;
@@ -89,7 +90,7 @@ export default function ScheduleEdit() {
           </View>
           <Divider />
           <View style={{ padding: 14, gap: 6 }}>
-            <Text style={{ ...TYPE.bold, fontSize: 12, letterSpacing: 1, color: theme.muted }}>NAME</Text>
+            <Text style={{ ...TYPE.bold, fontSize: sz(12), letterSpacing: 1, color: theme.muted }}>NAME</Text>
             <Field value={label} onChangeText={setLabel} placeholder="e.g. Pep rally schedule" maxLength={80} accessibilityLabel="Name" />
           </View>
         </Section>
@@ -138,7 +139,7 @@ export default function ScheduleEdit() {
                   setRows((x) => x.filter((_, j) => j !== i));
                 }}
                 style={{ width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center', backgroundColor: alpha('#ff5a4e', 0.14) }}>
-                <Text style={{ color: '#ff5a4e', fontSize: 20, lineHeight: 22, ...TYPE.bold }}>−</Text>
+                <Text style={{ color: '#ff5a4e', fontSize: sz(20), lineHeight: sz(22), ...TYPE.bold }}>−</Text>
               </Pressable>
             </View>
           ))}
@@ -185,7 +186,7 @@ function Chip({ label, on, onPress }: { label: string; on?: boolean; onPress: ()
         borderRadius: 999,
         backgroundColor: on ? theme.accent : alpha(theme.ink, pressed ? 0.16 : 0.09),
       })}>
-      <Text style={{ ...TYPE.semibold, fontSize: 14, color: on ? (theme.light ? '#fff' : theme.bg) : theme.ink }}>{label}</Text>
+      <Text style={{ ...TYPE.semibold, fontSize: sz(14), color: on ? (theme.light ? '#fff' : theme.bg) : theme.ink }}>{label}</Text>
     </Pressable>
   );
 }
@@ -196,4 +197,4 @@ function nextSchoolDate(today: string): string {
   return d;
 }
 
-const colHead = { ...TYPE.bold, fontSize: 11, letterSpacing: 1 } as const;
+const colHead = { ...TYPE.bold, fontSize: sz(11), letterSpacing: 1 } as const;

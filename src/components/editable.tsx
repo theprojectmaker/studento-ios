@@ -7,6 +7,7 @@ import type { ReactNode } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
 import { TYPE } from '@/lib/fonts';
+import { sz } from '@/lib/scale';
 
 import { tap } from './ui';
 
@@ -40,7 +41,7 @@ export function Editable({ editing, shown, label, onToggle, children }: { editin
           borderWidth: 2,
           borderColor: 'rgba(255,255,255,0.9)',
         }}>
-        <Text style={{ ...TYPE.heavy, color: '#ffffff', fontSize: 16, lineHeight: 18 }}>{shown ? '−' : '+'}</Text>
+        <Text style={{ ...TYPE.heavy, color: '#ffffff', fontSize: sz(16), lineHeight: sz(18) }}>{shown ? '−' : '+'}</Text>
       </View>
     </Pressable>
   );

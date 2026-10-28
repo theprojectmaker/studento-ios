@@ -10,6 +10,7 @@ import { TYPE } from '@/lib/fonts';
 import { useTheme } from '@/lib/hooks';
 import { useStore } from '@/lib/store';
 import { alpha } from '@/lib/themes';
+import { sz } from '@/lib/scale';
 
 const REASONS = ['Wrong bell times', 'Not a real school', 'Duplicate', 'Offensive or spam', 'Something else'];
 
@@ -41,7 +42,7 @@ export default function Report() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
       <Screen>
-        <Text style={{ ...TYPE.regular, fontSize: 15, lineHeight: 21, color: theme.muted, textAlign: 'center' }}>{`Reporting “${name ?? 'this item'}”. Pick a reason; a note helps.`}</Text>
+        <Text style={{ ...TYPE.regular, fontSize: sz(15), lineHeight: sz(21), color: theme.muted, textAlign: 'center' }}>{`Reporting “${name ?? 'this item'}”. Pick a reason; a note helps.`}</Text>
         <Section title="Reason">
           {REASONS.map((r) => {
             const on = r === reason;
@@ -49,7 +50,7 @@ export default function Report() {
               <Pressable key={r} accessibilityRole="radio" accessibilityState={{ checked: on }} onPress={() => setReason(r)} style={({ pressed }) => ({ backgroundColor: pressed ? alpha(theme.ink, 0.06) : 'transparent' })}>
                 <View style={{ flexDirection: 'row', alignItems: 'center', padding: 14, gap: 12 }}>
                   <View style={{ width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: on ? theme.accent : alpha(theme.ink, 0.3), alignItems: 'center', justifyContent: 'center' }}>{on ? <View style={{ width: 11, height: 11, borderRadius: 6, backgroundColor: theme.accent }} /> : null}</View>
-                  <Text style={{ ...TYPE.medium, fontSize: 16, color: theme.ink }}>{r}</Text>
+                  <Text style={{ ...TYPE.medium, fontSize: sz(16), color: theme.ink }}>{r}</Text>
                 </View>
               </Pressable>
             );
@@ -57,7 +58,7 @@ export default function Report() {
         </Section>
         <Section title="Note (optional)">
           <View style={{ padding: 12 }}>
-            <Field value={note} onChangeText={setNote} placeholder="What's wrong?" multiline maxLength={500} style={{ minHeight: 90, textAlignVertical: 'top' }} accessibilityLabel="Note" />
+            <Field value={note} onChangeText={setNote} placeholder="What's wrong?" multiline maxLength={500} style={{ minHeight: sz(90), textAlignVertical: 'top' }} accessibilityLabel="Note" />
           </View>
         </Section>
         {msg ? <Note tone={msg.tone}>{msg.text}</Note> : null}

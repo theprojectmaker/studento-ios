@@ -7,6 +7,7 @@ import { TYPE } from '@/lib/fonts';
 import { useTheme } from '@/lib/hooks';
 import { addNote, deleteNote, togglePin, updateNote, useTools, type Note } from '@/lib/tools';
 import { alpha } from '@/lib/themes';
+import { sz } from '@/lib/scale';
 
 function ago(ms: number) {
   const m = Math.round((Date.now() - ms) / 60000);
@@ -27,11 +28,11 @@ export default function Notes() {
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
       <Screen>
         <Button title="New note" onPress={() => setEditing(addNote(''))} />
-        {sorted.length === 0 ? <Text style={{ ...TYPE.regular, fontSize: 15, color: theme.muted, textAlign: 'center', marginTop: 12 }}>No notes yet.</Text> : null}
+        {sorted.length === 0 ? <Text style={{ ...TYPE.regular, fontSize: sz(15), color: theme.muted, textAlign: 'center', marginTop: 12 }}>No notes yet.</Text> : null}
         {sorted.map((n) => (
           <NoteCard key={n.id} n={n} editing={editing === n.id} onEdit={() => setEditing(n.id)} onDone={() => setEditing(null)} />
         ))}
-        {sorted.length ? <Text style={{ ...TYPE.regular, fontSize: 12, color: theme.muted, textAlign: 'center' }}>Notes stay on this phone.</Text> : null}
+        {sorted.length ? <Text style={{ ...TYPE.regular, fontSize: sz(12), color: theme.muted, textAlign: 'center' }}>Notes stay on this phone.</Text> : null}
         <View style={{ height: 8 }} />
       </Screen>
     </KeyboardAvoidingView>
@@ -62,17 +63,17 @@ function NoteCard({ n, editing, onEdit, onDone }: { n: Note; editing: boolean; o
           placeholder="Write something…"
           placeholderTextColor={alpha(theme.ink, 0.35)}
           selectionColor={theme.accent}
-          style={{ ...TYPE.regular, fontSize: 17, lineHeight: 23, color: theme.ink, minHeight: 80, textAlignVertical: 'top' }}
+          style={{ ...TYPE.regular, fontSize: sz(17), lineHeight: sz(23), color: theme.ink, minHeight: sz(80), textAlignVertical: 'top' }}
         />
       ) : (
         <Pressable accessibilityRole="button" accessibilityHint="Edit note" onPress={onEdit}>
-          <Text style={{ ...TYPE.regular, fontSize: 17, lineHeight: 23, color: theme.ink }} numberOfLines={8}>
+          <Text style={{ ...TYPE.regular, fontSize: sz(17), lineHeight: sz(23), color: theme.ink }} numberOfLines={8}>
             {n.text || 'Empty note'}
           </Text>
         </Pressable>
       )}
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
-        <Text style={{ ...TYPE.regular, fontSize: 12, color: theme.muted, flex: 1 }}>{ago(n.updatedAt)}</Text>
+        <Text style={{ ...TYPE.regular, fontSize: sz(12), color: theme.muted, flex: 1 }}>{ago(n.updatedAt)}</Text>
         <Pressable
           accessibilityRole="button"
           hitSlop={8}
@@ -80,10 +81,10 @@ function NoteCard({ n, editing, onEdit, onDone }: { n: Note; editing: boolean; o
             tap();
             togglePin(n.id);
           }}>
-          <Text style={{ ...TYPE.semibold, fontSize: 13, color: n.pinned ? theme.accent : theme.muted }}>{n.pinned ? 'Pinned' : 'Pin'}</Text>
+          <Text style={{ ...TYPE.semibold, fontSize: sz(13), color: n.pinned ? theme.accent : theme.muted }}>{n.pinned ? 'Pinned' : 'Pin'}</Text>
         </Pressable>
         <Pressable accessibilityRole="button" hitSlop={8} onPress={remove}>
-          <Text style={{ ...TYPE.semibold, fontSize: 13, color: '#ff6b5e' }}>Delete</Text>
+          <Text style={{ ...TYPE.semibold, fontSize: sz(13), color: '#ff6b5e' }}>Delete</Text>
         </Pressable>
       </View>
     </View>

@@ -11,6 +11,7 @@ import { nyParts } from '@/lib/nytime';
 import { useStore } from '@/lib/store';
 import { focusLeft, pauseFocus, resumeFocus, setFocusLengths, startFocus, stopFocus, tickFocus, useTools } from '@/lib/tools';
 import { alpha, readableOn } from '@/lib/themes';
+import { sz } from '@/lib/scale';
 
 const FOCUS_OPTIONS = [15, 25, 45, 50];
 const BREAK_OPTIONS = [5, 10, 15];
@@ -56,7 +57,7 @@ export default function FocusScreen() {
   return (
     <Screen>
       <View style={{ alignItems: 'center', gap: 6, paddingTop: 8 }}>
-        <Text style={{ ...TYPE.semibold, fontSize: 13, letterSpacing: 2, color: f.mode === 'break' ? '#34c759' : theme.accent }}>
+        <Text style={{ ...TYPE.semibold, fontSize: sz(13), letterSpacing: 2, color: f.mode === 'break' ? '#34c759' : theme.accent }}>
           {f.mode === 'idle' ? 'READY' : f.mode === 'focus' ? (running ? 'FOCUSING' : 'PAUSED') : running ? 'BREAK' : 'BREAK PAUSED'}
         </Text>
         <RingBoard
@@ -132,7 +133,7 @@ function Options({ values, value, disabled, onPick }: { values: number[]; value:
               onPick(m);
             }}
             style={{ flex: 1, paddingVertical: 10, borderRadius: 12, alignItems: 'center', backgroundColor: on ? theme.accent : alpha(theme.ink, 0.08) }}>
-            <Text style={{ ...TYPE.semibold, fontSize: 15, color: on ? readableOn(theme.accent) : theme.ink }}>{m} min</Text>
+            <Text style={{ ...TYPE.semibold, fontSize: sz(15), color: on ? readableOn(theme.accent) : theme.ink }}>{m} min</Text>
           </Pressable>
         );
       })}

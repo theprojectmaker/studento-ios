@@ -10,6 +10,7 @@ import { TYPE } from '@/lib/fonts';
 import { useTheme } from '@/lib/hooks';
 import { getState } from '@/lib/store';
 import { alpha, readableOn } from '@/lib/themes';
+import { sz } from '@/lib/scale';
 
 import { Glass, IconTile } from './glass';
 
@@ -33,7 +34,7 @@ export function Screen({ children }: { children: ReactNode }) {
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 40, gap: 24, maxWidth: 680, width: '100%', alignSelf: 'center' }}
+        contentContainerStyle={{ padding: sz(16), paddingBottom: insets.bottom + 40, gap: 24, maxWidth: sz(680), width: '100%', alignSelf: 'center' }}
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive">
         {children}
@@ -194,15 +195,15 @@ export function ListIcon({ color, size = 20 }: { color: string; size?: number })
 }
 
 const styles = StyleSheet.create({
-  sectionTitle: { ...TYPE.regular, fontSize: 13, letterSpacing: 0.2, paddingHorizontal: 16 },
-  footer: { ...TYPE.regular, fontSize: 13, lineHeight: 18, paddingHorizontal: 16 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 11, minHeight: 52 },
-  label: { ...TYPE.regular, fontSize: 17, letterSpacing: -0.4 },
-  sub: { ...TYPE.regular, fontSize: 13, lineHeight: 18 },
-  value: { ...TYPE.regular, fontSize: 17, letterSpacing: -0.4 },
-  button: { minHeight: 50, borderRadius: 999, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22 },
-  buttonText: { ...TYPE.semibold, fontSize: 17, letterSpacing: -0.4 },
-  field: { minWidth: 0, ...TYPE.regular, fontSize: 17, borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, minHeight: 44 },
+  sectionTitle: { ...TYPE.regular, fontSize: sz(13), letterSpacing: 0.2, paddingHorizontal: 16 },
+  footer: { ...TYPE.regular, fontSize: sz(13), lineHeight: sz(18), paddingHorizontal: 16 },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: sz(11), minHeight: sz(52) },
+  label: { ...TYPE.regular, fontSize: sz(17), letterSpacing: -0.4 },
+  sub: { ...TYPE.regular, fontSize: sz(13), lineHeight: sz(18) },
+  value: { ...TYPE.regular, fontSize: sz(17), letterSpacing: -0.4 },
+  button: { minHeight: sz(50), borderRadius: 999, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22 },
+  buttonText: { ...TYPE.semibold, fontSize: sz(17), letterSpacing: -0.4 },
+  field: { minWidth: 0, ...TYPE.regular, fontSize: sz(17), borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, minHeight: sz(44) },
 });
 
 /** iOS-style segmented control. */
@@ -228,7 +229,7 @@ export function Segmented<T extends string>({ value, options, onChange }: { valu
               alignItems: 'center',
               backgroundColor: on ? (theme.light ? '#ffffff' : alpha('#ffffff', 0.18)) : 'transparent',
             }}>
-            <Text style={{ ...TYPE.semibold, fontSize: 14, color: theme.ink }}>{o.label}</Text>
+            <Text style={{ ...TYPE.semibold, fontSize: sz(14), color: theme.ink }}>{o.label}</Text>
           </Pressable>
         );
       })}
