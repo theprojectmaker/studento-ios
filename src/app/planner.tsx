@@ -19,7 +19,8 @@ import {
   usePlanner,
   type Homework,
 } from '@/lib/planner';
-import { useClasses } from '@/lib/store';
+import { useClasses, useSchedule } from '@/lib/store';
+import { schoolDaysBetween } from '@/lib/calc';
 import { alpha, readableOn } from '@/lib/themes';
 import { parseDate } from '@/lib/timeinput';
 import { sz } from '@/lib/scale';
@@ -178,6 +179,7 @@ function CountdownTab() {
   const now = useNow();
   const today = nyParts(now).date;
   const countdowns = usePlanner((p) => p.countdowns);
+  const sched = useSchedule();
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
   const [emoji, setEmoji] = useState(EMOJI[0]);
@@ -198,13 +200,14 @@ function CountdownTab() {
     <>
       {countdowns.map((c) => {
         const n = daysBetween(today, c.date);
+        const sd = n > 0 ? schoolDaysBetween(today, c.date, sched.data) : 0;
         return (
           <Animated.View key={c.id} entering={FadeInDown.duration(300)} exiting={FadeOut.duration(200)} layout={LinearTransition}>
             <View style={{ backgroundColor: theme.panel, borderRadius: 22, padding: 18, flexDirection: 'row', alignItems: 'center', gap: 14 }}>
               <Text style={{ fontSize: sz(34) }}>{c.emoji}</Text>
               <View style={{ flex: 1 }}>
                 <Text style={{ ...TYPE.semibold, fontSize: sz(17), color: theme.ink }}>{c.title}</Text>
-                <Text style={{ ...TYPE.regular, fontSize: sz(13), color: theme.muted }}>{fmtDate(c.date)}</Text>
+                <Text style={{ ...TYPE.regular, fontSize: sz(13), color: theme.muted }}>{n > 0 ? `${fmtDate(c.date)} · ${sd} school ${sd === 1 ? 'day' : 'days'}` : fmtDate(c.date)}</Text>
               </View>
               <View style={{ alignItems: 'flex-end' }}>
                 <Text style={{ ...TYPE.heavy, fontSize: sz(34), color: n <= 0 ? theme.accent : theme.ink, fontVariant: ['tabular-nums'] }}>{Math.max(0, n)}</Text>

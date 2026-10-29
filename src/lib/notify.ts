@@ -6,6 +6,8 @@ import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 
 import { planAlerts } from './alerts';
+import { addDays, nyParts, nyWallToMs } from './nytime';
+import { getPlanner, subscribePlanner } from './planner';
 import { detailsFor, getState, namesFor, scheduleData, subscribe, type State } from './store';
 
 const CHANNEL = 'bells';
@@ -132,7 +134,7 @@ export function watchForReschedule(): () => void {
   const check = () => {
     const s = getState();
     if (!s.loaded) return;
-    const next = JSON.stringify([s.shared, s.personal, s.prefs.alerts, s.prefs.welcome, s.prefs.endWarning, s.prefs.h24]);
+    const next = JSON.stringify([s.shared, s.personal, s.prefs.alerts, s.prefs.welcome, s.prefs.endWarning, s.prefs.warnMin, s.prefs.h24]);
     if (next === key) return;
     key = next;
     if (timer) clearTimeout(timer);
@@ -140,6 +142,68 @@ export function watchForReschedule(): () => void {
   };
   check();
   return subscribe(check);
+}
+
+const HW_PREFIX = 'hw-';
+const HW_MAX = 12;
+const HW_HOUR = '19:00';
+
+/**
+ * One quiet reminder at 7 PM the evening before each homework due date
+ * (or at 7 AM on the day, when it was added the night before). Replaces the old set.
+ */
+export async function rescheduleHomework(): Promise<number> {
+  if (Platform.OS === 'web') return 0;
+  const pending = await Notifications.getAllScheduledNotificationsAsync();
+  await Promise.all(pending.filter((n) => n.identifier.startsWith(HW_PREFIX)).map((n) => Notifications.cancelScheduledNotificationAsync(n.identifier)));
+  const s = getState();
+  if (!s.prefs.alerts || !s.prefs.homeworkReminders || (await getPermission()) !== 'granted') return 0;
+  await ensureChannel();
+  const now = Date.now();
+  const today = nyParts(now).date;
+  const names = namesFor(s);
+  const list = getPlanner()
+    .homework.filter((h) => !h.done && h.due && h.due >= today)
+    .map((h) => {
+      const eve = nyWallToMs(addDays(h.due, -1), HW_HOUR);
+      const at = eve > now ? eve : nyWallToMs(h.due, '07:00');
+      return { h, at };
+    })
+    .filter((x) => x.at > now)
+    .sort((a, b) => a.at - b.at)
+    .slice(0, HW_MAX);
+  for (const { h, at } of list) {
+    const cls = h.period ? names[h.period] || (h.period === 'advisory' ? 'Advisory' : `Period ${h.period}`) : '';
+    await Notifications.scheduleNotificationAsync({
+      identifier: HW_PREFIX + h.id,
+      content: { title: at < nyWallToMs(h.due, '00:00') ? 'Due tomorrow' : 'Due today', body: cls ? `${h.title} · ${cls}` : h.title, sound: true, data: { kind: 'homework' } },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: new Date(at), channelId: CHANNEL },
+    });
+  }
+  return list.length;
+}
+
+/** Re-plan homework reminders when the list or the setting changes (debounced). */
+export function watchHomework(): () => void {
+  let key = '';
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const check = () => {
+    const s = getState();
+    const p = getPlanner();
+    if (!s.loaded || !p.loaded) return;
+    const next = JSON.stringify([p.homework.map((h) => [h.id, h.due, h.done, h.title, h.period]), s.prefs.alerts, s.prefs.homeworkReminders, s.shared.classNames, s.personal]);
+    if (next === key) return;
+    key = next;
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => void rescheduleHomework(), 1200);
+  };
+  check();
+  const a = subscribe(check);
+  const b = subscribePlanner(check);
+  return () => {
+    a();
+    b();
+  };
 }
 
 const FOCUS_ID = 'focus-end';

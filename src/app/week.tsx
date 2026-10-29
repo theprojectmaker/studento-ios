@@ -5,7 +5,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { Divider, Screen, Section, tap } from '@/components/ui';
 import { TYPE } from '@/lib/fonts';
 import { useNow, useTheme } from '@/lib/hooks';
-import { addDays, fmtDate, nyParts, weekdayOf } from '@/lib/nytime';
+import { addDays, fmtDate, nyParts, toMin, weekdayOf } from '@/lib/nytime';
 import { nameFor, periodTitle, rangeText, roomOf, scheduleFor } from '@/lib/schedule';
 import { useSchedule, useStore } from '@/lib/store';
 import { alpha, readableOn } from '@/lib/themes';
@@ -26,6 +26,10 @@ export default function Week() {
   const sched = useSchedule();
   const data = sched.data;
   const day = scheduleFor(pick, data);
+  const weekDays = days.map((d) => scheduleFor(d, data));
+  const weekPeriods = weekDays.reduce((a, d) => a + d.periods.length, 0);
+  const weekMin = weekDays.reduce((a, d) => a + d.periods.reduce((b, p) => b + Math.max(0, toMin(p.end) - toMin(p.start)), 0), 0);
+  const schoolDays = weekDays.filter((d) => d.isSchoolDay).length;
 
   return (
     <Screen>
@@ -72,6 +76,20 @@ export default function Week() {
             </View>
           );
         })}
+      </Section>
+      <Section title="This week">
+        <View style={{ flexDirection: 'row', paddingHorizontal: 16, paddingVertical: 12, gap: 10 }}>
+          {[
+            [String(schoolDays), schoolDays === 1 ? 'school day' : 'school days'],
+            [String(weekPeriods), 'periods'],
+            [`${Math.floor(weekMin / 60)}h ${weekMin % 60}m`, 'in class'],
+          ].map(([big, small]) => (
+            <View key={small} style={{ flex: 1, alignItems: 'center', gap: 2 }}>
+              <Text style={{ ...TYPE.heavy, fontSize: sz(22), color: theme.ink, fontVariant: ['tabular-nums'] }}>{big}</Text>
+              <Text style={{ ...TYPE.medium, fontSize: sz(12), color: theme.muted }}>{small}</Text>
+            </View>
+          ))}
+        </View>
       </Section>
     </Screen>
   );

@@ -68,6 +68,11 @@ export async function loadTools() {
   listeners.forEach((l) => l());
 }
 
+/** Replace notes and grades (restore from a backup). The focus timer is left alone. */
+export function importTools(data: { notes?: Note[]; grades?: GradeRow[] }) {
+  set({ notes: Array.isArray(data.notes) ? data.notes : state.notes, grades: Array.isArray(data.grades) ? data.grades : state.grades });
+}
+
 export function getTools(): Tools {
   return state;
 }

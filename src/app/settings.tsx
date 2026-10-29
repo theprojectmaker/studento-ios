@@ -2,9 +2,9 @@
 import Constants from 'expo-constants';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Linking, Platform } from 'react-native';
+import { Linking, Platform , View } from 'react-native';
 
-import { Divider, Note, Row, Screen, Section, ToggleRow } from '@/components/ui';
+import { Divider, Note, Row, Screen, Section, Segmented, ToggleRow } from '@/components/ui';
 import { iconsSupported } from '@/lib/appIcon';
 import { useTheme } from '@/lib/hooks';
 import { getPermission, requestPermission, rescheduleAlerts, sendTestAlert, type Permission } from '@/lib/notify';
@@ -66,7 +66,7 @@ export default function Settings() {
           <>
             <ToggleRow
               label="Bell alerts"
-              sub="3 minutes into class and 5 minutes before the bell"
+              sub={`3 minutes into class and ${prefs.warnMin ?? 5} minutes before the bell`}
               icon={{ name: 'bell.fill', color: '#ff3b30' }}
               value={prefs.alerts}
               onChange={(v) => {
@@ -87,7 +87,7 @@ export default function Settings() {
             />
             <Divider />
             <ToggleRow
-              label="5-minute warning"
+              label={`${prefs.warnMin ?? 5}-minute warning`}
               icon={{ name: 'timer', color: '#ff9500' }}
               value={prefs.endWarning}
               disabled={!prefs.alerts}
@@ -95,6 +95,30 @@ export default function Settings() {
                 setPref('endWarning', v);
                 void replan();
               }}
+            />
+            <View style={{ paddingHorizontal: 16, paddingBottom: 12, paddingTop: 2 }}>
+              <Segmented
+                value={String(prefs.warnMin ?? 5) as '2' | '3' | '5' | '10'}
+                options={[
+                  { value: '2', label: '2 min' },
+                  { value: '3', label: '3 min' },
+                  { value: '5', label: '5 min' },
+                  { value: '10', label: '10 min' },
+                ]}
+                onChange={(v) => {
+                  setPref('warnMin', Number(v));
+                  void replan();
+                }}
+              />
+            </View>
+            <Divider />
+            <ToggleRow
+              label="Homework reminders"
+              sub="7 PM the evening before anything is due"
+              icon={{ name: 'checklist', color: '#34c759' }}
+              value={prefs.homeworkReminders}
+              disabled={!prefs.alerts}
+              onChange={(v) => setPref('homeworkReminders', v)}
             />
             <Divider />
             <ToggleRow
@@ -177,6 +201,8 @@ export default function Settings() {
             router.push('/setup');
           }}
         />
+        <Divider />
+        <Row label="Back up & restore" sub="Copy everything to another device, no account needed" icon={{ name: 'arrow.up.doc.fill', color: '#5856d6' }} onPress={() => router.push('/backup')} />
         <Divider />
         <Row label="Help" sub="studentoclockapp@gmail.com" icon={{ name: 'envelope.fill', color: '#007aff' }} onPress={() => void Linking.openURL('mailto:studentoclockapp@gmail.com?subject=Studento')} />
       </Section>

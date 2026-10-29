@@ -51,6 +51,20 @@ export async function loadPlanner() {
   listeners.forEach((l) => l());
 }
 
+export function getPlanner(): Planner {
+  return state;
+}
+
+export function subscribePlanner(l: () => void): () => void {
+  listeners.add(l);
+  return () => listeners.delete(l);
+}
+
+/** Replace everything (restore from a backup). */
+export function importPlanner(data: { homework?: Homework[]; countdowns?: Countdown[] }) {
+  set({ homework: Array.isArray(data.homework) ? data.homework : state.homework, countdowns: Array.isArray(data.countdowns) ? data.countdowns : state.countdowns });
+}
+
 export function usePlanner<T>(select: (p: Planner) => T): T {
   return useSyncExternalStore(
     (l) => {

@@ -16,7 +16,7 @@ import { nameFor, type NowState } from '@/lib/schedule';
 import { setPref, type Prefs } from '@/lib/store';
 import { THEMES } from '@/lib/themes';
 
-const WARN_SEC = 300;
+
 
 function pickTheme(current: string): string {
   const pool = THEMES.filter((t) => t.id !== current);
@@ -39,6 +39,7 @@ export function useWarning(st: NowState, countdownSec: number | null, prefs: Pre
       prev.current = countdownSec;
       return;
     }
+    const WARN_SEC = (prefs.warnMin && prefs.warnMin > 0 ? Math.round(prefs.warnMin) : 5) * 60;
     const before = prev.current;
     prev.current = countdownSec;
     // Crossed 5:00 just now (a window, so opening the app at 2:00 left stays quiet).
@@ -48,9 +49,9 @@ export function useWarning(st: NowState, countdownSec: number | null, prefs: Pre
     if (prefs.speak && st.current) {
       const next = st.day.periods[st.currentIndex + 1];
       void Speech.stop();
-      Speech.speak(`${nameFor(st.current, names)} ends in five minutes.${next ? ` Next up, ${nameFor(next, names)}.` : ''}`);
+      Speech.speak(`${nameFor(st.current, names)} ends in ${WARN_SEC === 60 ? "one minute" : `${WARN_SEC / 60} minutes`}.${next ? ` Next up, ${nameFor(next, names)}.` : ''}`);
     }
-  }, [countdownSec, st, key, prefs.flashWarn, prefs.warnBuzz, prefs.speak, flash, names]);
+  }, [countdownSec, st, key, prefs.flashWarn, prefs.warnBuzz, prefs.speak, prefs.warnMin, flash, names]);
   return flash;
 }
 

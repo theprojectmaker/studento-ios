@@ -1,6 +1,6 @@
 /** Today: quick stats for the day, then every period with its time. */
 import { router } from 'expo-router';
-import { Text, View } from 'react-native';
+import { Share, Text, View } from 'react-native';
 
 import { Button, Divider, Screen, Section } from '@/components/ui';
 import { TYPE } from '@/lib/fonts';
@@ -94,6 +94,16 @@ export default function Today() {
             );
           })}
         </Section>
+      ) : null}
+      {showing ? (
+        <Button
+          title={isToday ? 'Share today' : 'Share this schedule'}
+          kind="plain"
+          onPress={() => {
+            const lines = showing.periods.map((p) => `${rangeText(p, h24)}  ${nameFor(p, sched.names)}${roomOf(p, sched.details) ? ` (Rm ${roomOf(p, sched.details)})` : ''}`);
+            void Share.share({ message: [`${fmtDate(showing.date)} · ${showing.kind}`, '', ...lines, '', 'Sent from Studento'].join('\n') }).catch(() => {});
+          }}
+        />
       ) : null}
       <Button title="Edit my classes" kind="plain" onPress={() => router.push('/classes')} />
     </Screen>

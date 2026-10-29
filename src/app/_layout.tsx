@@ -10,7 +10,7 @@ import { registerBackgroundRefresh } from '@/lib/background';
 import { isHeavyWork } from '@/lib/heavy';
 import { useTheme } from '@/lib/hooks';
 import { watchForSync } from '@/lib/account';
-import { rescheduleAlerts, setupNotificationHandler, watchForReschedule } from '@/lib/notify';
+import { rescheduleAlerts, setupNotificationHandler, watchForReschedule, watchHomework } from '@/lib/notify';
 import { loadPlanner } from '@/lib/planner';
 import { loadTools, subscribeTools } from '@/lib/tools';
 import { flushStore, load, subscribe, getState, useStore } from '@/lib/store';
@@ -49,11 +49,13 @@ export default function RootLayout() {
 
   useEffect(() => {
     let stopWatch: (() => void) | null = null;
+    let stopHw: (() => void) | null = null;
     let stopSync: (() => void) | null = null;
     void loadPlanner();
     void loadTools();
     void load().then(() => {
       stopWatch = watchForReschedule();
+      stopHw = watchHomework();
       stopSync = watchForSync();
       // Always refill the alert queue on launch, then pull the shared schedule.
       void rescheduleAlerts();
@@ -97,6 +99,7 @@ export default function RootLayout() {
     return () => {
       sub.remove();
       stopWatch?.();
+      stopHw?.();
       stopSync?.();
       stopWidgets();
       stopFocusWatch();
@@ -149,6 +152,7 @@ export default function RootLayout() {
         <Stack.Screen name="admin" options={{ title: 'Admin' }} />
         <Stack.Screen name="schedules" options={{ title: 'Schedules' }} />
         <Stack.Screen name="schedule-edit" options={{ title: 'Custom Day' }} />
+        <Stack.Screen name="backup" options={{ title: 'Back Up & Restore' }} />
       </Stack>
     </GestureHandlerRootView>
   );

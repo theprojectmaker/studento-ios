@@ -335,3 +335,21 @@ test('setup wizard flow: steps, skipping the schedule step without a school, cla
   assert.equal(nextStep(LAST_STEP, { hasSchool: true }), LAST_STEP);
   assert.ok(SETUP_STEPS.filter((s) => s.optional).length >= 6, 'nearly everything is skippable');
 });
+
+test('alerts: warnMin moves the end warning (10 min) and the title', () => {
+  const now = nyWallToMs('2026-10-19', '06:00');
+  const plan = planAlerts(now, EMPTY, {}, {}, { ...ALL, warnMin: 10 });
+  const e3 = plan.find((a) => a.id === 'bell-2026-10-19-2-end');
+  assert.equal(intlNy(e3!.at), '2026-10-19 09:59');
+  assert.equal(e3!.title, 'Period 3 ends in 10 min');
+});
+
+test('calc: needed on the final, school days to a date', async () => {
+  const { neededOnFinal, schoolDaysBetween } = await import('../src/lib/calc');
+  assert.equal(neededOnFinal(92, 20, 90), 82);
+  assert.equal(Math.round(neededOnFinal(85, 25, 90)), 105);
+  assert.ok(neededOnFinal(95, 20, 80) < 50);
+  // Mon Oct 19 -> Fri Oct 30 2026: 9 school days (two weekends skipped, today excluded).
+  assert.equal(schoolDaysBetween('2026-10-19', '2026-10-30', EMPTY), 9);
+  assert.equal(schoolDaysBetween('2026-10-30', '2026-10-30', EMPTY), 0);
+});

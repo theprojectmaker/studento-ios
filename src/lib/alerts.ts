@@ -12,11 +12,13 @@ import { nameFor, periodTitle, roomOf, scheduleFor, type Period, type ScheduleDa
 export const START_DELAY_MIN = 3;
 export const END_WARNING_MIN = 5;
 /** iOS keeps at most 64 pending local notifications per app; leave room for the reminder. */
-export const MAX_ALERTS = 60;
+export const MAX_ALERTS = 48;
 
 export interface AlertPrefs {
   welcome: boolean;
   endWarning: boolean;
+  /** Minutes before the bell for the end warning (default 5). */
+  warnMin?: number;
 }
 
 export interface ClassDetail {
@@ -50,6 +52,7 @@ export function planAlerts(
   const out: PlannedAlert[] = [];
   if (!prefs.welcome && !prefs.endWarning) return out;
 
+  const warn = prefs.warnMin && prefs.warnMin > 0 ? Math.round(prefs.warnMin) : END_WARNING_MIN;
   const today = nyParts(nowMs).date;
   let lastCoveredDay: string | null = null;
   let truncated = false;
@@ -72,11 +75,11 @@ export function planAlerts(
         dayAlerts.push({ id: `bell-${date}-${idx}-start`, at, kind: 'start', title: `Welcome to ${title}`, body: bits.join(' · ') });
       }
       if (prefs.endWarning) {
-        const at = nyWallToMs(date, addMin(p.end, -END_WARNING_MIN));
+        const at = nyWallToMs(date, addMin(p.end, -warn));
         const body = next
           ? `Bell at ${fmtTime(p.end, opts.h24)} · Next: ${nameFor(next, names)}`
           : `Last bell at ${fmtTime(p.end, opts.h24)}. Almost done for the day.`;
-        dayAlerts.push({ id: `bell-${date}-${idx}-end`, at, kind: 'end', title: `${title} ends in ${END_WARNING_MIN} min`, body });
+        dayAlerts.push({ id: `bell-${date}-${idx}-end`, at, kind: 'end', title: `${title} ends in ${warn} min`, body });
       }
     });
     dayAlerts.sort((a, b) => a.at - b.at);

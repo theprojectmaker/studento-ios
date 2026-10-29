@@ -64,6 +64,8 @@ export interface Prefs extends AlertPrefs {
   alerts: boolean;
   /** The one-time "turn on alerts" card was answered. */
   alertsAsked: boolean;
+  /** Evening-before reminder for homework with a due date. */
+  homeworkReminders: boolean;
   /** The first-launch "whose schedule?" screen was answered. */
   onboarded: boolean;
   /** Where the first-launch setup wizard is (resumes here if the app is killed mid-way). */
@@ -152,6 +154,8 @@ export const DEFAULT_PREFS: Prefs = {
   alerts: true,
   welcome: true,
   endWarning: true,
+  warnMin: 5,
+  homeworkReminders: true,
   alertsAsked: false,
   onboarded: false,
   setupStep: 0,
