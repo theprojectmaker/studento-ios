@@ -10,7 +10,7 @@ any Markdown viewer, or ask and I will export them).
 
 Hi [Name],
 
-I'm a parent at [School], and I built a free app called Studento that counts down to the
+I'm a parent at Great Neck North High School, and I built a free app called Studento that counts down to the
 next bell and shows a student's own schedule, with widgets and quiet bell reminders.
 [Principal name] suggested I bring it to you, since app approvals and Ed Law 2-d go through
 your office.
@@ -29,9 +29,9 @@ Three questions so I can fit your process:
 
 1. Do you need a signed Data Privacy Agreement for an app that works without any account? If
    so, please send the district's DPA and I'll return it signed.
-2. Which devices do students carry at [School]: iPads, Chromebooks or both? Studento is on
+2. Which devices do students carry at Great Neck North High School: iPads, Chromebooks or both? Studento is on
    the iOS App Store [link once live]; I can provide a web version for Chromebooks.
-3. If approved, would you push it through Apple School Manager / [Jamf or Mosyle], or put it
+3. If approved, would you push it through Apple School Manager / Jamf or Mosyle, or put it
    in Self Service for students to install themselves?
 
 Happy to come in, do a short demo, or answer anything from your data protection officer.

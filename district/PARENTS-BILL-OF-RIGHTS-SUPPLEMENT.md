@@ -5,7 +5,7 @@ Required of every third-party contractor under New York Education Law §2-d and
 
 **Contractor:** Moses Sasson, doing business as Studento (studentoclockapp@gmail.com)
 **Product:** Studento, a bell schedule countdown app for iOS, iPadOS and the web
-**Educational agency:** ______________________________ (the District)
+**Educational agency:** Great Neck Public Schools (the District)
 
 ### 1. Exclusive purposes for which the student data will be used
 
