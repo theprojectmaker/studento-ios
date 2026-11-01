@@ -34,7 +34,8 @@ export function Screen({ children }: { children: ReactNode }) {
     <View style={{ flex: 1, backgroundColor: theme.bg }}>
       <ScrollView
         style={{ flex: 1 }}
-        contentContainerStyle={{ padding: sz(16), paddingBottom: insets.bottom + 40, gap: 24, maxWidth: sz(680), width: '100%', alignSelf: 'center' }}
+        contentContainerStyle={{ padding: sz(16), paddingBottom: insets.bottom + 40, gap: sz(28), maxWidth: sz(680), width: '100%', alignSelf: 'center' }}
+        contentInsetAdjustmentBehavior="automatic"
         keyboardShouldPersistTaps="handled"
         keyboardDismissMode="interactive">
         {children}
@@ -48,7 +49,7 @@ export function Section({ title, footer, children }: { title?: string; footer?: 
   return (
     <View style={{ gap: 7 }}>
       {title ? <Text style={[styles.sectionTitle, { color: theme.muted }]}>{title.toUpperCase()}</Text> : null}
-      <View style={{ backgroundColor: theme.panel, borderRadius: 18, overflow: 'hidden' }}>{children}</View>
+      <View style={{ backgroundColor: theme.panel, borderRadius: sz(12), overflow: 'hidden' }}>{children}</View>
       {footer ? <Text style={[styles.footer, { color: theme.muted }]}>{footer}</Text> : null}
     </View>
   );
@@ -85,15 +86,15 @@ export function Row({ label, sub, right, onPress, danger, icon, value }: RowProp
   );
   if (!onPress) return body;
   return (
-    <PressScale
+    <Pressable
       accessibilityRole="button"
-      to={0.985}
       onPress={() => {
         tap();
         onPress();
-      }}>
+      }}
+      style={({ pressed }) => ({ backgroundColor: pressed ? alpha(theme.ink, theme.light ? 0.08 : 0.12) : 'transparent' })}>
       {body}
-    </PressScale>
+    </Pressable>
   );
 }
 
@@ -140,7 +141,7 @@ export function Button({ title, onPress, kind = 'primary', disabled }: { title: 
       {kind === 'primary' ? (
         <View style={[styles.button, { backgroundColor: theme.accent }]}>{inner}</View>
       ) : (
-        <Glass theme={theme} radius={999} tint={kind === 'danger' ? 'rgba(255,69,58,0.14)' : undefined} style={styles.button}>
+        <Glass theme={theme} radius={sz(14)} tint={kind === 'danger' ? 'rgba(255,69,58,0.14)' : undefined} style={styles.button}>
           {inner}
         </Glass>
       )}
@@ -195,15 +196,15 @@ export function ListIcon({ color, size = 20 }: { color: string; size?: number })
 }
 
 const styles = StyleSheet.create({
-  sectionTitle: { ...TYPE.regular, fontSize: sz(13), letterSpacing: 0.2, paddingHorizontal: 16 },
+  sectionTitle: { ...TYPE.regular, fontSize: sz(13), letterSpacing: 0.3, paddingHorizontal: 16 },
   footer: { ...TYPE.regular, fontSize: sz(13), lineHeight: sz(18), paddingHorizontal: 16 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: sz(11), minHeight: sz(52) },
+  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: sz(10), minHeight: sz(44) },
   label: { ...TYPE.regular, fontSize: sz(17), letterSpacing: -0.4 },
   sub: { ...TYPE.regular, fontSize: sz(13), lineHeight: sz(18) },
   value: { ...TYPE.regular, fontSize: sz(17), letterSpacing: -0.4 },
-  button: { minHeight: sz(50), borderRadius: 999, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22 },
+  button: { minHeight: sz(50), borderRadius: sz(14), alignItems: 'center', justifyContent: 'center', paddingHorizontal: 22 },
   buttonText: { ...TYPE.semibold, fontSize: sz(17), letterSpacing: -0.4 },
-  field: { minWidth: 0, ...TYPE.regular, fontSize: sz(17), borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, minHeight: sz(44) },
+  field: { minWidth: 0, ...TYPE.regular, fontSize: sz(17), borderRadius: sz(10), paddingHorizontal: 12, paddingVertical: 10, minHeight: sz(44) },
 });
 
 /** iOS-style segmented control. */

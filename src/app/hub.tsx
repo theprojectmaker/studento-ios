@@ -1,11 +1,9 @@
 /** Hub: today at a glance plus big tiles for every tool. Opened from the clock's bottom-left button. */
 import { router, type Href } from 'expo-router';
-import Animated, { FadeIn } from 'react-native-reanimated';
 import type { SFSymbol } from 'expo-symbols';
-import { Pressable, Text, useWindowDimensions, View } from 'react-native';
+import { Text, View } from 'react-native';
 
-import { Icon } from '@/components/glass';
-import { Screen, tap } from '@/components/ui';
+import { Divider, Row, Screen, Section } from '@/components/ui';
 import { TYPE } from '@/lib/fonts';
 import { useNow, useRealNow, useTheme } from '@/lib/hooks';
 import { addDays, fmtDate, fmtTime, toMin } from '@/lib/nytime';
@@ -13,8 +11,6 @@ import { usePlanner } from '@/lib/planner';
 import { nameFor, nowState } from '@/lib/schedule';
 import { useSchedule, useStore } from '@/lib/store';
 import { focusLeft, useTools } from '@/lib/tools';
-import { alpha } from '@/lib/themes';
-import { fontStyle } from '@/lib/typefaces';
 import { sz } from '@/lib/scale';
 
 interface Tile {
@@ -29,9 +25,7 @@ export default function Hub() {
   const theme = useTheme();
   const now = useNow();
   const realNow = useRealNow();
-  const { width } = useWindowDimensions();
   const h24 = useStore((s) => s.prefs.h24);
-  const prefsMotion = useStore((s) => s.prefs.motion);
   const homework = usePlanner((p) => p.homework);
   const countdowns = usePlanner((p) => p.countdowns);
   const focus = useTools((t) => t.focus);
@@ -78,14 +72,17 @@ export default function Hub() {
     { title: 'Grades', sub: grades.length ? `${grades.length} classes` : 'Average & GPA', icon: 'graduationcap.fill', color: '#5856d6', href: '/grades' },
     { title: 'Themes', sub: theme.name, icon: 'paintpalette.fill', color: '#ff2d55', href: '/themes' },
   ];
-  const cols = width > 700 ? 3 : 2;
-  const tileW = (Math.min(width, 680) - 32 - (cols - 1) * 12) / cols;
+  const groups: { title: string; items: Tile[] }[] = [
+    { title: 'School', items: tiles.slice(0, 3) },
+    { title: 'Tools', items: tiles.slice(3, 8) },
+    { title: 'Look', items: tiles.slice(8) },
+  ];
 
   return (
     <Screen>
-      <View style={{ gap: 4, paddingHorizontal: 4 }}>
-        <Text style={{ ...fontStyle(theme.type.label, '600'), fontSize: sz(13), letterSpacing: theme.type.labelTracking ?? 2, color: theme.muted }}>{fmtDate(st.date).toUpperCase()}</Text>
-        <Text style={{ ...fontStyle(theme.type.title, '800'), fontSize: 30 * Math.min(1.1, theme.type.titleScale ?? 1), color: theme.ink }}>{headline}</Text>
+      <View style={{ gap: 3, paddingHorizontal: 4 }}>
+        <Text style={{ ...TYPE.semibold, fontSize: sz(13), letterSpacing: 0.3, color: theme.muted }}>{fmtDate(st.date).toUpperCase()}</Text>
+        <Text style={{ ...TYPE.bold, fontSize: sz(26), letterSpacing: -0.5, color: theme.ink }}>{headline}</Text>
         {st.current ? (
           <Text style={{ ...TYPE.medium, fontSize: sz(15), color: theme.muted }}>
             Now: {nameFor(st.current, sched.names)} until {fmtTime(st.current.end, h24)}
@@ -97,33 +94,16 @@ export default function Hub() {
         ) : null}
       </View>
 
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12 }}>
-        {tiles.map((t, i) => (
-          <Animated.View key={t.title} entering={prefsMotion ? FadeIn.delay(Math.min(i, 8) * 25).duration(180) : undefined}>
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={`${t.title}. ${t.sub}`}
-              onPress={() => {
-                tap();
-                router.push(t.href);
-              }}
-              style={({ pressed }) => ({ width: tileW, transform: [{ scale: pressed ? 0.97 : 1 }] })}
-            >
-              <View style={{ backgroundColor: theme.panel, borderRadius: 22, padding: 16, gap: 14, minHeight: sz(124) }}>
-                <View style={{ width: 38, height: 38, borderRadius: 11, backgroundColor: t.color, alignItems: 'center', justifyContent: 'center' }}>
-                  <Icon name={t.icon} color="#ffffff" size={20} fallback={<View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: alpha('#ffffff', 0.9) }} />} />
-                </View>
-                <View style={{ gap: 2 }}>
-                  <Text style={{ ...TYPE.bold, fontSize: sz(17), color: theme.ink }}>{t.title}</Text>
-                  <Text style={{ ...TYPE.regular, fontSize: sz(13), color: theme.muted }} numberOfLines={1}>
-                    {t.sub}
-                  </Text>
-                </View>
-              </View>
-            </Pressable>
-          </Animated.View>
-        ))}
-      </View>
+      {groups.map((g) => (
+        <Section key={g.title} title={g.title}>
+          {g.items.map((t, i) => (
+            <View key={t.title}>
+              {i ? <Divider inset={58} /> : null}
+              <Row label={t.title} sub={t.sub} icon={{ name: t.icon, color: t.color }} onPress={() => router.push(t.href)} />
+            </View>
+          ))}
+        </Section>
+      ))}
     </Screen>
   );
 }
