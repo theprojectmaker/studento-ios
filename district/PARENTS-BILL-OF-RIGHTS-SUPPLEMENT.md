@@ -1,7 +1,8 @@
 # Parents' Bill of Rights for Data Privacy and Security — Supplemental Information
 
 Required of every third-party contractor under New York Education Law §2-d and
-8 NYCRR §121.3. Fill in the district name and sign where marked.
+8 NYCRR §121.3, and by Great Neck Board of Education Policies #8625 and #8635 (the
+District's Parents' Bill of Rights is Policy 5500-E). Sign where marked.
 
 **Contractor:** Moses Sasson, doing business as Studento (studentoclockapp@gmail.com)
 **Product:** Studento, a bell schedule countdown app for iOS, iPadOS and the web
@@ -27,7 +28,8 @@ commercial purpose.
 
 Not collected: name, email, phone, date of birth, student ID, grade level, location,
 photos of the student, contacts, advertising identifiers, device identifiers, analytics or
-usage events, or any PII under FERPA. Usernames are chosen by the student; the District
+usage events, or any PII under FERPA. The requesting IP address is held briefly in a
+rate-limit counter (minutes) and is never linked to an account. Usernames are chosen by the student; the District
 should instruct students not to use their real names.
 
 ### 3. Subcontractors
@@ -35,7 +37,7 @@ should instruct students not to use their real names.
 | Subcontractor | What they receive | Purpose |
 |---|---|---|
 | Cloudflare, Inc. (US) | Account data and schedules (encrypted) | Hosting and database |
-| Groq, Inc. (US), Google LLC (US) | The schedule photo or text for one request, not retained | Schedule reader (optional) |
+| Groq, Inc. (US); Google LLC (US); Cloudflare Workers AI (US) | The schedule photo or text for one request, in that order of preference, not retained by Studento | Schedule reader (optional) |
 | Expo (650 Industries, US) | No student data; app update files only | Over-the-air app updates |
 | Apple Inc. | App distribution only; Apple's own terms apply | App Store |
 
@@ -87,7 +89,7 @@ training and reviews it annually.
 
 Parents may file a complaint about a possible breach or unauthorized release with the
 District's Data Protection Officer, or with the New York State Education Department Chief
-Privacy Officer at privacy@nysed.gov, or by mail to the Chief Privacy Officer, New York
+Privacy Officer at privacy@mail.nysed.gov (518-474-0937), or by mail to the Chief Privacy Officer, New York
 State Education Department, 89 Washington Avenue, Albany, NY 12234.
 
 Signed: ______________________________ Date: ______________

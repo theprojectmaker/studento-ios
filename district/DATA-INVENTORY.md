@@ -1,7 +1,7 @@
 # Studento data inventory and security summary
 
 For district technology directors and data protection officers. Verified against the code
-on 2026-11-01 (`server/functions/api/[[path]].ts`, `src/lib/account.ts`, `src/lib/store.ts`).
+on 2026-11-06 (`server/functions/api/[[path]].ts`, `src/lib/account.ts`, `src/lib/store.ts`).
 
 ## What runs where
 
@@ -10,7 +10,7 @@ on 2026-11-01 (`server/functions/api/[[path]].ts`, `src/lib/account.ts`, `src/li
 | The app (clock, alerts, widgets, themes, planner, notes, grades) | On the device | Yes, on the device only. Never leaves it unless the student signs in. |
 | Studento server | Cloudflare Pages Functions + D1 database, United States | Only for signed-in students: username, password hash, saved schedule and settings. |
 | Shared schools and bell schedules | Studento server | No student data. Public list of schools and bell times. |
-| Schedule reader (optional, signed in only) | Server, then Groq / Google for one request | The photo or typed text of the schedule, discarded after the answer. |
+| Schedule reader (optional, signed in only) | Server, then one AI provider for one request: Groq first, then Google Gemini, then Cloudflare Workers AI | The photo or typed text of the schedule, held in memory for the request, never written to disk or database. |
 | App updates | Expo EAS Update | No student data. |
 
 ## Data elements
@@ -21,6 +21,10 @@ on 2026-11-01 (`server/functions/api/[[path]].ts`, `src/lib/account.ts`, `src/li
 - **On the server (only with an account):** username (student-chosen), password hash (PBKDF2-
   SHA256, 100,000 iterations, 16-byte salt), hashed session token, the same schedule and
   settings as above, timestamps.
+- **Transient:** the requesting IP address in a rate-limit counter for the length of the
+  window (minutes), never joined to an account; Cloudflare edge request logs (no bodies).
+- **Device permissions:** Camera or Photo Library only when the student taps Scan my
+  schedule; Notifications for local bell reminders. No location, contacts or calendar.
 - **Never collected:** legal name, email, phone, address, date of birth, student ID, school
   ID number, grade level, location, photos of people, contacts, calendar, device identifier,
   advertising identifier, analytics or crash telemetry.
