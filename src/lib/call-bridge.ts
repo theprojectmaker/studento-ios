@@ -3,7 +3,7 @@
  * Signals and call status arrive through live listeners and wait in a buffer, so the page's
  * frequent polling costs nothing: Firestore only bills a read when something actually changes.
  */
-import { addDoc, collection, doc, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { addDoc, collection, doc, increment, onSnapshot, orderBy, query, setDoc, where } from 'firebase/firestore';
 
 import * as api from './api';
 import { currentUser, fbDb } from './fb';
@@ -60,6 +60,12 @@ export class CallBridge {
     await this.ready;
     const p = path.split('?')[0];
     if (p === '/api/ice') return { ok: true, iceServers: await api.iceServers() };
+    if (p === '/api/usage') {
+      // Relay bytes this call used since its last report -> this month's total (the 900 GB cap).
+      const bytes = Math.min(Math.max(0, Math.round(Number((body as { bytes?: number } | undefined)?.bytes) || 0)), 200_000_000);
+      if (bytes) await setDoc(doc(fbDb(), 'usage', new Date().toISOString().slice(0, 7)), { turnBytes: increment(bytes) }, { merge: true });
+      return { ok: true };
+    }
     const m = p.match(/^\/api\/calls\/(\d+)(?:\/(signal|end|answer|decline))?$/);
     if (!m || Number(m[1]) !== this.callId) throw new Error('Not found');
     const action = m[2];

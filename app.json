@@ -2,7 +2,7 @@
   "expo": {
     "name": "Studento",
     "slug": "studento",
-    "version": "1.2.0",
+    "version": "1.2.1",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "studento",
@@ -138,7 +138,13 @@
           "./assets/icons/Lava.png"
         ]
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Studento uses Face ID to unlock its private sections."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

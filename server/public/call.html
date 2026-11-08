@@ -99,9 +99,33 @@
     return j;
   };
   const signal = (kind, data) => api(`/api/calls/${callId}/signal`, { method: 'POST', body: { kind, data } }).catch(() => {});
+  // Relay meter: every 10 s, count bytes that went through the TURN relay (not direct
+  // device-to-device traffic) and report them, so the free relay allowance can be capped.
+  let relayTotal = 0, relayReported = 0, meter = null;
+  const measureRelay = async () => {
+    if (!pc) return;
+    try {
+      const stats = await pc.getStats();
+      let pair = null;
+      stats.forEach((r) => { if (r.type === 'transport' && r.selectedCandidatePairId) pair = stats.get(r.selectedCandidatePairId); });
+      if (!pair) stats.forEach((r) => { if (r.type === 'candidate-pair' && (r.selected || r.nominated) && r.state === 'succeeded') pair = r; });
+      if (!pair) return;
+      const l = stats.get(pair.localCandidateId), rm = stats.get(pair.remoteCandidateId);
+      const relayed = (l && l.candidateType === 'relay') || (rm && rm.candidateType === 'relay');
+      if (relayed) relayTotal = Math.max(relayTotal, (pair.bytesSent || 0) + (pair.bytesReceived || 0));
+    } catch {}
+  };
+  const reportRelay = () => {
+    const d = relayTotal - relayReported;
+    if (d < 1) return;
+    relayReported = relayTotal;
+    api('/api/usage', { method: 'POST', body: { bytes: d } }).catch(() => { relayReported -= d; });
+  };
   const close = (why) => {
     if (done) return;
     done = true;
+    clearInterval(meter);
+    reportRelay();
     say(why || 'Call ended');
     $('avatar').classList.remove('ring');
     try { pc && pc.close(); } catch {}
@@ -123,6 +147,7 @@
     $('avatar').classList.remove('ring');
     tick();
     timer = setInterval(tick, 1000);
+    meter = setInterval(() => { measureRelay().then(reportRelay); }, 10000);
   };
 
   async function start() {

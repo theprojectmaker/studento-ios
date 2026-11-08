@@ -5,7 +5,8 @@
  * Deploy as a web app: Execute as "Me", Who has access "Anyone".
  * Script Properties (Project Settings > Script Properties), never in the repo:
  *   GROQ_API_KEY, GEMINI_API_KEY          schedule reader (Groq first, Gemini as backup)
- *   TURN_URL, TURN_USERNAME, TURN_CREDENTIAL   optional TURN relay for calls (comma-separated URLs)
+ *   TURN_KEY_ID, TURN_KEY_TOKEN         Cloudflare Realtime TURN key (calls on strict Wi-Fi)
+ *   TURN_URL, TURN_USERNAME, TURN_CREDENTIAL   or any other TURN server (comma-separated URLs)
  *
  * The app POSTs text/plain JSON: { action: 'read' | 'ice', idToken, ... }.
  * idToken is the caller's Firebase ID token; it is checked with Google before doing anything.
@@ -21,8 +22,12 @@ function HttpError(status, message) {
   this.status = status;
   this.message = message;
 }
+/** Script Property by name, ignoring upper/lower case (TURN_KEY_ID = turn_key_id). */
 function prop(k) {
-  return PropertiesService.getScriptProperties().getProperty(k) || '';
+  var all = PropertiesService.getScriptProperties().getProperties();
+  if (all[k]) return String(all[k]).trim();
+  for (var name in all) if (name.trim().toLowerCase() === k.toLowerCase()) return String(all[name]).trim();
+  return '';
 }
 
 function doGet() {
@@ -102,8 +107,39 @@ function limit(key, max, windowSec) {
   }
 }
 
+/**
+ * STUN always, plus a TURN relay (needed on school Wi-Fi that blocks direct connections):
+ * Cloudflare Realtime TURN when TURN_KEY_ID + TURN_KEY_TOKEN are set (free 1,000 GB/month,
+ * TLS on 443), and/or a static TURN_URL/TURN_USERNAME/TURN_CREDENTIAL server.
+ */
 function iceServers() {
   var list = [{ urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] }];
+  // Free allowance guard: past TURN_CAP_GB (default 900) this month, hand out no relay.
+  if (turnBytesThisMonth() >= Number(prop('TURN_CAP_GB') || 900) * 1e9) return list;
+  var id = prop('TURN_KEY_ID');
+  var token = prop('TURN_KEY_TOKEN');
+  if (id && token) {
+    var cache = CacheService.getScriptCache();
+    var hit = cache.get('cfturn');
+    if (hit) list = list.concat(JSON.parse(hit));
+    else {
+      var r = UrlFetchApp.fetch('https://rtc.live.cloudflare.com/v1/turn/keys/' + id + '/credentials/generate-ice-servers', {
+        method: 'post',
+        contentType: 'application/json',
+        headers: { Authorization: 'Bearer ' + token },
+        payload: JSON.stringify({ ttl: 86400 }),
+        muteHttpExceptions: true,
+      });
+      if (r.getResponseCode() < 300) {
+        var j = JSON.parse(r.getContentText());
+        var got = Array.isArray(j.iceServers) ? j.iceServers : j.iceServers ? [j.iceServers] : [];
+        if (got.length) {
+          cache.put('cfturn', JSON.stringify(got), 6 * 3600);
+          list = list.concat(got);
+        }
+      }
+    }
+  }
   if (prop('TURN_URL') && prop('TURN_USERNAME') && prop('TURN_CREDENTIAL')) {
     list.push({ urls: prop('TURN_URL').split(',').map(function (x) { return x.trim(); }), username: prop('TURN_USERNAME'), credential: prop('TURN_CREDENTIAL') });
   }
@@ -320,4 +356,20 @@ function readSchedule(body) {
 /** Run once from the editor (Run > authorize) so the web app may call Groq/Gemini/Google. */
 function authorize() {
   UrlFetchApp.fetch('https://www.google.com', { muteHttpExceptions: true });
+}
+
+/** This month's relayed bytes, as reported by the app's calls (Firestore usage/YYYY-MM). Cached 5 min. */
+function turnBytesThisMonth() {
+  var month = new Date().toISOString().slice(0, 7);
+  var cache = CacheService.getScriptCache();
+  var hit = cache.get('turn:' + month);
+  if (hit) return Number(hit);
+  var n = 0;
+  try {
+    var r = UrlFetchApp.fetch('https://firestore.googleapis.com/v1/projects/' + PROJECT + '/databases/(default)/documents/usage/' + month + '?key=' + FIREBASE_API_KEY, { muteHttpExceptions: true });
+    var f = JSON.parse(r.getContentText() || '{}').fields || {};
+    n = Number((f.turnBytes && (f.turnBytes.integerValue || f.turnBytes.doubleValue)) || 0);
+  } catch (err) {}
+  cache.put('turn:' + month, String(n), 300);
+  return n;
 }
