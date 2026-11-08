@@ -599,11 +599,12 @@ function Title({ v, size, weight = 'heavy' }: { v: V; size: number; weight?: 'he
   );
 }
 
-/** The Themes button: a disc in the current theme's accent with a thin ring, so it reads as "colour", not as another icon. */
+/** The Themes button: a black-and-white split disc (half ink, half background) with a thin ring. No colour, no icon. */
 function ThemeSwatch({ theme }: { theme: Theme }) {
   return (
-    <View style={{ width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: alpha(theme.ink, 0.5), alignItems: 'center', justifyContent: 'center' }}>
-      <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: theme.accent }} />
+    <View style={{ width: 18, height: 18, borderRadius: 9, overflow: 'hidden', flexDirection: 'row', borderWidth: 1.5, borderColor: alpha(theme.ink, 0.7) }}>
+      <View style={{ flex: 1, backgroundColor: theme.ink }} />
+      <View style={{ flex: 1, backgroundColor: theme.bg }} />
     </View>
   );
 }
