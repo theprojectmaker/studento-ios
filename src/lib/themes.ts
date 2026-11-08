@@ -109,10 +109,14 @@ const CSS: Record<string, Partial<RawTheme> & { tile?: string; tileInk?: string;
   skyblue: { ink: '#0b3d91' },
   linen: { ink: '#3f3428' },
   sand: { ink: '#3b2a18' },
+  noirflip: { ink: '#f4f4f4', tile: '#f4f4f4', tileInk: '#0a0a0a' },
+  slateflip: { ink: '#e6eef7', tile: '#2a3542', tileInk: '#f2f7fc' },
 };
 
 /** New in the app: casino reels and Art Deco gold (listed first in the picker). */
 const EXTRA: RawTheme[] = [
+  { id: 'noirflip', name: 'Noir Flip', group: 'Split-flap', bg: '#000000', accent: '#ffffff', style: 'flap' },
+  { id: 'slateflip', name: 'Slate Flip', group: 'Split-flap', bg: '#1b2430', accent: '#9fd3ff', style: 'flap' },
   { id: 'jackpot', name: 'Jackpot', group: 'Casino', bg: '#14060a', accent: '#f5c542', style: 'reel' },
   { id: 'vegas', name: 'Vegas Strip', group: 'Casino', bg: '#0b0418', accent: '#ff3ea5', style: 'reel' },
   { id: 'montecarlo', name: 'Monte Carlo', group: 'Casino', bg: '#03241a', accent: '#d9b45a', style: 'reel' },
@@ -296,21 +300,21 @@ export const ALL_THEMES: Theme[] = [...EXTRA, ...RAW_THEMES].map(build).sort((x,
  */
 const CURATED = [
   // Split-flap
-  'departure', 'chalkboard', 'paper',
+  'departure', 'noirflip', 'slateflip', 'midnight', 'sunset', 'chalkboard', 'paper',
   // Casino
-  'jackpot', 'rollers',
+  'jackpot', 'highroller', 'rollers',
   // Gilded
   'gatsby', 'ivory',
   // Fun / Quiet
   'bubblegum', 'fog', 'linen',
   // Analog
-  'watch', 'swiss', 'diver',
+  'watch', 'swiss', 'diver', 'bauhaus',
   // LED / LCD / Tubes
-  'motorway', 'neon', 'gameboy', 'nixie',
+  'motorway', 'neon', 'terminal', 'vapor', 'gameboy', 'nixie',
   // Typographic
   'arctic', 'editorial', 'mono', 'space',
   // One from each collection
-  'city-tokyo', 'mat-stainedglass', 'nat-aurora', 'ret-phosphor', 'sci-blueprint',
+  'city-tokyo', 'city-newyork', 'mat-stainedglass', 'mat-kintsugi', 'nat-aurora', 'ret-phosphor', 'sci-blueprint', 'sci-cassini',
 ];
 export const THEMES: Theme[] = CURATED.map((id) => ALL_THEMES.find((t) => t.id === id)).filter((t): t is Theme => !!t);
 export const GROUPS: string[] = [...new Set(THEMES.map((t) => t.group))];

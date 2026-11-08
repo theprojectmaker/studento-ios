@@ -70,10 +70,10 @@ function RollChar({ ch, w, h, style, motion }: { ch: string; w: number; h: numbe
   useEffect(() => {
     if (!motion || prev === cur) return;
     p.value = 0;
-    p.value = withTiming(1, { duration: 180, easing: Easing.out(Easing.quad) });
+    p.value = withTiming(1, { duration: 260, easing: Easing.out(Easing.cubic) });
   }, [cur, prev, motion, p]);
-  const outStyle = useAnimatedStyle(() => ({ opacity: 1 - p.value }));
-  const inStyle = useAnimatedStyle(() => ({ opacity: p.value }));
+  const outStyle = useAnimatedStyle(() => ({ opacity: 1 - p.value, transform: [{ translateY: -h * 0.6 * p.value }] }));
+  const inStyle = useAnimatedStyle(() => ({ opacity: p.value, transform: [{ translateY: h * 0.6 * (1 - p.value) }] }));
   const t = { ...style, width: w, height: h, lineHeight: h, textAlign: 'center' as const };
   if (!motion) {
     return (
@@ -255,7 +255,7 @@ function FlipTile({
   useEffect(() => {
     if (!motion || prev === cur) return;
     p.value = 0;
-    p.value = withTiming(1, { duration: 360, easing: Easing.inOut(Easing.quad) });
+    p.value = withTiming(1, { duration: 460, easing: Easing.inOut(Easing.cubic) });
   }, [cur, prev, motion, p]);
 
   const half = h / 2;

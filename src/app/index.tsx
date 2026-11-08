@@ -302,10 +302,10 @@ function Classic({ v }: { v: V }) {
   const { theme, copy, st, prefs } = v;
   // Landscape (iPad, phone on its side): countdown on the left, the rest on the right.
   // Everything is one centered column of equal width (also in landscape).
-  const heroW = v.landscape ? Math.min(v.width - 36, sz(600)) : Math.min(v.width - 36, sz(820));
+  const heroW = v.landscape ? Math.min(v.width * 0.82, sz(1040)) : Math.min(v.width - 36, sz(820));
   // Leave room for the widgets so nothing overlaps on smaller phones.
   const rows = Math.ceil(Math.min(prefs.widgets.length, 4) / 2);
-  const maxDigit = v.landscape ? v.height * 0.18 : v.width >= 700 ? Math.min(v.height * (0.27 - rows * 0.02), sz(340)) : Math.min(v.height * (0.17 - rows * 0.025), 210);
+  const maxDigit = v.landscape ? v.height * 0.34 : v.width >= 700 ? Math.min(v.height * (0.27 - rows * 0.02), sz(340)) : Math.min(v.height * (0.17 - rows * 0.025), 210);
   const heroBlock = (
     <View
       style={{
