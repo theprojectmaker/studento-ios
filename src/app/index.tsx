@@ -172,7 +172,7 @@ export default function ClockScreen() {
       >
         <Animated.View style={[{ flex: 1, maxWidth: sz(900), width: '100%', alignSelf: 'center', transform: [{ translateX: nudge.x }, { translateY: nudge.y }] }, rawPrefs.idleDim ? dimStyle : null]}>
           {rawPrefs.locked ? null : <ClockBanners theme={theme} today={st.date} locked={focusLocked} />}
-          {prefs.layout === 'minimal' ? <Minimal v={v} /> : prefs.layout === 'glass' ? <Cards v={v} /> : <Classic v={v} />}
+          {theme.engine === 'race' ? <RaceLayout v={v} /> : prefs.layout === 'minimal' ? <Minimal v={v} /> : prefs.layout === 'glass' ? <Cards v={v} /> : <Classic v={v} />}
         </Animated.View>
         {askAlerts && !locked ? (
           <View
@@ -405,6 +405,44 @@ function Classic({ v }: { v: V }) {
     <View style={{ flex: 1, justifyContent: 'space-between' }}>
       {heroBlock}
       {infoBlock}
+    </View>
+  );
+}
+
+/**
+ * Race Track (iPad): the class and countdown sit in the infield of the circuit; a slim strip
+ * over the lower grandstand carries only the time, the day bar and a short caption. No
+ * "next" pill, no extra readouts: the race is the information.
+ */
+function RaceLayout({ v }: { v: V }) {
+  const { theme, copy, st } = v;
+  const heroW = Math.min(v.width * 0.55, sz(720));
+  const maxDigit = Math.min(v.height * 0.24, sz(260));
+  const out = st.day.periods.length ? fmtTime(st.day.periods[st.day.periods.length - 1].end, v.prefs.h24) : null;
+  return (
+    <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', gap: 4 }}>
+        {copy.eyebrow ? (
+          <Text style={[styles.eyebrow, label(theme), { color: alpha(theme.ink, 0.7) }]} numberOfLines={1}>
+            {copy.eyebrow}
+          </Text>
+        ) : null}
+        <Title v={v} size={Math.min(v.height * 0.055, 40)} weight="semibold" />
+        <Hero v={v} width={heroW} maxDigit={maxDigit} />
+        {v.inSchool ? <Text style={[styles.unit, fontStyle(theme.type.label, '500'), { color: alpha(theme.ink, 0.7), marginTop: 0 }]}>{copy.unit}</Text> : null}
+      </View>
+      <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, alignItems: 'center' }}>
+        <View style={{ width: '100%', maxWidth: sz(560), paddingHorizontal: 16, paddingVertical: 10, borderRadius: 16, backgroundColor: alpha('#000000', 0.42), gap: 8 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between' }}>
+            <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 5 }}>
+              <Text style={[fontStyle(theme.type.label, '600'), { fontSize: sz(17), letterSpacing: 0.4, color: '#f4f4f4', fontVariant: ['tabular-nums'] }]}>{v.clock.text}</Text>
+              {v.clock.suffix ? <Text style={[fontStyle(theme.type.label, '500'), { fontSize: sz(11), letterSpacing: 1, color: alpha('#ffffff', 0.6) }]}>{v.clock.suffix}</Text> : null}
+            </View>
+            {out ? <Text style={[fontStyle(theme.type.label, '500'), { fontSize: sz(12), letterSpacing: 0.3, color: alpha('#ffffff', 0.6) }]}>{`Out at ${out}`}</Text> : null}
+          </View>
+          {st.day.periods.length ? <Timeline periods={st.day.periods} secOfDay={st.secOfDay} theme={{ ...theme, ink: '#ffffff', light: false }} /> : null}
+        </View>
+      </View>
     </View>
   );
 }

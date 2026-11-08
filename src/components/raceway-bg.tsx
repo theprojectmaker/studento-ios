@@ -4,7 +4,7 @@
  * the period is one lap; the accent car leads, the others run in loose formation behind it.
  * When the period ends (or outside school) the cars park on the start line.
  *
- * The lane was measured on the 1400x788 image: for each angle from the image centre, the
+ * The lane was measured on the 1536x1024 image: for each angle from the image centre, the
  * distance to the middle of the asphalt.
  */
 import { Image } from 'expo-image';
@@ -16,13 +16,13 @@ import Svg, { Path, Polyline, Rect } from 'react-native-svg';
 import { alpha, mix, type Theme } from '@/lib/themes';
 
 const RACEWAY = require('../../assets/themes/raceway.jpg');
-const IMG_W = 1400;
-const IMG_H = 788;
-const IMG_CX = 700;
-const IMG_CY = 394;
+const IMG_W = 1536;
+const IMG_H = 1024;
+const IMG_CX = 768;
+const IMG_CY = 512;
 /* Lane centre radius (image px) every 15 degrees, angle measured with y down, 0 = right. */
-const LANE_R = [587, 529, 394, 285, 248, 220, 210, 208, 232, 305, 394, 525, 588, 545, 424, 336, 274, 263, 228, 246, 287, 322, 422, 549];
-const LANE_W = 44;
+const LANE_R = [696, 663, 567, 431, 361, 321, 305, 321, 361, 431, 568, 663, 697, 689, 591, 458, 379, 337, 320, 337, 379, 459, 584, 674];
+const LANE_W = 70;
 const LAP_SEC = 60;
 /* Rivals: gap behind the leader (laps) and a wobble so they trade places a little. */
 const RIVALS = [

@@ -8,6 +8,7 @@
  *   reel   slot-machine reels that spin down    deco   Art Deco metallic gold
  * and, where it fits the theme, one quiet live effect (snow, petals, embers...).
  */
+import { TABLET } from './scale';
 import { RAW_THEMES, type RawTheme } from './theme-data';
 import { typeFor, type TypeSpec } from './typefaces';
 
@@ -352,13 +353,15 @@ const CURATED = [
   // One from each collection
   'city-tokyo', 'city-newyork', 'mat-stainedglass', 'mat-kintsugi', 'nat-aurora', 'ret-phosphor', 'sci-blueprint', 'sci-cassini',
 ];
-export const THEMES: Theme[] = CURATED.map((id) => ALL_THEMES.find((t) => t.id === id)).filter((t): t is Theme => !!t);
+export const THEMES: Theme[] = CURATED.map((id) => ALL_THEMES.find((t) => t.id === id)).filter((t): t is Theme => !!t && (TABLET || t.engine !== 'race'));
 export const GROUPS: string[] = [...new Set(THEMES.map((t) => t.group))];
 export const DEFAULT_THEME = 'departure';
 
 /** Any id ever shipped still resolves; unknown ids fall back to Train Station. */
 export function themeById(id: string): Theme {
-  return ALL_THEMES.find((t) => t.id === id) ?? THEMES.find((t) => t.id === DEFAULT_THEME) ?? THEMES[0];
+  const t = ALL_THEMES.find((x) => x.id === id);
+  if (t && (TABLET || t.engine !== 'race')) return t;
+  return THEMES.find((x) => x.id === DEFAULT_THEME) ?? THEMES[0];
 }
 
 function hex(c: string): [number, number, number] {
