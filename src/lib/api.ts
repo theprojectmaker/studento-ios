@@ -163,6 +163,21 @@ export const sendMessage = (token: string, to: string, body: string) => call<{ m
 export const setBlocked = (token: string, username: string, block: boolean) => call<object>('/api/blocks', { method: 'POST', body: { username, block }, token });
 export const deleteMessage = (token: string, id: number) => call<object>(`/api/messages/id/${id}`, { method: 'DELETE', token });
 
+/* ---------------- calls (beta) ---------------- */
+export interface RecentCall {
+  id: number;
+  peer: string;
+  video: boolean;
+  outgoing: boolean;
+  status: 'ringing' | 'active' | 'ended' | 'missed' | 'declined';
+  at: number;
+  seconds: number;
+}
+export const startCall = (token: string, to: string, video: boolean) => call<{ call: { id: number; video: boolean; peer: string } }>('/api/calls', { method: 'POST', body: { to, video }, token }).then((r) => r.call);
+export const incomingCall = (token: string) => call<{ call: { id: number; video: boolean; peer: string } | null }>('/api/calls/incoming', { token, timeoutMs: 6000 }).then((r) => r.call);
+export const recentCalls = (token: string) => call<{ calls: RecentCall[] }>('/api/calls/recent', { token }).then((r) => r.calls);
+export const callAction = (token: string, id: number, action: 'answer' | 'decline' | 'end') => call<object>(`/api/calls/${id}/${action}`, { method: 'POST', token });
+
 /* ---------------- schedule reader ---------------- */
 export const readScheduleAI = (token: string, input: { image?: { data: string; mimeType: string }; text?: string }, bells?: Record<SchoolDay, Period[]> | null) =>
   call<AiResult>('/api/ai-schedule', { method: 'POST', body: { ...input, bells: bells ?? undefined }, token, timeoutMs: 90_000 });

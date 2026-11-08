@@ -24,7 +24,7 @@ export interface Unlock {
 
 const PROMOS: Record<string, Unlock> = {
   x93xhm: { id: 'race', title: 'Race Track', detail: 'Two beta themes: a night circuit where eight cars race through your class. iPad only. Find them under Themes > Beta.' },
-  '4au6o': { id: 'messages', title: 'Messages (beta)', detail: 'A message button now sits in the bottom-right corner of the clock. Needs an account.' },
+  '4au6o': { id: 'messages', title: 'Beam (beta)', detail: 'Chat and call other Studento users. A Beam button now sits in the bottom-right corner of the clock. Needs an account.' },
 };
 
 export const UNLOCK_INFO: Record<string, Unlock> = Object.fromEntries(Object.values(PROMOS).map((u) => [u.id, u]));

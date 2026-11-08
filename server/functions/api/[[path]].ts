@@ -10,6 +10,8 @@
  *   share      POST /api/share (schedule -> 6-char code, 30 days), GET /api/share/:code
  *   messages   (beta, signed in) GET /api/users?q=, GET /api/messages, GET /api/messages/:username,
  *              POST /api/messages, POST /api/blocks, DELETE /api/messages/id/:id (admin)
+ *   calls      (beta, signed in) GET /api/ice, POST /api/calls, GET /api/calls/incoming | recent | :id,
+ *              POST /api/calls/:id/answer | decline | end, POST|GET /api/calls/:id/signal  (WebRTC setup relay)
  * plus GET /api/config (kill switches: signup, sharing, ai, messaging; PATCH by admin) and GET /api/health.
  *
  * Passwords: PBKDF2-SHA256, 100k iterations (the Workers runtime maximum), 16-byte salt. Tokens: 32 random bytes, stored hashed.
@@ -22,6 +24,10 @@ interface Env {
   /** Pages secrets. Reader order: Groq (Qwen 3.8, best + fastest in tests) -> Gemini -> Workers AI. */
   GROQ_API_KEY?: string;
   GEMINI_API_KEY?: string;
+  /** Optional TURN relay for calls (comma-separated URLs), same convention as the old Beam app. */
+  TURN_URL?: string;
+  TURN_USERNAME?: string;
+  TURN_CREDENTIAL?: string;
 }
 type Ctx = EventContext<Env, string, unknown>;
 type Period = { period: string; label: string; start: string; end: string };
@@ -125,6 +131,10 @@ async function ensureBeta(env: Env) {
     env.DB.prepare('CREATE INDEX IF NOT EXISTS messages_from ON messages(from_id, created_at)'),
     env.DB.prepare('CREATE INDEX IF NOT EXISTS messages_to ON messages(to_id, created_at)'),
     env.DB.prepare('CREATE TABLE IF NOT EXISTS blocks (user_id INTEGER NOT NULL, blocked_id INTEGER NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY (user_id, blocked_id))'),
+    env.DB.prepare('CREATE TABLE IF NOT EXISTS calls (id INTEGER PRIMARY KEY AUTOINCREMENT, from_id INTEGER NOT NULL, to_id INTEGER NOT NULL, video INTEGER NOT NULL DEFAULT 0, status TEXT NOT NULL, created_at INTEGER NOT NULL, answered_at INTEGER, ended_at INTEGER)'),
+    env.DB.prepare('CREATE INDEX IF NOT EXISTS calls_to ON calls(to_id, status, created_at)'),
+    env.DB.prepare('CREATE TABLE IF NOT EXISTS call_signals (id INTEGER PRIMARY KEY AUTOINCREMENT, call_id INTEGER NOT NULL, from_id INTEGER NOT NULL, kind TEXT NOT NULL, data TEXT NOT NULL, created_at INTEGER NOT NULL)'),
+    env.DB.prepare('CREATE INDEX IF NOT EXISTS call_signals_call ON call_signals(call_id, id)'),
   ]);
   betaReady = true;
 }
@@ -134,6 +144,27 @@ function shareCode(): string {
   const b = crypto.getRandomValues(new Uint8Array(6));
   return [...b].map((x) => SHARE_ALPHABET[x % SHARE_ALPHABET.length]).join('');
 }
+const RING_MS = 40_000;
+interface CallRow {
+  id: number;
+  from_id: number;
+  to_id: number;
+  video: number;
+  status: string;
+  created_at: number;
+  answered_at: number | null;
+  ended_at: number | null;
+}
+async function callFor(env: Env, id: number, userId: number): Promise<CallRow> {
+  const c = await env.DB.prepare('SELECT * FROM calls WHERE id = ?').bind(id).first<CallRow>();
+  if (!c || (c.from_id !== userId && c.to_id !== userId)) throw new HttpError(404, 'No such call.');
+  if (c.status === 'ringing' && Date.now() - c.created_at > RING_MS) {
+    await env.DB.prepare("UPDATE calls SET status = 'missed', ended_at = ? WHERE id = ?").bind(Date.now(), id).run();
+    c.status = 'missed';
+  }
+  return c;
+}
+
 async function requireMessaging(env: Env) {
   const cfg = await getConfig(env);
   if (!cfg.messaging) throw new HttpError(503, 'Messages are paused right now.');
@@ -504,6 +535,8 @@ export const onRequest = async (ctx: Ctx): Promise<Response> => {
       if (!row || !sameHex(await pbkdf2(String(password ?? ''), row.salt), row.hash)) throw new HttpError(401, 'Wrong password.');
       await ensureBeta(env);
       await env.DB.batch([
+        env.DB.prepare('DELETE FROM call_signals WHERE call_id IN (SELECT id FROM calls WHERE from_id = ? OR to_id = ?)').bind(u.id, u.id),
+        env.DB.prepare('DELETE FROM calls WHERE from_id = ? OR to_id = ?').bind(u.id, u.id),
         env.DB.prepare('DELETE FROM messages WHERE from_id = ? OR to_id = ?').bind(u.id, u.id),
         env.DB.prepare('DELETE FROM blocks WHERE user_id = ? OR blocked_id = ?').bind(u.id, u.id),
         env.DB.prepare('DELETE FROM tokens WHERE user_id = ?').bind(u.id),
@@ -766,6 +799,102 @@ export const onRequest = async (ctx: Ctx): Promise<Response> => {
       else await env.DB.prepare('INSERT OR IGNORE INTO blocks (user_id, blocked_id, created_at) VALUES (?, ?, ?)').bind(u.id, other.id, Date.now()).run();
       return json({ ok: true, blocked: body.block !== false });
     }
+    /* calls (beta): the server only sets calls up; audio and video go device to device */
+    if (path === '/api/ice' && req.method === 'GET') {
+      await requireUser(env, req);
+      const list: { urls: string | string[]; username?: string; credential?: string }[] = [{ urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] }];
+      if (env.TURN_URL && env.TURN_USERNAME && env.TURN_CREDENTIAL) list.push({ urls: env.TURN_URL.split(',').map((x) => x.trim()), username: env.TURN_USERNAME, credential: env.TURN_CREDENTIAL });
+      return json({ ok: true, iceServers: list });
+    }
+    if (path === '/api/calls' && req.method === 'POST') {
+      const u = await requireUser(env, req);
+      await requireMessaging(env);
+      await limit(env, `user:${u.id}:call`, 20, 3600);
+      const body = await readJson<{ to?: string; video?: boolean }>(req);
+      const other = await env.DB.prepare('SELECT id, username FROM users WHERE username = ?').bind(String(body.to ?? '').toLowerCase()).first<{ id: number; username: string }>();
+      if (!other) throw new HttpError(404, 'No one with that username.');
+      if (other.id === u.id) throw new HttpError(400, "You can't call yourself.");
+      const block = await env.DB.prepare('SELECT 1 FROM blocks WHERE (user_id = ?1 AND blocked_id = ?2) OR (user_id = ?2 AND blocked_id = ?1)').bind(u.id, other.id).first();
+      if (block) throw new HttpError(403, "You can't call this person.");
+      const now = Date.now();
+      // One live call at a time per caller: end anything still ringing.
+      await env.DB.prepare("UPDATE calls SET status = 'ended', ended_at = ? WHERE from_id = ? AND status IN ('ringing', 'active')").bind(now, u.id).run();
+      const r = await env.DB.prepare("INSERT INTO calls (from_id, to_id, video, status, created_at) VALUES (?, ?, ?, 'ringing', ?)").bind(u.id, other.id, body.video ? 1 : 0, now).run();
+      return json({ ok: true, call: { id: Number(r.meta.last_row_id), video: !!body.video, peer: other.username } });
+    }
+    if (path === '/api/calls/incoming' && req.method === 'GET') {
+      const u = await requireUser(env, req);
+      await requireMessaging(env);
+      const rows = await env.DB.prepare("SELECT c.id, c.video, us.username AS peer FROM calls c JOIN users us ON us.id = c.from_id WHERE c.to_id = ? AND c.status = 'ringing' AND c.created_at > ? ORDER BY c.created_at DESC LIMIT 1").bind(u.id, Date.now() - RING_MS).all<{ id: number; video: number; peer: string }>();
+      const c = rows.results?.[0];
+      return json({ ok: true, call: c ? { id: c.id, video: !!c.video, peer: c.peer } : null });
+    }
+    if (path === '/api/calls/recent' && req.method === 'GET') {
+      const u = await requireUser(env, req);
+      await requireMessaging(env);
+      const rows = await env.DB.prepare(
+        'SELECT c.id, c.video, c.status, c.created_at, c.answered_at, c.ended_at, c.from_id, us.username AS peer FROM calls c JOIN users us ON us.id = (CASE WHEN c.from_id = ?1 THEN c.to_id ELSE c.from_id END) WHERE c.from_id = ?1 OR c.to_id = ?1 ORDER BY c.created_at DESC LIMIT 30'
+      )
+        .bind(u.id)
+        .all<CallRow & { peer: string }>();
+      return json({
+        ok: true,
+        calls: (rows.results ?? []).map((c) => ({
+          id: c.id,
+          peer: c.peer,
+          video: !!c.video,
+          outgoing: c.from_id === u.id,
+          status: c.status === 'ringing' && Date.now() - c.created_at > RING_MS ? 'missed' : c.status,
+          at: c.created_at,
+          seconds: c.answered_at && c.ended_at ? Math.round((c.ended_at - c.answered_at) / 1000) : 0,
+        })),
+      });
+    }
+    m = path.match(/^\/api\/calls\/(\d+)$/);
+    if (m && req.method === 'GET') {
+      const u = await requireUser(env, req);
+      await ensureBeta(env);
+      const c = await callFor(env, Number(m[1]), u.id);
+      const peerId = c.from_id === u.id ? c.to_id : c.from_id;
+      const peer = await env.DB.prepare('SELECT username FROM users WHERE id = ?').bind(peerId).first<{ username: string }>();
+      return json({ ok: true, call: { id: c.id, status: c.status, video: !!c.video, role: c.from_id === u.id ? 'caller' : 'callee', peer: peer?.username ?? '' } });
+    }
+    m = path.match(/^\/api\/calls\/(\d+)\/(answer|decline|end)$/);
+    if (m && req.method === 'POST') {
+      const u = await requireUser(env, req);
+      await ensureBeta(env);
+      const c = await callFor(env, Number(m[1]), u.id);
+      const now = Date.now();
+      if (m[2] === 'answer') {
+        if (c.to_id !== u.id || c.status !== 'ringing') throw new HttpError(409, 'That call is over.');
+        await env.DB.prepare("UPDATE calls SET status = 'active', answered_at = ? WHERE id = ?").bind(now, c.id).run();
+      } else if (m[2] === 'decline') {
+        if (c.status === 'ringing') await env.DB.prepare("UPDATE calls SET status = 'declined', ended_at = ? WHERE id = ?").bind(now, c.id).run();
+      } else if (c.status === 'ringing' || c.status === 'active') {
+        await env.DB.prepare('UPDATE calls SET status = ?, ended_at = ? WHERE id = ?').bind(c.status === 'ringing' ? 'missed' : 'ended', now, c.id).run();
+        await env.DB.prepare('DELETE FROM call_signals WHERE call_id = ?').bind(c.id).run();
+      }
+      return json({ ok: true });
+    }
+    m = path.match(/^\/api\/calls\/(\d+)\/signal$/);
+    if (m && (req.method === 'POST' || req.method === 'GET')) {
+      const u = await requireUser(env, req);
+      await ensureBeta(env);
+      const c = await callFor(env, Number(m[1]), u.id);
+      if (req.method === 'POST') {
+        if (c.status !== 'ringing' && c.status !== 'active') throw new HttpError(409, 'That call is over.');
+        await limit(env, `user:${u.id}:sig`, 400, 600);
+        const body = await readJson<{ kind?: string; data?: unknown }>(req, 64 * 1024);
+        const kind = body.kind === 'offer' || body.kind === 'answer' || body.kind === 'ice' ? body.kind : null;
+        if (!kind) throw new HttpError(400, 'Bad signal.');
+        await env.DB.prepare('INSERT INTO call_signals (call_id, from_id, kind, data, created_at) VALUES (?, ?, ?, ?, ?)').bind(c.id, u.id, kind, JSON.stringify(body.data ?? null), Date.now()).run();
+        return json({ ok: true });
+      }
+      const after = Number(url.searchParams.get('after') || 0) || 0;
+      const rows = await env.DB.prepare('SELECT id, kind, data FROM call_signals WHERE call_id = ? AND from_id != ? AND id > ? ORDER BY id LIMIT 100').bind(c.id, u.id, after).all<{ id: number; kind: string; data: string }>();
+      return json({ ok: true, status: c.status, signals: (rows.results ?? []).map((r) => ({ id: r.id, kind: r.kind, data: JSON.parse(r.data) })) });
+    }
+
     m = path.match(/^\/api\/messages\/id\/(\d+)$/);
     if (m && req.method === 'DELETE') {
       const u = await requireUser(env, req);

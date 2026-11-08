@@ -9,6 +9,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { registerBackgroundRefresh } from '@/lib/background';
 import { isHeavyWork } from '@/lib/heavy';
 import { useTheme } from '@/lib/hooks';
+import { IncomingCall } from '@/components/incoming-call';
 import { watchForSync } from '@/lib/account';
 import { rescheduleAlerts, setupNotificationHandler, watchForReschedule } from '@/lib/notify';
 import { loadPlanner } from '@/lib/planner';
@@ -153,9 +154,11 @@ export default function RootLayout() {
         <Stack.Screen name="schedule-edit" options={{ title: 'Custom Day' }} />
         <Stack.Screen name="backup" options={{ title: 'Back Up & Restore' }} />
         <Stack.Screen name="redeem" options={{ title: 'Redeem' }} />
-        <Stack.Screen name="messages" options={{ title: 'Messages' }} />
+        <Stack.Screen name="messages" options={{ title: 'Beam' }} />
+        <Stack.Screen name="call" options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }} />
         <Stack.Screen name="chat" options={{ title: '', headerLargeTitle: false }} />
       </Stack>
+      <IncomingCall />
     </GestureHandlerRootView>
   );
 }

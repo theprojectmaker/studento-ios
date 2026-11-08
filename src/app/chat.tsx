@@ -6,6 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Note, tap } from '@/components/ui';
 import { getToken } from '@/lib/account';
+import { startCall } from '@/lib/calls';
+import { CallButtons } from '@/components/call-buttons';
 import * as api from '@/lib/api';
 import { TYPE } from '@/lib/fonts';
 import { useTheme } from '@/lib/hooks';
@@ -97,7 +99,8 @@ export default function Chat() {
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: theme.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
       <Stack.Screen options={{ title: username }} />
-      <View style={{ flexDirection: 'row', justifyContent: 'flex-end', paddingHorizontal: 16, paddingVertical: 6 }}>
+      <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: 16, paddingVertical: 6 }}>
+        {blocked ? <View /> : <CallButtons onAudio={() => void startCall(username, false).catch((e) => setErr(e instanceof Error ? e.message : "Couldn't call."))} onVideo={() => void startCall(username, true).catch((e) => setErr(e instanceof Error ? e.message : "Couldn't call."))} />}
         <Pressable accessibilityRole="button" onPress={() => void toggleBlock()} hitSlop={8}>
           <Text style={{ ...TYPE.semibold, fontSize: sz(14), color: blocked ? theme.accent : '#ff453a' }}>{blocked ? 'Unblock' : 'Block'}</Text>
         </Pressable>

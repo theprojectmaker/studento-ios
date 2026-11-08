@@ -272,7 +272,7 @@ export default function ClockScreen() {
             <Icon name="square.grid.2x2" color={theme.ink} size={18} fallback={<GridGlyph color={theme.ink} />} />
           </Corner>
           {(rawPrefs.unlocks ?? []).includes('messages') ? (
-            <Corner theme={theme} glass={glassy} label="Messages" style={{ bottom: insets.bottom + 12, right: insets.right + 14 }} onPress={() => router.push('/messages')}>
+            <Corner theme={theme} glass={glassy} label="Beam" style={{ bottom: insets.bottom + 12, right: insets.right + 14 }} onPress={() => router.push('/messages')}>
               <Icon name="bubble.left.and.bubble.right" color={theme.ink} size={17} fallback={<ChatGlyph color={theme.ink} />} />
             </Corner>
           ) : null}

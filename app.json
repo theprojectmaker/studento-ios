@@ -2,7 +2,7 @@
   "expo": {
     "name": "Studento",
     "slug": "studento",
-    "version": "1.1.1",
+    "version": "1.2.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "studento",
@@ -13,7 +13,8 @@
       "supportsTablet": true,
       "requireFullScreen": false,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSMicrophoneUsageDescription": "Beam calls use the microphone so the other person can hear you."
       }
     },
     "android": {
@@ -56,7 +57,7 @@
         "expo-image-picker",
         {
           "photosPermission": "Studento reads the schedule photo you pick, on this phone, to fill in your classes. The photo is not uploaded.",
-          "cameraPermission": "Studento uses the camera to take a photo of your schedule and reads it on this phone. The photo is not uploaded.",
+          "cameraPermission": "Studento uses the camera to take a photo of your schedule, and for Beam video calls.",
           "microphonePermission": false
         }
       ],
