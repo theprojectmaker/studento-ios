@@ -156,7 +156,7 @@ export default function ClockScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }} onTouchStart={wake}>
-      {theme.engine === 'race' ? <RacewayBackdrop theme={theme} progress={copy.remaining == null ? 0 : 1 - copy.remaining} motion={prefs.motion} /> : null}
+      {theme.engine === 'race' ? <RacewayBackdrop theme={theme} elapsedSec={copy.countdownSec != null && copy.remaining > 0 ? Math.round(copy.countdownSec / copy.remaining) - copy.countdownSec : null} motion={prefs.motion} /> : null}
       <LiveEffect theme={theme} motion={prefs.motion} />
       <NightDim hour={parts.hour} on={rawPrefs.night} />
       <FlashOverlay flash={flash} />
