@@ -6,6 +6,7 @@
 import { useEffect, useState } from 'react';
 
 import { watchFlags } from './beam-extra';
+import { useMyBan } from './my-ban';
 import { useStore } from './store';
 
 export function useBeamFlags(): { messaging: boolean; waitlist: boolean } {
@@ -22,5 +23,7 @@ export function useBeamVisible(): boolean {
   const unlocked = useStore((s) => (s.prefs.unlocks ?? []).includes('messages'));
   const admin = useStore((s) => !!s.account?.user.admin);
   const { messaging } = useBeamFlags();
-  return unlocked && (messaging || admin);
+  // Any ban (chatting off or full) hides Beam for that person.
+  const ban = useMyBan();
+  return unlocked && !ban && (messaging || admin);
 }

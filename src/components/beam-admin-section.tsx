@@ -52,7 +52,7 @@ export function BeamAdminSection() {
           <View key={r.uid}>
             <Divider />
             <Row
-              label={r.username}
+              label={r.num ? `#${r.num} ${r.username}` : r.username}
               sub={r.status === 'waiting' ? `Waiting since ${new Date(r.at).toLocaleString()}` : r.status === 'approved' ? 'Let in' : 'Denied'}
               right={
                 <View style={{ flexDirection: 'row', gap: 6 }}>

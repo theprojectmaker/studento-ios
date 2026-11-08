@@ -6,10 +6,11 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BeamChat } from '@/components/beam-chat';
+import { goToClock } from '@/lib/beam-nav';
 import { requestAccess, watchMyAccess, type AccessStatus } from '@/lib/beam-extra';
 import { lockBeam, useBeamUnlocked } from '@/lib/beam-lock';
 import { useBeamFlags, useBeamVisible } from '@/lib/beam-on';
@@ -24,6 +25,7 @@ import { useStore } from '@/lib/store';
 
 type Section = 'messages' | 'calls' | 'contacts' | 'settings';
 const K_CONTACTS = 'beam.contacts';
+const K_MARKS = 'beam.marks';
 
 function when(ms: number): string {
   const d = new Date(ms);
@@ -54,10 +56,14 @@ export default function Beam() {
   const visible = useBeamVisible();
   const { waitlist } = useBeamFlags();
   const [access, setAccess] = useState<AccessStatus | null>(null);
+  const [place, setPlace] = useState<number | undefined>(undefined);
   const [asking, setAsking] = useState(false);
   useEffect(() => {
     if (!account || admin) return;
-    return watchMyAccess(setAccess);
+    return watchMyAccess((s, n) => {
+      setAccess(s);
+      setPlace(n);
+    });
   }, [account, admin]);
   const me = account?.user.username ?? '';
   const [section, setSection] = useState<Section>('messages');
@@ -71,6 +77,30 @@ export default function Beam() {
   const [open, setOpen] = useState<string | null>(null);
   const [loadedAt, setLoadedAt] = useState(0);
 
+  const [marks, setMarks] = useState<{ pin: string[]; mute: string[] }>({ pin: [], mute: [] });
+  useEffect(() => {
+    AsyncStorage.getItem(K_MARKS)
+      .then((s) => s && setMarks({ pin: [], mute: [], ...(JSON.parse(s) as object) }))
+      .catch(() => {});
+  }, []);
+  const toggleMark = (k: 'pin' | 'mute', u: string) => {
+    const next = { ...marks, [k]: marks[k].includes(u) ? marks[k].filter((x) => x !== u) : [...marks[k], u] };
+    setMarks(next);
+    void AsyncStorage.setItem(K_MARKS, JSON.stringify(next)).catch(() => {});
+  };
+  const rowMenu = (u: string) => {
+    const pin = marks.pin.includes(u) ? 'Unpin' : 'Pin to top';
+    const mute = marks.mute.includes(u) ? 'Unmute' : 'Mute';
+    if (Platform.OS === 'web') {
+      if (window.confirm(`${pin} ${u}?`)) toggleMark('pin', u);
+      return;
+    }
+    Alert.alert(u, undefined, [
+      { text: pin, onPress: () => toggleMark('pin', u) },
+      { text: mute, onPress: () => toggleMark('mute', u) },
+      { text: 'Cancel', style: 'cancel' },
+    ]);
+  };
   useEffect(() => {
     AsyncStorage.getItem(K_CONTACTS)
       .then((s) => s && setContacts(JSON.parse(s) as string[]))
@@ -130,7 +160,7 @@ export default function Beam() {
     else router.push({ pathname: '/chat', params: { u } });
   };
 
-  const unreadTotal = (threads ?? []).reduce((a, t) => a + (t.unread > 0 ? 1 : 0), 0);
+  const unreadTotal = (threads ?? []).reduce((a, t) => a + (t.unread > 0 && !marks.mute.includes(t.username) ? 1 : 0), 0);
   const missed = (calls ?? []).filter((k) => !k.outgoing && k.status === 'missed' && loadedAt - k.at < 86400_000).length;
   const people = [...new Set([...contacts, ...(threads ?? []).map((t) => t.username), ...(calls ?? []).map((k) => k.peer)])].filter(Boolean).sort();
 
@@ -143,9 +173,9 @@ export default function Beam() {
   ];
   const sidebar = (
     <View style={{ width: wide ? 210 : 68, backgroundColor: c.window, borderRightWidth: 0.5, borderRightColor: c.hairline, paddingTop: insets.top + 8, paddingBottom: insets.bottom + 10, paddingHorizontal: wide ? 10 : 6 }}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Back to the clock" onPress={() => router.back()} hitSlop={8} style={{ flexDirection: 'row', alignItems: 'center', height: 34, marginBottom: wide ? 6 : 10, justifyContent: wide ? 'flex-start' : 'center' }}>
-        <Glyph.Back color={c.blue} />
-        {wide ? <Text style={{ color: c.blue, fontSize: 16 }}>Clock</Text> : null}
+      <Pressable accessibilityRole="button" accessibilityLabel="Back to the clock" onPress={goToClock} hitSlop={12} style={({ pressed }) => ({ flexDirection: wide ? 'row' : 'column', alignItems: 'center', minHeight: 44, borderRadius: 12, marginBottom: wide ? 6 : 10, justifyContent: wide ? 'flex-start' : 'center', backgroundColor: pressed ? c.rowPress : 'transparent', paddingHorizontal: wide ? 4 : 0 })}>
+        <Glyph.Back color={c.blue} size={wide ? 22 : 24} />
+        <Text style={{ color: c.blue, fontSize: wide ? 16 : 10.5, fontWeight: wide ? '400' : '600' }}>Clock</Text>
       </Pressable>
       {wide ? <Text style={{ color: c.text, fontSize: 26, fontWeight: '800', letterSpacing: -0.5, paddingHorizontal: 8, marginBottom: 14 }}>Beam</Text> : null}
       <View style={{ gap: 4 }}>
@@ -251,7 +281,7 @@ export default function Beam() {
         )
       );
   } else if (section === 'messages') {
-    const list = (threads ?? []).filter((t) => !unreadOnly || t.unread > 0);
+    const list = (threads ?? []).filter((t) => !unreadOnly || t.unread > 0).sort((a, b) => Number(marks.pin.includes(b.username)) - Number(marks.pin.includes(a.username)));
     body =
       threads === null ? (
         <Empty c={c} text={err ?? 'Loading…'} />
@@ -259,9 +289,11 @@ export default function Beam() {
         <Empty c={c} text={unreadOnly ? 'No unread messages.' : 'No messages yet. Search for someone above to start a chat.'} />
       ) : (
         list.map((t) => {
-          const unread = t.unread > 0;
+          const muted = marks.mute.includes(t.username);
+          const pinned = marks.pin.includes(t.username);
+          const unread = t.unread > 0 && !muted;
           return (
-            <Pressable key={t.id || t.username} onPress={() => openChat(t.username)} style={(s) => ({ ...rowStyle(s, open === t.username), paddingLeft: 2, gap: 0 })}>
+            <Pressable key={t.id || t.username} onPress={() => openChat(t.username)} onLongPress={() => rowMenu(t.username)} delayLongPress={350} style={(s) => ({ ...rowStyle(s, open === t.username), paddingLeft: 2, gap: 0 })}>
               <View style={{ width: 14, alignItems: 'center' }}>
                 <View style={{ width: 9, height: 9, borderRadius: 5, backgroundColor: c.blue, opacity: unread ? 1 : 0 }} />
               </View>
@@ -273,6 +305,8 @@ export default function Beam() {
                   <Text style={{ flex: 1, color: c.text, fontSize: 15, fontWeight: unread ? '700' : '600' }} numberOfLines={1}>
                     {t.username}
                   </Text>
+                  {pinned ? <Text style={{ color: c.text3, fontSize: 11 }}>Pinned</Text> : null}
+                  {muted ? <Text style={{ color: c.text3, fontSize: 11 }}>Muted</Text> : null}
                   <Text style={{ color: unread ? c.blue : c.text3, fontSize: 12, fontWeight: unread ? '600' : '400' }}>{when(t.lastAt)}</Text>
                 </View>
                 <Text style={{ color: unread ? c.text : c.text2, fontSize: 13.5, lineHeight: 18, marginTop: 2 }} numberOfLines={2}>
@@ -373,7 +407,7 @@ export default function Beam() {
   }
 
   // Switched off by the admin, or still waiting to be let in.
-  const blockedMsg = !visible ? 'Beam is off right now.' : waitlist && !admin && access !== 'approved' ? (access === 'denied' ? "You weren't let in this time." : access === 'waiting' ? "You're on the waiting list. You'll get in once you're approved." : 'Beam has a waiting list. Ask to join and the admin will let you in.') : null;
+  const blockedMsg = !visible ? 'Beam is off right now.' : waitlist && !admin && access !== 'approved' ? (access === 'denied' ? "You weren't let in this time." : access === 'waiting' ? `You're ${place ? `#${place} ` : ''}on the waiting list. You'll get a notification when you're let in.` : 'Beam has a waiting list. Ask to join and the admin will let you in.') : null;
   if (blockedMsg) {
     return (
       <View style={{ flex: 1, backgroundColor: c.sidebar, alignItems: 'center', justifyContent: 'center', padding: 28, gap: 14 }}>
@@ -393,7 +427,7 @@ export default function Beam() {
           </Pressable>
         ) : null}
         {err ? <Text style={{ color: c.red, fontSize: 13 }}>{err}</Text> : null}
-        <Pressable onPress={() => router.back()} hitSlop={10}>
+        <Pressable onPress={goToClock} hitSlop={10}>
           <Text style={{ color: c.blue, fontSize: 16 }}>Back to the clock</Text>
         </Pressable>
       </View>

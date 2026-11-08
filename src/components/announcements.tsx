@@ -9,7 +9,7 @@ import { Modal, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useBeam } from '@/components/beam-ui';
-import { watchAnnouncements, type Announcement } from '@/lib/beam-extra';
+import { watchAnnouncements, watchMyNotices, type Announcement } from '@/lib/beam-extra';
 import { useBeamVisible } from '@/lib/beam-on';
 import { useCapturing } from '@/lib/capture';
 import { useStore } from '@/lib/store';
@@ -24,6 +24,12 @@ export function Announcements() {
   const captured = useCapturing();
   const [list, setList] = useState<Announcement[]>([]);
   const [closed, setClosed] = useState<string[] | null>(null);
+  // Pop-ups the admin sent to me alone; these show even without Beam.
+  const [mine, setMine] = useState<Announcement[]>([]);
+  useEffect(() => {
+    if (!account) return;
+    return watchMyNotices(setMine);
+  }, [account]);
 
   useEffect(() => {
     AsyncStorage.getItem(K_SEEN)
@@ -35,9 +41,10 @@ export function Announcements() {
     return watchAnnouncements(setList);
   }, [account, on]);
 
-  if (!account || !on || captured || closed === null) return null;
-  const pinned = list.filter((a) => !a.closable);
-  const pop = list.find((a) => a.closable && !closed.includes(a.id));
+  if (!account || captured || closed === null) return null;
+  const all = [...mine, ...(on ? list : [])];
+  const pinned = all.filter((a) => !a.closable);
+  const pop = all.find((a) => a.closable && !closed.includes(a.id));
   const close = (id: string) => {
     const next = [...closed, id].slice(-50);
     setClosed(next);

@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, Platform, View } from 'react-native';
 
+import { AccountsAdmin } from '@/components/accounts-admin';
 import { BeamAdminSection } from '@/components/beam-admin-section';
 import { Button, Divider, Field, Note, Row, Screen, Section, ToggleRow } from '@/components/ui';
 import { getToken } from '@/lib/account';
@@ -94,6 +95,8 @@ export default function Admin() {
           </View>
         ))}
       </Section>
+
+      <AccountsAdmin />
 
       {unlocked ? <BeamAdminSection /> : null}
 

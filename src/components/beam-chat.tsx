@@ -5,7 +5,7 @@
  */
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Image, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ActionSheet, AttachSheet, CountdownSheet, PhotoViewer, PollSheet, StickerSheet, VideoViewer, type AttachKind } from '@/components/beam-sheets';
@@ -13,7 +13,7 @@ import { BeamAvatar, Glyph, Tail, useBeam, type BeamPalette } from '@/components
 import { tap } from '@/components/ui';
 import { getToken } from '@/lib/account';
 import * as api from '@/lib/api';
-import { newGame } from '@/lib/beam-extra';
+import { newGame, sendTyping, watchChatMeta } from '@/lib/beam-extra';
 import { getPhotos, getVideo } from '@/lib/beam-media';
 import { useBeamSettings } from '@/lib/beam-settings';
 import { encode, fold, MAX_BODY, preview, type Folded, type Rich } from '@/lib/beam-msg';
@@ -59,6 +59,27 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
   const base = useBeam();
   const st = useBeamSettings();
   const c = useMemo(() => ({ ...base, outBubble: st.bubble }), [base, st.bubble]);
+  const [meta, setMeta] = useState({ seen: false, typingAt: 0 });
+  const [typing, setTyping] = useState(false);
+  const [search, setSearch] = useState<string | null>(null);
+  const [timeFor, setTimeFor] = useState<number | null>(null);
+  const lastTap = useRef({ id: 0, at: 0 });
+  // The typing bubble shows for 6 s after their last keystroke signal.
+  useEffect(() => {
+    if (!username) return;
+    let t: ReturnType<typeof setTimeout> | undefined;
+    const stop = watchChatMeta(username, (m) => {
+      setMeta(m);
+      clearTimeout(t);
+      const left = m.typingAt + 6000 - Date.now();
+      setTyping(left > 0);
+      if (left > 0) t = setTimeout(() => setTyping(false), left);
+    });
+    return () => {
+      clearTimeout(t);
+      stop();
+    };
+  }, [username]);
   const insets = useSafeAreaInsets();
   const [raw, setRaw] = useState<api.ChatMessage[]>([]);
   const [blocked, setBlocked] = useState(false);
@@ -243,7 +264,7 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.chatBg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={{ paddingTop: onBack ? insets.top + 4 : 10, paddingBottom: 8, paddingHorizontal: 10, backgroundColor: c.glass, borderBottomWidth: 0.5, borderBottomColor: c.hairline, flexDirection: 'row', alignItems: 'center' }}>
-        <View style={{ width: 80 }}>
+        <View style={{ width: 104 }}>
           {onBack ? (
             <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={onBack} hitSlop={10}>
               <Glyph.Back color={c.blue} size={26} />
@@ -257,7 +278,10 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
             <Glyph.Chevron color={c.text3} size={10} />
           </View>
         </Pressable>
-        <View style={{ width: 80, flexDirection: 'row', justifyContent: 'flex-end', gap: 16 }}>
+        <View style={{ width: 104, flexDirection: 'row', justifyContent: 'flex-end', gap: 14 }}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Search this chat" onPress={() => setSearch(search === null ? '' : null)} hitSlop={8} style={{ justifyContent: 'center' }}>
+            <Glyph.Search color={c.blue} size={19} />
+          </Pressable>
           {blocked ? null : (
             <>
               <Pressable accessibilityRole="button" accessibilityLabel="Video call" onPress={() => void startCall(username, true).catch((e) => setErr(String(e?.message ?? e)))} hitSlop={8}>
@@ -271,7 +295,17 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
         </View>
       </View>
 
-      <ScrollView ref={scroller} style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 110 }} onContentSizeChange={() => scroller.current?.scrollToEnd({ animated: false })}>
+      {search !== null ? (
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: 12, marginTop: 8, height: 34, borderRadius: 10, backgroundColor: c.search, paddingHorizontal: 9 }}>
+          <Glyph.Search color={c.text3} />
+          <TextInput value={search} onChangeText={setSearch} autoFocus placeholder="Search this chat" placeholderTextColor={c.text3} style={{ flex: 1, color: c.text, fontSize: 15, height: '100%' }} />
+          <Pressable onPress={() => setSearch(null)} hitSlop={8}>
+            <Text style={{ color: c.blue, fontSize: 15 }}>Done</Text>
+          </Pressable>
+        </View>
+      ) : null}
+      <ScrollView ref={scroller} style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 110 }} onContentSizeChange={() => search === null && scroller.current?.scrollToEnd({ animated: false })}>
+        {search ? <Text style={{ textAlign: 'center', color: c.text3, fontSize: 12, marginBottom: 6 }}>{`${msgs.filter((x) => !x.deleted && plain(x).toLowerCase().includes(search.toLowerCase())).length} found`}</Text> : null}
         {msgs.length === 0 && !err ? <Text style={{ textAlign: 'center', color: c.text3, fontSize: 12, marginTop: 20 }}>{`Say hi to ${username}.`}</Text> : null}
         {msgs.map((m, i) => {
           const prev = msgs[i - 1];
@@ -280,6 +314,7 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
           const runStart = newTime || prev?.mine !== m.mine;
           const runEnd = !next || next.mine !== m.mine || next.createdAt - m.createdAt > HOUR;
           const quoted = 'r' in m.rich && m.rich.r ? byId.get(m.rich.r) : undefined;
+          if (search && (m.deleted || !plain(m).toLowerCase().includes(search.toLowerCase()))) return null;
           return (
             <View key={m.id}>
               {newTime ? <Text style={{ textAlign: 'center', fontSize: 11, color: c.text3, marginTop: 16, marginBottom: 8, fontWeight: '500' }}>{stamp(m.createdAt)}</Text> : null}
@@ -292,6 +327,19 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
                   </View>
                 ) : null}
                 <Pressable
+                  onPress={() => {
+                    // double-tap = heart; single tap shows the time
+                    const t = Date.now();
+                    if (lastTap.current.id === m.id && t - lastTap.current.at < 320 && !m.deleted) {
+                      lastTap.current = { id: 0, at: 0 };
+                      if (st.haptics) tap();
+                      const had = m.reactions.find((r) => r.mine)?.e;
+                      void sendRich({ k: 're', m: m.id, e: had === '❤️' ? '' : '❤️' }, 'Reacting…');
+                      return;
+                    }
+                    lastTap.current = { id: m.id, at: t };
+                    setTimeFor(timeFor === m.id ? null : m.id);
+                  }}
                   onLongPress={() => {
                     if (st.haptics) tap();
                     setAct(m);
@@ -311,10 +359,18 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
                 </Pressable>
                 {m.edited && !m.deleted ? <Text style={{ color: c.text3, fontSize: 10.5, marginTop: 2, marginHorizontal: 6 }}>Edited</Text> : null}
               </View>
-              {m.mine && !next ? <Text style={{ textAlign: 'right', fontSize: 11, color: c.text3, marginTop: 3, marginRight: 4, fontWeight: '500' }}>Delivered</Text> : null}
+              {timeFor === m.id ? <Text style={{ textAlign: m.mine ? 'right' : 'left', fontSize: 11, color: c.text3, marginTop: 3, marginHorizontal: 6 }}>{new Date(m.createdAt).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}</Text> : null}
+              {m.mine && !next && !search ? <Text style={{ textAlign: 'right', fontSize: 11, color: c.text3, marginTop: 3, marginRight: 4, fontWeight: '500' }}>{meta.seen ? 'Read' : 'Delivered'}</Text> : null}
             </View>
           );
         })}
+        {typing && !search ? (
+          <View style={{ alignSelf: 'flex-start', flexDirection: 'row', gap: 4, backgroundColor: c.inBubble, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 12, marginTop: 8 }}>
+            {[0.4, 0.6, 0.8].map((o) => (
+              <View key={o} style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c.text3, opacity: o }} />
+            ))}
+          </View>
+        ) : null}
         {err ? <Text style={{ textAlign: 'center', color: c.red, fontSize: 12, marginTop: 10 }}>{err}</Text> : null}
       </ScrollView>
 
@@ -350,7 +406,10 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
               <View style={{ flex: 1, minHeight: 36, borderRadius: 18, backgroundColor: c.field, borderWidth: 1, borderColor: c.fieldBorder, flexDirection: 'row', alignItems: 'flex-end' }}>
                 <TextInput
                   value={text}
-                  onChangeText={setText}
+                  onChangeText={(t) => {
+                    setText(t);
+                    if (t) void sendTyping(username).catch(() => {});
+                  }}
                   placeholder={editing ? 'Edit message' : 'Message'}
                   placeholderTextColor={c.text3}
                   multiline={!st.enterSends}
@@ -463,7 +522,19 @@ function Body({
     case 'txt':
       // a message that is only one or two emoji shows big, like iMessage
       if (st.bigEmoji && /^\p{Extended_Pictographic}(‍?\p{Extended_Pictographic}|️){0,6}$/u.test(r.t.trim())) return <Text style={{ fontSize: 44 }}>{r.t.trim()}</Text>;
-      return bubble(<Text style={{ color: fg, fontSize: st.textSize, lineHeight: st.textSize * 1.32 }}>{r.t}</Text>);
+      return bubble(
+        <Text style={{ color: fg, fontSize: st.textSize, lineHeight: st.textSize * 1.32 }}>
+          {r.t.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
+            /^https?:\/\//.test(part) ? (
+              <Text key={i} style={{ textDecorationLine: 'underline' }} onPress={() => void Linking.openURL(part).catch(() => {})}>
+                {part}
+              </Text>
+            ) : (
+              part
+            )
+          )}
+        </Text>
+      );
     case 'chess':
       return (
         <Pressable onPress={() => router.push({ pathname: '/chess', params: { g: r.g } })} style={{ width: 230, borderRadius: 18, padding: 14, backgroundColor: '#3a2f22', gap: 6 }}>

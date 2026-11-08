@@ -3,8 +3,8 @@
  * classes, school and settings; deleting the account removes everything stored for it.
  */
 import { router } from 'expo-router';
-import { useState } from 'react';
-import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useRef, useState } from 'react';
+import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, Divider, Field, Note, Row, Screen, Section } from '@/components/ui';
@@ -13,7 +13,7 @@ import { TYPE } from '@/lib/fonts';
 import { useTheme } from '@/lib/hooks';
 import { sz } from '@/lib/scale';
 import { useStore } from '@/lib/store';
-import { alpha, readableOn, type Theme } from '@/lib/themes';
+import { alpha, readableOn } from '@/lib/themes';
 
 const NAME_OK = /^[a-z0-9_.-]{3,24}$/;
 
@@ -25,36 +25,6 @@ function strength(p: string): { score: number; label: string } {
   if (/[A-Z]/.test(p) && /[a-z]/.test(p)) s++;
   if (/\d/.test(p) || /[^A-Za-z0-9]/.test(p)) s++;
   return { score: s, label: ['Too short', 'Weak', 'Okay', 'Good', 'Strong'][s] };
-}
-
-/** A labeled input with an optional trailing action (show/hide). */
-function Input({
-  theme,
-  label,
-  hint,
-  tone,
-  right,
-  ...props
-}: React.ComponentProps<typeof TextInput> & { theme: Theme; label: string; hint?: string; tone?: 'ok' | 'error'; right?: React.ReactNode }) {
-  const [focus, setFocus] = useState(false);
-  const border = tone === 'error' ? '#ff453a' : focus ? theme.accent : alpha(theme.ink, 0.12);
-  return (
-    <View style={{ gap: 6 }}>
-      <Text style={{ ...TYPE.semibold, fontSize: sz(13), color: theme.muted, letterSpacing: 0.2 }}>{label}</Text>
-      <View style={{ flexDirection: 'row', alignItems: 'center', borderRadius: sz(12), borderWidth: 1.5, borderColor: border, backgroundColor: alpha(theme.ink, theme.light ? 0.04 : 0.06), paddingHorizontal: 14 }}>
-        <TextInput
-          placeholderTextColor={alpha(theme.ink, 0.3)}
-          selectionColor={theme.accent}
-          onFocus={() => setFocus(true)}
-          onBlur={() => setFocus(false)}
-          {...props}
-          style={{ flex: 1, ...TYPE.regular, fontSize: sz(17), color: theme.ink, paddingVertical: sz(13) }}
-        />
-        {right}
-      </View>
-      {hint ? <Text style={{ ...TYPE.regular, fontSize: sz(12.5), color: tone === 'error' ? '#ff6b5e' : tone === 'ok' ? '#30d158' : theme.muted }}>{hint}</Text> : null}
-    </View>
-  );
 }
 
 export default function Account() {
@@ -70,10 +40,10 @@ export default function Account() {
   const [delPassword, setDelPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; tone: 'ok' | 'error' } | null>(null);
+  const pwRef = useRef<TextInput>(null);
+  const confirmRef = useRef<TextInput>(null);
 
   const name = username.trim().toLowerCase();
-  const nameHint = !username ? undefined : NAME_OK.test(name) ? (mode === 'new' ? 'Looks good.' : undefined) : '3 to 24 letters, numbers, dots, dashes or underscores.';
-  const nameTone = !username ? undefined : NAME_OK.test(name) ? 'ok' : 'error';
   const pw = strength(password);
   const mismatch = mode === 'new' && confirm.length > 0 && confirm !== password;
   const ready = NAME_OK.test(name) && password.length >= 8 && (mode === 'in' || confirm === password);
@@ -165,84 +135,95 @@ export default function Account() {
   }
 
   /* ---------------- signed out ---------------- */
-  const showToggle = (
-    <Pressable accessibilityRole="button" onPress={() => setShow((v) => !v)} hitSlop={10}>
-      <Text style={{ ...TYPE.semibold, fontSize: sz(14), color: theme.accent }}>{show ? 'Hide' : 'Show'}</Text>
-    </Pressable>
+  const line = alpha(theme.ink, 0.1);
+  const fieldRow = (label: string, input: React.ReactNode, right?: React.ReactNode, last?: boolean) => (
+    <View style={{ flexDirection: 'row', alignItems: 'center', minHeight: sz(54), paddingHorizontal: sz(16), borderBottomWidth: last ? 0 : StyleSheet.hairlineWidth, borderBottomColor: line }}>
+      <Text style={{ ...TYPE.semibold, fontSize: sz(16), color: theme.ink, width: sz(96) }}>{label}</Text>
+      <View style={{ flex: 1 }}>{input}</View>
+      {right}
+    </View>
   );
+  const inputStyle = { ...TYPE.regular, fontSize: sz(17), color: theme.ink, paddingVertical: sz(14) };
+  const ph = alpha(theme.ink, 0.3);
+  const switchMode = (m: 'in' | 'new') => {
+    setMode(m);
+    setMsg(null);
+    setConfirm('');
+  };
+  const problem = mismatch ? "Passwords don't match." : username && !NAME_OK.test(name) ? 'Username: 3 to 24 letters, numbers, dots, dashes or underscores.' : null;
+  const perks = [
+    ['Synced everywhere', 'Your classes, school and settings on every device'],
+    ['Schedule reader', 'Snap a photo of your schedule, get your classes'],
+    ...(hasBeam ? [['Beam', 'Chats and calls with friends']] : []),
+  ];
+
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: theme.bg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
-      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: sz(20), paddingBottom: insets.bottom + 40, gap: sz(22), maxWidth: sz(480), width: '100%', alignSelf: 'center' }}>
-        <View style={{ alignItems: 'center', gap: 10, paddingTop: sz(8) }}>
-          <View style={{ width: sz(68), height: sz(68), borderRadius: sz(20), backgroundColor: alpha(theme.accent, 0.16), alignItems: 'center', justifyContent: 'center' }}>
-            <View style={{ width: sz(26), height: sz(26), borderRadius: sz(13), backgroundColor: theme.accent }} />
-            <View style={{ width: sz(40), height: sz(14), borderTopLeftRadius: sz(20), borderTopRightRadius: sz(20), backgroundColor: theme.accent, marginTop: sz(4) }} />
-          </View>
-          <Text style={{ ...TYPE.bold, fontSize: sz(28), letterSpacing: -0.6, color: theme.ink, textAlign: 'center' }}>{mode === 'in' ? 'Welcome back' : 'Create your account'}</Text>
-          <Text style={{ ...TYPE.regular, fontSize: sz(15), lineHeight: sz(21), color: theme.muted, textAlign: 'center' }}>
-            {mode === 'in' ? 'Sign in to get your classes, school and settings back.' : 'Just a username and a password. No name, email or phone, ever.'}
-          </Text>
+      <ScrollView keyboardShouldPersistTaps="handled" contentContainerStyle={{ padding: sz(20), paddingBottom: insets.bottom + 40, gap: sz(20), maxWidth: sz(460), width: '100%', alignSelf: 'center' }}>
+        <View style={{ gap: 6, paddingTop: sz(4) }}>
+          <Text style={{ ...TYPE.heavy, fontSize: sz(34), letterSpacing: -0.8, color: theme.ink }}>{mode === 'in' ? 'Sign in' : 'Create account'}</Text>
+          <Text style={{ ...TYPE.regular, fontSize: sz(15), lineHeight: sz(21), color: theme.muted }}>{mode === 'in' ? 'Get your classes, school and settings back on this device.' : 'Only a username and a password. No name, email or phone.'}</Text>
         </View>
 
-        <View style={{ gap: 16 }}>
-          <Input theme={theme} label="Username" value={username} onChangeText={setUsername} placeholder="e.g. alex_k" autoCapitalize="none" autoCorrect={false} textContentType="username" maxLength={24} hint={nameHint} tone={nameTone} returnKeyType="next" />
-          <Input
-            theme={theme}
-            label="Password"
-            value={password}
-            onChangeText={setPassword}
-            placeholder={mode === 'new' ? 'At least 8 characters' : 'Your password'}
-            secureTextEntry={!show}
-            autoCapitalize="none"
-            textContentType={mode === 'new' ? 'newPassword' : 'password'}
-            right={showToggle}
-            onSubmitEditing={mode === 'in' ? () => void go() : undefined}
-          />
-          {mode === 'new' && password ? (
-            <View style={{ gap: 6, marginTop: -8 }}>
-              <View style={{ flexDirection: 'row', gap: 4 }}>
-                {[1, 2, 3, 4].map((i) => (
-                  <View key={i} style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: i <= pw.score ? (pw.score <= 1 ? '#ff453a' : pw.score === 2 ? '#ffcc00' : '#34c759') : alpha(theme.ink, 0.12) }} />
-                ))}
-              </View>
-              <Text style={{ ...TYPE.regular, fontSize: sz(12.5), color: theme.muted }}>{password.length < 8 ? `${8 - password.length} more characters` : pw.label}</Text>
+        <View style={{ flexDirection: 'row', padding: 3, borderRadius: sz(12), backgroundColor: alpha(theme.ink, 0.08) }}>
+          {(['in', 'new'] as const).map((m) => (
+            <Pressable key={m} accessibilityRole="tab" accessibilityState={{ selected: mode === m }} onPress={() => switchMode(m)} style={{ flex: 1, height: sz(36), borderRadius: sz(10), alignItems: 'center', justifyContent: 'center', backgroundColor: mode === m ? theme.bg : 'transparent' }}>
+              <Text style={{ ...TYPE.semibold, fontSize: sz(15), color: mode === m ? theme.ink : theme.muted }}>{m === 'in' ? 'Sign in' : 'New account'}</Text>
+            </Pressable>
+          ))}
+        </View>
+
+        <View style={{ borderRadius: sz(16), backgroundColor: theme.panel, overflow: 'hidden' }}>
+          {fieldRow(
+            'Username',
+            <TextInput value={username} onChangeText={setUsername} placeholder="alex_k" placeholderTextColor={ph} selectionColor={theme.accent} autoCapitalize="none" autoCorrect={false} textContentType="username" maxLength={24} returnKeyType="next" onSubmitEditing={() => pwRef.current?.focus()} style={inputStyle} accessibilityLabel="Username" />
+          )}
+          {fieldRow(
+            'Password',
+            <TextInput ref={pwRef} value={password} onChangeText={setPassword} placeholder={mode === 'new' ? '8+ characters' : 'Required'} placeholderTextColor={ph} selectionColor={theme.accent} secureTextEntry={!show} autoCapitalize="none" textContentType={mode === 'new' ? 'newPassword' : 'password'} returnKeyType={mode === 'in' ? 'go' : 'next'} onSubmitEditing={mode === 'in' ? () => void go() : () => confirmRef.current?.focus()} style={inputStyle} accessibilityLabel="Password" />,
+            <Pressable accessibilityRole="button" accessibilityLabel={show ? 'Hide password' : 'Show password'} onPress={() => setShow((v) => !v)} hitSlop={10}>
+              <Text style={{ ...TYPE.semibold, fontSize: sz(14), color: theme.accent }}>{show ? 'Hide' : 'Show'}</Text>
+            </Pressable>,
+            mode === 'in'
+          )}
+          {mode === 'new'
+            ? fieldRow(
+                'Confirm',
+                <TextInput ref={confirmRef} value={confirm} onChangeText={setConfirm} placeholder="Type it again" placeholderTextColor={ph} selectionColor={theme.accent} secureTextEntry={!show} autoCapitalize="none" textContentType="newPassword" returnKeyType="go" onSubmitEditing={() => void go()} style={inputStyle} accessibilityLabel="Confirm password" />,
+                confirm && confirm === password ? <Text style={{ ...TYPE.semibold, fontSize: sz(14), color: '#30d158' }}>Match</Text> : undefined,
+                true
+              )
+            : null}
+        </View>
+
+        {mode === 'new' && password ? (
+          <View style={{ gap: 6, marginTop: -8, paddingHorizontal: 4 }}>
+            <View style={{ flexDirection: 'row', gap: 4 }}>
+              {[1, 2, 3, 4].map((i) => (
+                <View key={i} style={{ flex: 1, height: 4, borderRadius: 2, backgroundColor: i <= pw.score ? (pw.score <= 1 ? '#ff453a' : pw.score === 2 ? '#ffcc00' : '#34c759') : alpha(theme.ink, 0.12) }} />
+              ))}
             </View>
-          ) : null}
-          {mode === 'new' ? (
-            <Input theme={theme} label="Confirm password" value={confirm} onChangeText={setConfirm} placeholder="Type it again" secureTextEntry={!show} autoCapitalize="none" textContentType="newPassword" hint={mismatch ? "Passwords don't match." : confirm && confirm === password ? 'Match.' : undefined} tone={mismatch ? 'error' : confirm && confirm === password ? 'ok' : undefined} onSubmitEditing={() => void go()} />
-          ) : null}
-        </View>
+            <Text style={{ ...TYPE.regular, fontSize: sz(12.5), color: theme.muted }}>{password.length < 8 ? `${8 - password.length} more characters` : `Password strength: ${pw.label}`}</Text>
+          </View>
+        ) : null}
+        {problem ? <Text style={{ ...TYPE.regular, fontSize: sz(13.5), color: '#ff6b5e', marginTop: -8, paddingHorizontal: 4 }}>{problem}</Text> : null}
 
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => void go()}
-          disabled={!ready || busy}
-          style={({ pressed }) => ({ height: sz(54), borderRadius: sz(14), alignItems: 'center', justifyContent: 'center', backgroundColor: ready ? theme.accent : alpha(theme.ink, 0.12), opacity: pressed ? 0.75 : 1 })}>
+        <Pressable accessibilityRole="button" onPress={() => void go()} disabled={!ready || busy} style={({ pressed }) => ({ height: sz(54), borderRadius: sz(14), alignItems: 'center', justifyContent: 'center', backgroundColor: ready ? theme.accent : alpha(theme.ink, 0.1), opacity: pressed ? 0.8 : 1 })}>
           <Text style={{ ...TYPE.bold, fontSize: sz(17), color: ready ? readableOn(theme.accent) : theme.muted }}>{busy ? 'One moment…' : mode === 'in' ? 'Sign in' : 'Create account'}</Text>
         </Pressable>
 
         {msg ? <Note tone={msg.tone}>{msg.text}</Note> : null}
 
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => {
-            setMode(mode === 'in' ? 'new' : 'in');
-            setMsg(null);
-            setConfirm('');
-          }}
-          style={{ alignItems: 'center', paddingVertical: 4 }}>
-          <Text style={{ ...TYPE.regular, fontSize: sz(15), color: theme.muted }}>
-            {mode === 'in' ? 'New to Studento? ' : 'Already have an account? '}
-            <Text style={{ ...TYPE.semibold, color: theme.accent }}>{mode === 'in' ? 'Create an account' : 'Sign in'}</Text>
-          </Text>
-        </Pressable>
-
-        <View style={{ gap: 10, padding: sz(16), borderRadius: sz(14), backgroundColor: theme.panel }}>
-          <Text style={{ ...TYPE.semibold, fontSize: sz(13), color: theme.muted, letterSpacing: 0.3 }}>AN ACCOUNT GIVES YOU</Text>
-          {['Your classes, school and settings on every device', 'The schedule reader: snap a photo, get your classes', ...(hasBeam ? ['Beam: chats and calls'] : [])].map((t) => (
-            <View key={t} style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
-              <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: theme.accent, marginTop: sz(7) }} />
-              <Text style={{ ...TYPE.regular, fontSize: sz(15), lineHeight: sz(20), color: theme.ink, flex: 1 }}>{t}</Text>
+        <View style={{ gap: 12, paddingHorizontal: 4, paddingTop: 4 }}>
+          {perks.map(([t, d]) => (
+            <View key={t} style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
+              <View style={{ width: sz(30), height: sz(30), borderRadius: sz(9), backgroundColor: alpha(theme.accent, 0.16), alignItems: 'center', justifyContent: 'center' }}>
+                <View style={{ width: sz(10), height: sz(10), borderRadius: sz(5), backgroundColor: theme.accent }} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={{ ...TYPE.semibold, fontSize: sz(15), color: theme.ink }}>{t}</Text>
+                <Text style={{ ...TYPE.regular, fontSize: sz(13.5), color: theme.muted }}>{d}</Text>
+              </View>
             </View>
           ))}
         </View>

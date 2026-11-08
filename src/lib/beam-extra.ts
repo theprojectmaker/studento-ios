@@ -5,7 +5,7 @@
  *   games/{id}     {members[2], white, black, names, fen, moves[], status, winner?, updatedAt}
  */
 import { Chess } from 'chess.js';
-import { addDoc, collection, deleteDoc, doc, getDoc, limit, onSnapshot, orderBy, query, runTransaction, setDoc, updateDoc } from 'firebase/firestore';
+import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, runTransaction, setDoc, updateDoc, where } from 'firebase/firestore';
 
 import { currentUser, fbDb } from './fb';
 
@@ -157,16 +157,18 @@ export interface AccessRequest {
   username: string;
   status: AccessStatus;
   at: number;
+  /** place in line, given when they ask */
+  num?: number;
 }
 
-export function watchMyAccess(cb: (s: AccessStatus) => void): () => void {
+export function watchMyAccess(cb: (s: AccessStatus, num?: number) => void): () => void {
   let stop = () => {};
   let dead = false;
   void currentUser().then((u) => {
     if (!u || dead) return;
     stop = onSnapshot(
       doc(fbDb(), 'access', u.uid),
-      (s) => cb(s.exists() ? (s.data().status as AccessStatus) : 'none'),
+      (s) => cb(s.exists() ? (s.data().status as AccessStatus) : 'none', s.exists() ? (s.data().num as number | undefined) : undefined),
       () => cb('none')
     );
   });
@@ -178,7 +180,14 @@ export function watchMyAccess(cb: (s: AccessStatus) => void): () => void {
 
 export async function requestAccess(): Promise<void> {
   const u = await me();
-  await setDoc(doc(fbDb(), 'access', u.uid), { username: await nameOf(u.uid), status: 'waiting', at: Date.now() });
+  // Place in line from a +1 counter, so everyone gets their own number.
+  const ref = doc(fbDb(), 'counters', 'waitlist');
+  const num = await runTransaction(fbDb(), async (tx) => {
+    const n = Math.max(1, Number((await tx.get(ref)).data()?.next ?? 1));
+    tx.set(ref, { next: n + 1 });
+    return n;
+  });
+  await setDoc(doc(fbDb(), 'access', u.uid), { username: await nameOf(u.uid), status: 'waiting', at: Date.now(), num });
 }
 
 /** Admin: everyone on the list, waiting first. */
@@ -199,3 +208,129 @@ export function watchAccessList(cb: (l: AccessRequest[]) => void): () => void {
 export const decide = (uid: string, status: 'approved' | 'denied') => updateDoc(doc(fbDb(), 'access', uid), { status, at: Date.now() });
 /** Admin: switch a flag (e.g. waitlist) on or off for everyone. */
 export const setFlag = (k: string, v: boolean) => setDoc(doc(fbDb(), 'config', 'flags'), { [k]: v }, { merge: true });
+
+/* ---------- seen + typing (fields on chats/{key}) ---------- */
+async function chatRef(username: string) {
+  const u = await me();
+  const other = await uidOf(username);
+  return { ref: doc(fbDb(), 'chats', [u.uid, other].sort().join('_')), mine: u.uid, other };
+}
+
+/** Live: has the other person read everything I sent, and are they typing right now? */
+export function watchChatMeta(username: string, cb: (m: { seen: boolean; typingAt: number }) => void): () => void {
+  let stop = () => {};
+  let dead = false;
+  void chatRef(username)
+    .then(({ ref, other }) => {
+      if (dead) return;
+      stop = onSnapshot(
+        ref,
+        (s) => {
+          const d = s.data() ?? {};
+          cb({ seen: Number((d.unread as Record<string, number> | undefined)?.[other] ?? 0) === 0, typingAt: Number((d.typing as Record<string, number> | undefined)?.[other] ?? 0) });
+        },
+        () => {}
+      );
+    })
+    .catch(() => {});
+  return () => {
+    dead = true;
+    stop();
+  };
+}
+
+let lastTyping = 0;
+/** Tell the other person I'm typing (at most every 3 seconds; only once the chat exists). */
+export async function sendTyping(username: string): Promise<void> {
+  if (Date.now() - lastTyping < 3000) return;
+  lastTyping = Date.now();
+  const { ref, mine } = await chatRef(username);
+  await updateDoc(ref, { [`typing.${mine}`]: Date.now() }).catch(() => {});
+}
+
+/* ---------- accounts, bans, personal pop-ups (admin) ---------- */
+export interface Account {
+  uid: string;
+  num: number;
+  username: string;
+  admin: boolean;
+}
+/** Admin: every account (username and number only). */
+export async function listAccounts(): Promise<Account[]> {
+  const s = await getDocs(query(collection(fbDb(), 'users'), limit(500)));
+  return s.docs.map((d) => ({ uid: d.id, num: Number(d.data().num ?? 0), username: String(d.data().username ?? ''), admin: !!d.data().admin })).sort((a, b) => a.num - b.num);
+}
+
+/** 'chat' = can't message or call; 'full' = the app shows a blocked screen. */
+export type BanLevel = 'chat' | 'full';
+export interface Ban {
+  uid: string;
+  level: BanLevel;
+  reason: string;
+  at: number;
+}
+export function watchBans(cb: (b: Record<string, Ban>) => void): () => void {
+  try {
+    return onSnapshot(
+      collection(fbDb(), 'bans'),
+      (snap) => cb(Object.fromEntries(snap.docs.map((d) => [d.id, { uid: d.id, ...(d.data() as Omit<Ban, 'uid'>) }]))),
+      () => cb({})
+    );
+  } catch {
+    return () => {};
+  }
+}
+export const setBan = (uid: string, level: BanLevel | null, reason = '') =>
+  level ? setDoc(doc(fbDb(), 'bans', uid), { level, reason: reason.slice(0, 200), at: Date.now() }) : deleteDoc(doc(fbDb(), 'bans', uid));
+
+export function watchMyBan(cb: (b: Ban | null) => void): () => void {
+  let stop = () => {};
+  let dead = false;
+  void currentUser().then((u) => {
+    if (!u || dead) return;
+    stop = onSnapshot(
+      doc(fbDb(), 'bans', u.uid),
+      (s) => cb(s.exists() ? ({ uid: s.id, ...s.data() } as Ban) : null),
+      () => cb(null)
+    );
+  });
+  return () => {
+    dead = true;
+    stop();
+  };
+}
+
+export interface Notice extends Announcement {
+  to: string;
+}
+export const sendNotice = (to: string, title: string, body: string, closable: boolean) =>
+  addDoc(collection(fbDb(), 'notices'), { to, title: title.trim().slice(0, 80), body: body.trim().slice(0, 600), closable, createdAt: Date.now() });
+export const takeDownNotice = (id: string) => deleteDoc(doc(fbDb(), 'notices', id));
+export function watchMyNotices(cb: (n: Notice[]) => void): () => void {
+  let stop = () => {};
+  let dead = false;
+  void currentUser().then((u) => {
+    if (!u || dead) return;
+    stop = onSnapshot(
+      query(collection(fbDb(), 'notices'), where('to', '==', u.uid)),
+      (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Notice, 'id'>) }))),
+      () => cb([])
+    );
+  });
+  return () => {
+    dead = true;
+    stop();
+  };
+}
+/** Admin: personal pop-ups sent to one account. */
+export function watchNoticesFor(uid: string, cb: (n: Notice[]) => void): () => void {
+  try {
+    return onSnapshot(
+      query(collection(fbDb(), 'notices'), where('to', '==', uid)),
+      (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Notice, 'id'>) }))),
+      () => cb([])
+    );
+  } catch {
+    return () => {};
+  }
+}

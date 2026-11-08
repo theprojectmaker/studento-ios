@@ -11,6 +11,8 @@ import { isHeavyWork } from '@/lib/heavy';
 import { useTheme } from '@/lib/hooks';
 import { CaptureShield } from '@/components/capture-shield';
 import { Announcements } from '@/components/announcements';
+import { BanGate } from '@/components/ban-gate';
+import { WaitlistWatcher } from '@/components/waitlist-watcher';
 import { IncomingCall } from '@/components/incoming-call';
 import { reconcileSession, watchForSync } from '@/lib/account';
 import { rescheduleAlerts, setupNotificationHandler, watchForReschedule } from '@/lib/notify';
@@ -163,6 +165,8 @@ export default function RootLayout() {
         <Stack.Screen name="chess" options={{ headerShown: false }} />
       </Stack>
       <Announcements />
+      <BanGate />
+      <WaitlistWatcher />
       <IncomingCall />
       <CaptureShield />
     </GestureHandlerRootView>

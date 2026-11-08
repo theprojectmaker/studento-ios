@@ -1,9 +1,9 @@
 /** "Unlock Beam": Face ID / Touch ID first (when the build has it), the account password otherwise. */
-import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from 'react-native';
 
 import { useBeam } from '@/components/beam-ui';
+import { goToClock } from '@/lib/beam-nav';
 import { biometricKind, unlockWithBiometrics, unlockWithPassword } from '@/lib/beam-lock';
 
 export function BeamLockScreen() {
@@ -74,7 +74,7 @@ export function BeamLockScreen() {
           <Text style={{ color: kind ? c.text : '#fff', fontSize: 16, fontWeight: '600' }}>{busy ? 'Checking…' : 'Unlock'}</Text>
         </Pressable>
         {err ? <Text style={{ color: c.red, fontSize: 13.5 }}>{err}</Text> : null}
-        <Pressable onPress={() => router.back()} hitSlop={10} style={{ marginTop: 6 }}>
+        <Pressable onPress={goToClock} hitSlop={10} style={{ marginTop: 6 }}>
           <Text style={{ color: c.blue, fontSize: 16 }}>Back to the clock</Text>
         </Pressable>
       </View>

@@ -12,6 +12,7 @@ service cloud.firestore {
       return !exists(/databases/$(database)/documents/config/flags)
         || get(/databases/$(database)/documents/config/flags).data.get(name, true) != false;
     }
+    function banned() { return exists(/databases/$(database)/documents/bans/$(me())); }
     function onlyChanges(keys) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys); }
     function blockedBy(other) {
       return exists(/databases/$(database)/documents/blocks/$(other))
@@ -89,7 +90,7 @@ service cloud.firestore {
         allow read: if signedIn() && (key.split('_').hasAny([me()]) || isAdmin());
         allow create: if signedIn() && flagOn('messaging')
           && key.split('_').hasAny([me()])
-          && request.resource.data.from == me()
+          && request.resource.data.from == me() && !banned()
           && request.resource.data.body is string && request.resource.data.body.size() <= 900000
           && !blockedBy(key.split('_')[0] == me() ? key.split('_')[1] : key.split('_')[0]);
         allow delete: if isAdmin() || (signedIn() && key.split('_').hasAny([me()]));
@@ -98,7 +99,7 @@ service cloud.firestore {
 
     match /calls/{callId} {
       allow read: if signedIn() && (resource.data.to == me() || resource.data.from == me() || me() in resource.data.members);
-      allow create: if signedIn() && flagOn('messaging') && request.resource.data.from == me()
+      allow create: if signedIn() && flagOn('messaging') && request.resource.data.from == me() && !banned()
         && request.resource.data.members.size() == 2 && me() in request.resource.data.members
         && !blockedBy(request.resource.data.to);
       allow update: if signedIn() && me() in resource.data.members
@@ -139,8 +140,20 @@ service cloud.firestore {
       allow get: if signedIn() && (me() == uid || isAdmin());
       allow list: if isAdmin();
       allow create: if signedIn() && me() == uid && request.resource.data.status == 'waiting'
-        && request.resource.data.keys().hasOnly(['username', 'status', 'at']);
+        && request.resource.data.keys().hasOnly(['username', 'status', 'at', 'num']);
       allow update, delete: if isAdmin();
+    }
+
+    // Bans: 'chat' blocks messages and calls; 'full' also makes the app show a blocked screen.
+    match /bans/{uid} {
+      allow get: if signedIn() && (me() == uid || isAdmin());
+      allow list, write: if isAdmin();
+    }
+
+    // Pop-ups the admin sends to one person.
+    match /notices/{id} {
+      allow read: if signedIn() && (resource.data.to == me() || isAdmin());
+      allow write: if isAdmin();
     }
 
     // Chess games between two people.

@@ -10,6 +10,7 @@ import { BeamAvatar, Glyph, useBeam } from '@/components/beam-ui';
 import { tap } from '@/components/ui';
 import { playMove, resign, watchGame, type Game } from '@/lib/beam-extra';
 import { useBeamUnlocked } from '@/lib/beam-lock';
+import { goBack } from '@/lib/beam-nav';
 
 const GLYPH: Record<string, string> = { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' };
 const FILES = 'abcdefgh';
@@ -99,7 +100,7 @@ function ChessGame() {
   return (
     <View style={{ flex: 1, backgroundColor: c.chatBg, paddingTop: insets.top }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, height: 48 }}>
-        <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={() => router.back()} hitSlop={10} style={{ width: 70 }}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={goBack} hitSlop={10} style={{ width: 70 }}>
           <Glyph.Back color={c.blue} size={26} />
         </Pressable>
         <Text style={{ flex: 1, textAlign: 'center', color: c.text, fontSize: 17, fontWeight: '700' }}>Chess</Text>
