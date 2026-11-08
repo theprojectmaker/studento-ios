@@ -104,7 +104,7 @@ export default function Setup() {
             {def.id === 'alerts' ? <AlertsStep theme={theme} onDone={next} /> : null}
 
             {def.id === 'theme' ? (
-              <StepText theme={theme} title="Pick a look" sub="More than 100 themes live in Settings. Start with one of these.">
+              <StepText theme={theme} title="Pick a look" sub="Every look lives under Themes. Start with one of these.">
                 <ThemeGrid current={prefs.theme} width={maxW - 40} />
               </StepText>
             ) : null}

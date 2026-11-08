@@ -32,7 +32,7 @@ export default function Themes() {
   const { width } = useWindowDimensions();
   const cols = width > 700 ? 3 : 2;
   const cardW = (Math.min(width, 680) - 32 - (cols - 1) * 12) / cols;
-  // Build the 89 previews a few groups at a time instead of all in one frame.
+  // Build the previews a few groups at a time instead of all in one frame.
   const [shown, setShown] = useState(2);
   useEffect(() => {
     if (shown >= GROUPS.length) return;
@@ -42,7 +42,7 @@ export default function Themes() {
   return (
     <Screen>
       <Text style={{ ...TYPE.regular, fontSize: sz(15), color: current.muted, paddingHorizontal: 4 }}>
-        All {THEMES.length} themes from Studento. Some have a live effect; turn effects off in Settings.
+        {THEMES.length} looks, each one different. Some have a live effect; turn effects off in Settings.
       </Text>
       {GROUPS.slice(0, shown).map((g) => (
         <View key={g} style={{ gap: 10 }}>

@@ -287,13 +287,38 @@ function build(r: RawTheme): Theme {
 // Picker order: Train Station (split-flap) first, then Casino, Gilded, then the rest.
 const FIRST = ['Split-flap', 'Casino', 'Gilded', 'Fun', 'Quiet'];
 const rank = (g: string) => (FIRST.includes(g) ? FIRST.indexOf(g) : FIRST.length);
-export const THEMES: Theme[] = [...EXTRA, ...RAW_THEMES].map(build).sort((x, y) => rank(x.group) - rank(y.group));
+/** Every theme ever shipped. Kept so a saved pick from an older build still renders. */
+export const ALL_THEMES: Theme[] = [...EXTRA, ...RAW_THEMES].map(build).sort((x, y) => rank(x.group) - rank(y.group));
+
+/**
+ * The picker shows only these: one or two per look, no near-duplicates. Order within a
+ * group is the order here.
+ */
+const CURATED = [
+  // Split-flap
+  'departure', 'chalkboard', 'paper',
+  // Casino
+  'jackpot', 'rollers',
+  // Gilded
+  'gatsby', 'ivory',
+  // Fun / Quiet
+  'bubblegum', 'fog', 'linen',
+  // Analog
+  'watch', 'swiss', 'diver',
+  // LED / LCD / Tubes
+  'motorway', 'neon', 'gameboy', 'nixie',
+  // Typographic
+  'arctic', 'editorial', 'mono', 'space',
+  // One from each collection
+  'city-tokyo', 'mat-stainedglass', 'nat-aurora', 'ret-phosphor', 'sci-blueprint',
+];
+export const THEMES: Theme[] = CURATED.map((id) => ALL_THEMES.find((t) => t.id === id)).filter((t): t is Theme => !!t);
 export const GROUPS: string[] = [...new Set(THEMES.map((t) => t.group))];
 export const DEFAULT_THEME = 'departure';
 
-/** Unknown ids (e.g. from an older build) fall back to Train Station. */
+/** Any id ever shipped still resolves; unknown ids fall back to Train Station. */
 export function themeById(id: string): Theme {
-  return THEMES.find((t) => t.id === id) ?? THEMES.find((t) => t.id === DEFAULT_THEME) ?? THEMES[0];
+  return ALL_THEMES.find((t) => t.id === id) ?? THEMES.find((t) => t.id === DEFAULT_THEME) ?? THEMES[0];
 }
 
 function hex(c: string): [number, number, number] {
