@@ -1,6 +1,7 @@
 /**
- * Small banners under the countdown: a running focus timer, and the next countdown once it
- * is 30 days away or closer. Plain pills, no motion; tap to open the tool.
+ * Quiet strip under the top chrome: a running focus timer, and the next countdown once it is
+ * 30 days away or closer. Text only, no emoji, no motion. Tap opens the tool, except while
+ * the clock is locked (focus lock), when the strip is read-only.
  */
 import { router } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
@@ -16,21 +17,29 @@ import { tap } from './ui';
 
 const SOON_DAYS = 30;
 
-export function ClockBanners({ theme, today }: { theme: Theme; today: string }) {
+interface Item {
+  key: string;
+  label: string;
+  value: string;
+  go: '/focus' | '/planner';
+  accent?: boolean;
+}
+
+export function ClockBanners({ theme, today, locked = false }: { theme: Theme; today: string; locked?: boolean }) {
   const focus = useTools((t) => t.focus);
   const countdowns = usePlanner((p) => p.countdowns);
   const realNow = useRealNow();
 
-  const items: { key: string; text: string; go: '/focus' | '/planner'; accent?: boolean }[] = [];
+  const items: Item[] = [];
   if (focus.mode !== 'idle') {
     const s = Math.ceil(focusLeft(focus, realNow) / 1000);
     const mm = `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
-    items.push({ key: 'focus', text: `${focus.mode === 'break' ? 'Break' : focus.pausedLeft != null ? 'Focus paused' : 'Focusing'} · ${mm}`, go: '/focus', accent: true });
+    items.push({ key: 'focus', label: focus.mode === 'break' ? 'Break' : focus.pausedLeft != null ? 'Paused' : 'Focus', value: mm, go: '/focus', accent: focus.mode === 'focus' && focus.pausedLeft == null });
   }
   const next = countdowns.find((c) => c.date >= today);
   if (next) {
     const n = daysBetween(today, next.date);
-    if (n <= SOON_DAYS) items.push({ key: 'cd', text: `${next.emoji} ${next.title} · ${n <= 0 ? 'today' : n === 1 ? 'tomorrow' : `${n} days`}`, go: '/planner' });
+    if (n <= SOON_DAYS) items.push({ key: 'cd', label: next.title, value: n <= 0 ? 'Today' : n === 1 ? 'Tomorrow' : `${n} days`, go: '/planner' });
   }
   if (!items.length) return null;
 
@@ -39,22 +48,28 @@ export function ClockBanners({ theme, today }: { theme: Theme; today: string }) 
       {items.map((it) => (
         <Pressable
           key={it.key}
-          accessibilityRole="button"
-          accessibilityLabel={it.text}
+          disabled={locked}
+          accessibilityRole={locked ? undefined : 'button'}
+          accessibilityLabel={`${it.label} ${it.value}`}
           onPress={() => {
             tap();
             router.push(it.go);
           }}
           style={({ pressed }) => ({
+            flexDirection: 'row',
+            alignItems: 'center',
+            gap: 8,
             paddingHorizontal: 12,
             paddingVertical: 6,
-            borderRadius: 999,
-            backgroundColor: it.accent ? alpha(theme.accent, pressed ? 0.3 : 0.18) : alpha(theme.ink, pressed ? 0.16 : 0.08),
-            borderWidth: 1,
-            borderColor: it.accent ? alpha(theme.accent, 0.45) : alpha(theme.ink, 0.1),
+            borderRadius: sz(10),
+            backgroundColor: alpha(theme.ink, pressed && !locked ? 0.12 : 0.06),
           })}>
+          {it.accent ? <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: theme.accent }} /> : null}
+          <Text style={{ ...TYPE.semibold, fontSize: sz(11), letterSpacing: 0.8, color: theme.muted }} numberOfLines={1}>
+            {it.label.toUpperCase()}
+          </Text>
           <Text style={{ ...TYPE.semibold, fontSize: sz(13), color: theme.ink, fontVariant: ['tabular-nums'] }} numberOfLines={1}>
-            {it.text}
+            {it.value}
           </Text>
         </Pressable>
       ))}

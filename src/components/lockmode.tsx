@@ -16,7 +16,7 @@ import { sz } from '@/lib/scale';
 const HOLD_MS = 2000;
 const RED = '#ff3b30';
 
-export function LockButton({ theme }: { theme: Theme }) {
+export function LockButton({ theme, onUnlock, hint: hintText }: { theme: Theme; onUnlock?: () => void; hint?: string }) {
   const insets = useSafeAreaInsets();
   const [hint, setHint] = useState(false);
   const [holding, setHolding] = useState(false);
@@ -27,13 +27,14 @@ export function LockButton({ theme }: { theme: Theme }) {
     if (holding) {
       ring.set(withTiming(1, { duration: HOLD_MS, easing: Easing.linear }));
       const t = setTimeout(() => {
-        setPref('locked', false);
+        if (onUnlock) onUnlock();
+        else setPref('locked', false);
         setHolding(false);
       }, HOLD_MS);
       return () => clearTimeout(t);
     }
     ring.set(withTiming(0, { duration: 160 }));
-  }, [holding, ring]);
+  }, [holding, ring, onUnlock]);
 
   useEffect(() => {
     if (!hint) return;
@@ -59,7 +60,7 @@ export function LockButton({ theme }: { theme: Theme }) {
       </Pressable>
       {hint ? (
         <Animated.View entering={FadeIn.duration(180)} exiting={FadeOut.duration(220)} pointerEvents="none" style={{ position: 'absolute', top: insets.top + 48, right: insets.right + 12, paddingHorizontal: 12, paddingVertical: 7, borderRadius: 10, backgroundColor: 'rgba(0,0,0,0.75)' }}>
-          <Text style={{ ...TYPE.semibold, fontSize: sz(13), color: '#ffffff' }}>Hold the red button to unlock</Text>
+          <Text style={{ ...TYPE.semibold, fontSize: sz(13), color: '#ffffff' }}>{hintText ?? 'Hold the red button to unlock'}</Text>
         </Animated.View>
       ) : null}
       {/* Keep the theme type happy and let future per-theme styling in without touching callers. */}

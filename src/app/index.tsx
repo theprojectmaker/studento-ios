@@ -28,7 +28,7 @@ import { fontStyle } from '@/lib/typefaces';
 import { useNow, useTheme } from '@/lib/hooks';
 import { getPermission, type Permission, requestPermission, rescheduleAlerts } from '@/lib/notify';
 import { fmtDate, fmtTime, nyParts, toMin } from '@/lib/nytime';
-import { tickFocus } from '@/lib/tools';
+import { pauseFocus, tickFocus, useTools } from '@/lib/tools';
 import { syncLiveActivity } from '@/widgets';
 import { fmtCountdown, nameFor, nowState, type NowState, periodTitle, rangeText, roomOf } from '@/lib/schedule';
 import { type Prefs, setPref, useSchedule, useStore } from '@/lib/store';
@@ -125,7 +125,11 @@ export default function ClockScreen() {
   const chromeStyle = useAnimatedStyle(() => ({ opacity: chrome.value }));
   // Idle dim follows the same timer as the corner buttons: full while touched, 70% once they fade.
   const dimStyle = useAnimatedStyle(() => ({ opacity: 0.7 + chrome.value * 0.3 }));
-  const locked = rawPrefs.locked;
+  // Focus lock: while a focus block is running the clock locks itself, like lock mode. Holding
+  // the red dot pauses the block (and so unlocks); the Focus screen can resume it.
+  const focus = useTools((t) => t.focus);
+  const focusLocked = !rawPrefs.locked && focus.mode === 'focus' && focus.pausedLeft == null;
+  const locked = rawPrefs.locked || focusLocked;
   const showChrome = !locked && (chromeOn || editing || rawPrefs.corners);
 
   const v: V = {
@@ -165,7 +169,7 @@ export default function ClockScreen() {
         }}
       >
         <Animated.View style={[{ flex: 1, maxWidth: sz(900), width: '100%', alignSelf: 'center', transform: [{ translateX: nudge.x }, { translateY: nudge.y }] }, rawPrefs.idleDim ? dimStyle : null]}>
-          {locked ? null : <ClockBanners theme={theme} today={st.date} />}
+          {rawPrefs.locked ? null : <ClockBanners theme={theme} today={st.date} locked={focusLocked} />}
           {prefs.layout === 'minimal' ? <Minimal v={v} /> : prefs.layout === 'glass' ? <Cards v={v} /> : <Classic v={v} />}
         </Animated.View>
         {askAlerts && !locked ? (
@@ -227,7 +231,7 @@ export default function ClockScreen() {
         </Pressable>
       ) : null}
 
-      {locked ? <LockButton theme={theme} /> : null}
+      {locked ? <LockButton theme={theme} onUnlock={focusLocked ? pauseFocus : undefined} hint={focusLocked ? 'Focus lock. Press and hold to pause your focus.' : undefined} /> : null}
 
       {/* The website's four corner buttons, plus the test pill; they fade when idle. Not rendered at all while locked. */}
       {locked ? null : (
@@ -598,8 +602,8 @@ function Title({ v, size, weight = 'heavy' }: { v: V; size: number; weight?: 'he
 /** The Themes button: a disc in the current theme's accent with a thin ring, so it reads as "colour", not as another icon. */
 function ThemeSwatch({ theme }: { theme: Theme }) {
   return (
-    <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: theme.accent, borderWidth: 2, borderColor: alpha(theme.ink, 0.55) }}>
-      <View style={{ position: 'absolute', left: 3, top: 3, width: 4, height: 4, borderRadius: 2, backgroundColor: alpha('#ffffff', 0.7) }} />
+    <View style={{ width: 18, height: 18, borderRadius: 9, borderWidth: 1.5, borderColor: alpha(theme.ink, 0.5), alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: theme.accent }} />
     </View>
   );
 }
