@@ -158,6 +158,70 @@ export const Glyph = {
       <Path d="M12 19V5M6 11l6-6 6 6" />
     </Svg>
   ),
+  Bubble: ({ color, size = 22 }: G) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <Path d="M12 3C6.5 3 2 6.8 2 11.5c0 2.6 1.4 4.9 3.6 6.5-.2 1.4-.9 2.7-1.9 3.6 2 0 3.9-.7 5.3-1.9 1 .3 2 .4 3 .4 5.5 0 10-3.8 10-8.5S17.5 3 12 3z" />
+    </Svg>
+  ),
+  Person: ({ color, size = 22 }: G) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <Circle cx={12} cy={8} r={4.2} />
+      <Path d="M3.5 20.5c.6-4.2 4-6.8 8.5-6.8s7.9 2.6 8.5 6.8z" />
+    </Svg>
+  ),
+  Camera: ({ color, size = 22 }: G) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.9} strokeLinejoin="round">
+      <Path d="M3 8.5A2.5 2.5 0 0 1 5.5 6h2l1.6-2h5.8l1.6 2h2A2.5 2.5 0 0 1 21 8.5v9a2.5 2.5 0 0 1-2.5 2.5h-13A2.5 2.5 0 0 1 3 17.5z" />
+      <Circle cx={12} cy={13} r={3.8} />
+    </Svg>
+  ),
+  Photo: ({ color, size = 22 }: G) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.9} strokeLinejoin="round">
+      <Path d="M4 5h16v14H4z" />
+      <Circle cx={9} cy={10} r={1.8} />
+      <Path d="M4 17l5-5 4 4 3-3 4 4" />
+    </Svg>
+  ),
+  Once: ({ color, size = 22 }: G) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.9} strokeLinecap="round">
+      <Circle cx={12} cy={12} r={9} strokeDasharray="3 2.4" />
+      <Path d="M11 8.5l1.6-1V16" />
+    </Svg>
+  ),
+  Poll: ({ color, size = 22 }: G) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.2} strokeLinecap="round">
+      <Path d="M5 20V11M12 20V4M19 20v-6" />
+    </Svg>
+  ),
+  Timer: ({ color, size = 22 }: G) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.9} strokeLinecap="round">
+      <Circle cx={12} cy={13.5} r={7.5} />
+      <Path d="M12 9.5v4l2.5 2M9.5 2.8h5" />
+    </Svg>
+  ),
+  Smile: ({ color, size = 22 }: G) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.9} strokeLinecap="round">
+      <Circle cx={12} cy={12} r={9} />
+      <Path d="M8 14.5c1 1.4 2.4 2 4 2s3-.6 4-2" />
+      <Circle cx={9} cy={9.8} r={0.6} fill={color} />
+      <Circle cx={15} cy={9.8} r={0.6} fill={color} />
+    </Svg>
+  ),
+  Close: ({ color, size = 18 }: G) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.4} strokeLinecap="round">
+      <Path d="M6 6l12 12M18 6L6 18" />
+    </Svg>
+  ),
+  Reply: ({ color, size = 18 }: G) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M9 7L4 12l5 5M4 12h10a6 6 0 0 1 6 6" />
+    </Svg>
+  ),
+  Play: ({ color, size = 22 }: G) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <Path d="M8 5.5v13l10.5-6.5z" />
+    </Svg>
+  ),
   Chevron: ({ color, size = 15 }: G) => (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
       <Path d="M9 5l7 7-7 7" />
