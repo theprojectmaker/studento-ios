@@ -14,6 +14,7 @@ import { alpha, mix, type Theme } from '@/lib/themes';
 
 import { Glass } from './glass';
 import { DecoBoard, ReelBoard, SmallLuxeClock } from './luxe-boards';
+import { RaceBoard } from './race-board';
 
 /** The theme's countdown font. */
 function digitFont(theme: Theme, weight: TextStyle['fontWeight']): TextStyle {
@@ -139,6 +140,8 @@ export function Board(props: BoardProps) {
       return <ReelBoard {...props} />;
     case 'deco':
       return <DecoBoard {...props} />;
+    case 'race':
+      return <RaceBoard {...props} />;
     default:
       return <FlapBoard {...props} />;
   }

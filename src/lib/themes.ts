@@ -11,7 +11,7 @@
 import { RAW_THEMES, type RawTheme } from './theme-data';
 import { typeFor, type TypeSpec } from './typefaces';
 
-export type Engine = 'flap' | 'dial' | 'ring' | 'led' | 'lcd' | 'nixie' | 'ink' | 'reel' | 'deco';
+export type Engine = 'flap' | 'dial' | 'ring' | 'led' | 'lcd' | 'nixie' | 'ink' | 'reel' | 'deco' | 'race';
 export type HeroFont = 'sans' | 'serif' | 'mono' | 'rounded';
 export type Effect = 'none' | 'stars' | 'snow' | 'petals' | 'embers' | 'fireflies' | 'bubbles' | 'rain' | 'scanlines' | 'dust' | 'glints' | 'bokeh';
 export type Numerals = 'arabic' | 'roman' | 'quarters' | 'none';
@@ -115,6 +115,8 @@ const CSS: Record<string, Partial<RawTheme> & { tile?: string; tileInk?: string;
 
 /** New in the app: casino reels and Art Deco gold (listed first in the picker). */
 const EXTRA: RawTheme[] = [
+  { id: 'racetrack', name: 'Race Track', group: 'Fun', bg: '#101214', accent: '#ff3b30', style: 'race' },
+  { id: 'racetrack-day', name: 'Race Day', group: 'Fun', bg: '#eef0e6', accent: '#1d6fe0', style: 'race' },
   // Split-flap palettes
   { id: 'cream', name: 'Cream', group: 'Split-flap', bg: '#f3ecdd', accent: '#b5542b', style: 'flap' },
   { id: 'navyflap', name: 'Navy', group: 'Split-flap', bg: '#0b1f3a', accent: '#ffd166', style: 'flap' },
@@ -279,7 +281,7 @@ const NUMERALS: Record<DialStyle, Numerals> = {
 
 function engineOf(style: string): { engine: Engine; dialStyle: DialStyle } {
   if (style.startsWith('dial:')) return { engine: 'dial', dialStyle: style.slice(5) as DialStyle };
-  const map: Record<string, Engine> = { reel: 'reel', reelbare: 'reel', deco: 'deco', flap: 'flap', tape: 'flap', led: 'led', dots: 'led', lcd: 'lcd', seven: 'lcd', nixie: 'nixie', ink: 'ink', word: 'ink', bars: 'ink', ring: 'ring' };
+  const map: Record<string, Engine> = { reel: 'reel', reelbare: 'reel', deco: 'deco', flap: 'flap', tape: 'flap', led: 'led', dots: 'led', lcd: 'lcd', seven: 'lcd', nixie: 'nixie', ink: 'ink', word: 'ink', bars: 'ink', ring: 'ring', race: 'race' };
   return { engine: map[style] ?? 'flap', dialStyle: 'watch' };
 }
 
@@ -340,7 +342,7 @@ const CURATED = [
   // Gilded
   'gatsby', 'jade', 'bordeaux', 'ivory',
   // Fun / Quiet
-  'bubblegum', 'fog', 'linen',
+  'racetrack', 'racetrack-day', 'bubblegum', 'fog', 'linen',
   // Analog
   'watch', 'swiss', 'diver', 'bauhaus', 'sector', 'minimaldial',
   // LED / LCD / Tubes
