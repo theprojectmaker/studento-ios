@@ -29,7 +29,9 @@ const LANE_R = [696, 663, 567, 431, 361, 321, 305, 321, 361, 431, 568, 663, 697,
 const LANE_W = 70;
 const LAP_SEC = 24; // 2.5 laps a minute
 const RIVAL_COLORS = ['#3b82f6', '#facc15', '#22c55e', '#f97316', '#a855f7', '#e5e7eb', '#06b6d4'];
-const SPIN_LAPS = 0.07; // how long a spin costs, in laps
+/* Events: 0 = tangle/spin, 1 = wipeout onto the grass, 2 = pit stop. Duration in laps. */
+const EV_DUR = [0.08, 0.2, 0.3];
+const EV_MAX = 6;
 
 function laneRadius(deg: number): number {
   'worklet';
@@ -70,9 +72,9 @@ interface Profile {
   a3: number;
   f3: number;
   p3: number;
-  /** When this car tangles with another and spins (race time, laps); -1 = never. */
-  s1: number;
-  s2: number;
+  /** Events this race: start time (laps, -1 = unused) and kind, EV_MAX slots. */
+  evAt: number[];
+  evKind: number[];
   /** Base line across the lane (image px off the centre) and how it wanders. */
   line: number;
   wander: number;
@@ -81,18 +83,34 @@ interface Profile {
 
 function profiles(seed: number, accent: string, laps: number): Profile[] {
   const colors = [accent, ...RIVAL_COLORS];
-  // Incidents: pairs of cars (k, k+1) tangle at the same moment, 0 to 2 times a race each.
-  const incident = (pair: number, n: number) => {
+  const span = Math.max(0.5, laps - 1.5);
+  // Tangles: pairs of cars (k, k+1) spin at the same moment, up to 3 times a race.
+  const tangle = (pair: number, n: number) => {
     const b = seed * 31 + pair * 977 + n * 7;
-    if (rnd(b) < 0.35 || laps < 2) return -1;
-    return 0.5 + rnd(b + 1) * Math.max(0.5, laps - 1.5);
+    if (rnd(b) < 0.25 || laps < 2) return -1;
+    return 0.4 + rnd(b + 1) * span;
   };
   return colors.map((color, k) => {
     const b = seed * 7919 + k * 104729;
     const pair = Math.floor(k / 2);
+    const evAt: number[] = [];
+    const evKind: number[] = [];
+    for (let n = 0; n < 3; n++) {
+      evAt.push(tangle(pair, n));
+      evKind.push(0);
+    }
+    // Solo wipeouts (one or two) and one pit stop, each with its own odds.
+    evAt.push(rnd(b + 20) < 0.55 && laps > 3 ? 0.6 + rnd(b + 21) * span : -1);
+    evKind.push(1);
+    evAt.push(rnd(b + 22) < 0.3 && laps > 6 ? 0.6 + rnd(b + 23) * span : -1);
+    evKind.push(1);
+    evAt.push(rnd(b + 24) < 0.7 && laps > 4 ? 1 + rnd(b + 25) * span : -1);
+    evKind.push(2);
     return {
       color,
-      grid: k * 0.028,
+      grid: k * 0.004,
+      evAt,
+      evKind,
       pace: 0.9 + rnd(b + 1) * 0.2,
       a1: 0.1 + rnd(b + 2) * 0.16,
       f1: 0.15 + rnd(b + 3) * 0.3,
@@ -103,8 +121,6 @@ function profiles(seed: number, accent: string, laps: number): Profile[] {
       a3: 0.15 + rnd(b + 8) * 0.35,
       f3: 0.03 + rnd(b + 9) * 0.06,
       p3: rnd(b + 10) * 6.28,
-      s1: incident(pair, 0),
-      s2: incident(pair, 1),
       line: ((k - (colors.length - 1) / 2) / ((colors.length - 1) / 2)) * LANE_W * 0.3,
       wander: 4 + rnd(b + 11) * 6,
       wf: 0.5 + rnd(b + 12) * 1.5,
@@ -114,24 +130,29 @@ function profiles(seed: number, accent: string, laps: number): Profile[] {
 
 function pace(p: Profile, l: number): number {
   'worklet';
-  return l * p.pace - p.grid + p.a1 * Math.sin(l * p.f1 * 6.28 + p.p1) + p.a2 * Math.sin(l * p.f2 * 6.28 + p.p2) + p.a3 * Math.sin(l * p.f3 * 6.28 + p.p3);
+  const w = (t: number) => p.a1 * Math.sin(t * p.f1 * 6.28 + p.p1) + p.a2 * Math.sin(t * p.f2 * 6.28 + p.p2) + p.a3 * Math.sin(t * p.f3 * 6.28 + p.p3);
+  return l * p.pace - p.grid + w(l) - w(0);
 }
 
 /* Race position (in laps) at race time l: the pace curve minus the ground lost in each spin. Runs on the UI thread. */
 function position(p: Profile, l: number): number {
   'worklet';
   let x = pace(p, l);
-  if (p.s1 >= 0 && l > p.s1) x -= pace(p, Math.min(l, p.s1 + SPIN_LAPS)) - pace(p, p.s1);
-  if (p.s2 >= 0 && l > p.s2) x -= pace(p, Math.min(l, p.s2 + SPIN_LAPS)) - pace(p, p.s2);
+  for (let i = 0; i < EV_MAX; i++) {
+    const at = p.evAt[i];
+    if (at >= 0 && l > at) x -= pace(p, Math.min(l, at + EV_DUR[p.evKind[i]])) - pace(p, at);
+  }
   return x;
 }
 
-/* 0..1 while the car is spinning, else -1. */
-function spinning(p: Profile, l: number): number {
+/* The event in progress at race time l: its kind and 0..1 phase, or kind -1. */
+function eventAt(p: Profile, l: number): { kind: number; phase: number } {
   'worklet';
-  if (p.s1 >= 0 && l > p.s1 && l < p.s1 + SPIN_LAPS) return (l - p.s1) / SPIN_LAPS;
-  if (p.s2 >= 0 && l > p.s2 && l < p.s2 + SPIN_LAPS) return (l - p.s2) / SPIN_LAPS;
-  return -1;
+  for (let i = 0; i < EV_MAX; i++) {
+    const at = p.evAt[i];
+    if (at >= 0 && l > at && l < at + EV_DUR[p.evKind[i]]) return { kind: p.evKind[i], phase: (l - at) / EV_DUR[p.evKind[i]] };
+  }
+  return { kind: -1, phase: 0 };
 }
 
 /* Top-down F1 car, nose to the right, 58 x 20 box. */
@@ -185,15 +206,17 @@ function Car({ race, profile, parkAt, frame, leader }: { race: SharedValue<numbe
   const style = useAnimatedStyle(() => {
     const l = race.value;
     const t = parkAt != null ? parkAt : position(profile, l);
-    const off = (parkAt != null ? profile.line : profile.line + profile.wander * Math.sin(l * profile.wf * 6.28)) * scale;
-    const p = lanePoint(t, off / scale);
-    const q = lanePoint(t + 0.004, off / scale);
-    const sp = parkAt != null ? -1 : spinning(profile, l);
-    // A spin: two full turns, drifting a little toward the outside of the lane.
-    const spin = sp >= 0 ? 720 * sp * (1 - sp * 0.3) : 0;
-    const drift = sp >= 0 ? Math.sin(sp * 3.1416) * carH * 0.9 : 0;
+    const ev = parkAt != null ? { kind: -1, phase: 0 } : eventAt(profile, l);
+    // Where across the lane: own line, a little wander; a wipeout slides out to the grass, a pit stop pulls to the inside.
+    let off = parkAt != null ? profile.line : profile.line + profile.wander * Math.sin(l * profile.wf * 6.28);
+    if (ev.kind === 1) off += Math.sin(Math.min(1, ev.phase * 1.6) * 1.5708) * LANE_W * 0.9;
+    if (ev.kind === 2) off -= Math.sin(Math.min(1, ev.phase * 3) * 1.5708) * (ev.phase > 0.75 ? (1 - ev.phase) * 4 : 1) * LANE_W * 0.75;
+    const p = lanePoint(t, off);
+    const q = lanePoint(t + 0.004, off);
+    // Tangle: two turns. Wipeout: three turns, then sits sideways. Pit: no spin.
+    const spin = ev.kind === 0 ? 720 * ev.phase * (1 - ev.phase * 0.3) : ev.kind === 1 ? 1080 * Math.min(1, ev.phase * 1.4) + 90 : 0;
     const heading = (Math.atan2(q.y - p.y, q.x - p.x) * 180) / Math.PI + spin;
-    return { transform: [{ translateX: ox + p.x * scale - carW / 2 }, { translateY: oy + p.y * scale - carH / 2 + drift }, { rotate: `${heading}deg` }] };
+    return { transform: [{ translateX: ox + p.x * scale - carW / 2 }, { translateY: oy + p.y * scale - carH / 2 }, { rotate: `${heading}deg` }] };
   });
   const halo = carW * 1.5;
   return (
