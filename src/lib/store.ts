@@ -13,8 +13,8 @@ import { classifyStorage } from './storageKind';
 import { periodIdsFor, type CustomDay, type Override, type OverrideType, type Period, type PersonalSchedule, type ScheduleData, type SchoolDay } from './schedule';
 import { DEFAULT_THEME } from './themes';
 
-export type WidgetId = 'progress' | 'homework' | 'countdown' | 'next' | 'date' | 'weekend' | 'focus' | 'quote';
-export const WIDGET_IDS: WidgetId[] = ['progress', 'homework', 'focus', 'countdown', 'next', 'quote', 'date', 'weekend'];
+export type WidgetId = 'progress' | 'countdown' | 'next' | 'date' | 'weekend' | 'focus' | 'quote';
+export const WIDGET_IDS: WidgetId[] = ['progress', 'focus', 'countdown', 'next', 'quote', 'date', 'weekend'];
 
 export type Layout = 'classic' | 'minimal' | 'glass';
 /** Animated background behind the clock. 'theme' = whatever the theme looks best with. */
@@ -121,7 +121,7 @@ export type Millis = 'off' | 'tenths' | 'centis' | 'millis';
 export const DEFAULT_PREFS: Prefs = {
   theme: DEFAULT_THEME,
   layout: 'classic',
-  widgets: ['progress', 'homework'],
+  widgets: ['progress', 'countdown'],
   background: 'theme',
   motion: true,
   testPeriod3: false,
@@ -320,6 +320,8 @@ export async function load(): Promise<boolean> {
     const savedShared = readJson<Shared>(rows[K_SHARED]) ?? backup?.shared ?? null;
     const savedPersonal = rows[K_PERSONAL] !== undefined && rows[K_PERSONAL] !== null ? readJson<PersonalSchedule | null>(rows[K_PERSONAL]) : (backup?.personal ?? null);
     const prefs: Prefs = { ...DEFAULT_PREFS, ...savedPrefs };
+    // Widgets that no longer exist (e.g. the old homework widget) are dropped from saved lists.
+    prefs.widgets = (prefs.widgets ?? []).filter((id) => (WIDGET_IDS as string[]).includes(id));
     // One-time default changes for installs saved before this version.
     const migrate = kind === 'ok' && (savedPrefs.prefsVersion ?? 1) < 2;
     if (migrate) {

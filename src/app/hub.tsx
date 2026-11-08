@@ -6,7 +6,7 @@ import { Text, View } from 'react-native';
 import { Divider, Row, Screen, Section } from '@/components/ui';
 import { TYPE } from '@/lib/fonts';
 import { useNow, useRealNow, useTheme } from '@/lib/hooks';
-import { addDays, fmtDate, fmtTime, toMin } from '@/lib/nytime';
+import { fmtDate, fmtTime, toMin } from '@/lib/nytime';
 import { usePlanner } from '@/lib/planner';
 import { nameFor, nowState } from '@/lib/schedule';
 import { useSchedule, useStore } from '@/lib/store';
@@ -26,10 +26,8 @@ export default function Hub() {
   const now = useNow();
   const realNow = useRealNow();
   const h24 = useStore((s) => s.prefs.h24);
-  const homework = usePlanner((p) => p.homework);
   const countdowns = usePlanner((p) => p.countdowns);
   const focus = useTools((t) => t.focus);
-  const notes = useTools((t) => t.notes);
   const grades = useTools((t) => t.grades);
 
   const sched = useSchedule();
@@ -38,8 +36,6 @@ export default function Hub() {
   const lastEnd = list.length ? toMin(list[list.length - 1].end) * 60 : 0;
   const left = Math.max(0, lastEnd - st.secOfDay);
   const done = list.filter((p) => toMin(p.end) * 60 <= st.secOfDay).length;
-  const tomorrow = addDays(st.date, 1);
-  const due = homework.filter((h) => !h.done && h.due && h.due <= tomorrow).length;
   const nextCd = countdowns.find((c) => c.date >= st.date);
   const focusText =
     focus.mode === 'idle'
@@ -66,16 +62,14 @@ export default function Hub() {
     },
     { title: 'This week', sub: 'Every day at a glance', icon: 'calendar', color: '#007aff', href: '/week' },
     { title: 'Focus', sub: focusText, icon: 'timer', color: '#ff3b30', href: '/focus' },
-    { title: 'Homework', sub: due ? `${due} due soon` : 'All clear', icon: 'checklist', color: '#34c759', href: '/planner' },
     { title: 'Countdowns', sub: nextCd ? `${nextCd.emoji} ${nextCd.title}` : 'Count down to big days', icon: 'hourglass', color: '#af52de', href: '/planner' },
-    { title: 'Notes', sub: notes.length ? `${notes.length} note${notes.length === 1 ? '' : 's'}` : 'Jot something down', icon: 'note.text', color: '#ffcc00', href: '/notes' },
     { title: 'Grades', sub: grades.length ? `${grades.length} classes` : 'Average & GPA', icon: 'graduationcap.fill', color: '#5856d6', href: '/grades' },
     { title: 'Themes', sub: theme.name, icon: 'paintpalette.fill', color: '#ff2d55', href: '/themes' },
   ];
   const groups: { title: string; items: Tile[] }[] = [
     { title: 'School', items: tiles.slice(0, 3) },
-    { title: 'Tools', items: tiles.slice(3, 8) },
-    { title: 'Look', items: tiles.slice(8) },
+    { title: 'Tools', items: tiles.slice(3, 6) },
+    { title: 'Look', items: tiles.slice(6) },
   ];
 
   return (

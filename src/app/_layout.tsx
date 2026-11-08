@@ -10,7 +10,7 @@ import { registerBackgroundRefresh } from '@/lib/background';
 import { isHeavyWork } from '@/lib/heavy';
 import { useTheme } from '@/lib/hooks';
 import { watchForSync } from '@/lib/account';
-import { rescheduleAlerts, setupNotificationHandler, watchForReschedule, watchHomework } from '@/lib/notify';
+import { rescheduleAlerts, setupNotificationHandler, watchForReschedule } from '@/lib/notify';
 import { loadPlanner } from '@/lib/planner';
 import { loadTools, subscribeTools } from '@/lib/tools';
 import { flushStore, load, subscribe, getState, useStore } from '@/lib/store';
@@ -49,13 +49,11 @@ export default function RootLayout() {
 
   useEffect(() => {
     let stopWatch: (() => void) | null = null;
-    let stopHw: (() => void) | null = null;
     let stopSync: (() => void) | null = null;
     void loadPlanner();
     void loadTools();
     void load().then(() => {
       stopWatch = watchForReschedule();
-      stopHw = watchHomework();
       stopSync = watchForSync();
       // Always refill the alert queue on launch, then pull the shared schedule.
       void rescheduleAlerts();
@@ -99,7 +97,6 @@ export default function RootLayout() {
     return () => {
       sub.remove();
       stopWatch?.();
-      stopHw?.();
       stopSync?.();
       stopWidgets();
       stopFocusWatch();
@@ -137,11 +134,10 @@ export default function RootLayout() {
         <Stack.Screen name="setup-schedule" options={{ title: 'Your Schedule' }} />
         <Stack.Screen name="schedule-review" options={{ title: 'Check Your Schedule' }} />
         <Stack.Screen name="today" options={{ title: 'Today' }} />
-        <Stack.Screen name="planner" options={{ title: 'Planner' }} />
+        <Stack.Screen name="planner" options={{ title: 'Countdowns' }} />
         <Stack.Screen name="widgets" options={{ title: 'Widgets' }} />
         <Stack.Screen name="focus" options={{ title: 'Focus' }} />
         <Stack.Screen name="week" options={{ title: 'This Week' }} />
-        <Stack.Screen name="notes" options={{ title: 'Notes' }} />
         <Stack.Screen name="grades" options={{ title: 'Grades' }} />
         <Stack.Screen name="classes" options={{ title: 'My Classes' }} />
         <Stack.Screen name="themes" options={{ title: 'Themes' }} />

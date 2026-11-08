@@ -11,8 +11,9 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AppState, Linking, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Path, Rect } from 'react-native-svg';
+import Svg, { Rect } from 'react-native-svg';
 
+import { ClockBanners } from '@/components/banners';
 import { Board, InkBoard, SmallClock } from '@/components/boards';
 import { MsReadout } from '@/components/millis';
 import { Editable } from '@/components/editable';
@@ -26,8 +27,7 @@ import { TYPE } from '@/lib/fonts';
 import { fontStyle } from '@/lib/typefaces';
 import { useNow, useTheme } from '@/lib/hooks';
 import { getPermission, type Permission, requestPermission, rescheduleAlerts } from '@/lib/notify';
-import { addDays, fmtDate, fmtTime, nyParts, toMin } from '@/lib/nytime';
-import { usePlanner } from '@/lib/planner';
+import { fmtDate, fmtTime, nyParts, toMin } from '@/lib/nytime';
 import { tickFocus } from '@/lib/tools';
 import { syncLiveActivity } from '@/widgets';
 import { fmtCountdown, nameFor, nowState, type NowState, periodTitle, rangeText, roomOf } from '@/lib/schedule';
@@ -42,7 +42,6 @@ export default function ClockScreen() {
   const baseTheme = useTheme();
   const rawPrefs = useStore((s) => s.prefs);
   const prefs = focusPrefs(rawPrefs);
-  const homework = usePlanner((p) => p.homework);
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
 
@@ -59,8 +58,6 @@ export default function ClockScreen() {
   const blink = rawPrefs.blinkLast && copy.countdownSec != null && st.phase === 'class' && copy.countdownSec <= 60;
   const nudge = burnInOffset(parts.minute, rawPrefs.burnin);
 
-  const tomorrow = addDays(st.date, 1);
-  const dueSoon = homework.filter((h) => !h.done && h.due && h.due <= tomorrow).length;
 
   useEffect(() => {
     if (!prefs.keepAwake) return;
@@ -168,6 +165,7 @@ export default function ClockScreen() {
         }}
       >
         <Animated.View style={[{ flex: 1, maxWidth: sz(900), width: '100%', alignSelf: 'center', transform: [{ translateX: nudge.x }, { translateY: nudge.y }] }, rawPrefs.idleDim ? dimStyle : null]}>
+          {locked ? null : <ClockBanners theme={theme} today={st.date} />}
           {prefs.layout === 'minimal' ? <Minimal v={v} /> : prefs.layout === 'glass' ? <Cards v={v} /> : <Classic v={v} />}
         </Animated.View>
         {askAlerts && !locked ? (
@@ -254,17 +252,14 @@ export default function ClockScreen() {
               <Text style={[styles.testText, { color: theme.accent }]}>TEST · PERIOD 3 · TAP TO END</Text>
             </Pressable>
           ) : null}
-          <Corner theme={theme} glass={glassy} label="Planner" badge={dueSoon} style={{ top: insets.top + 8, left: insets.left + 14 }} onPress={() => router.push('/planner')}>
-            <Icon name="checklist" color={theme.ink} size={18} fallback={<PlannerGlyph color={theme.ink} />} />
+          <Corner theme={theme} glass={glassy} label={`Themes: ${theme.name}`} style={{ top: insets.top + 8, left: insets.left + 14 }} onPress={() => router.push('/themes')}>
+            <ThemeSwatch theme={theme} />
           </Corner>
           <Corner theme={theme} glass={glassy} label="Settings" style={{ top: insets.top + 8, right: insets.right + 14 }} onPress={() => router.push('/settings')}>
             <Icon name="gearshape" color={theme.ink} size={18} fallback={<GearIcon color={theme.ink} />} />
           </Corner>
           <Corner theme={theme} glass={glassy} label="Hub: today and tools" style={{ bottom: insets.bottom + 12, left: insets.left + 14 }} onPress={() => router.push('/hub')}>
-            <Icon name="square.grid.2x2" color={theme.ink} size={17} fallback={<GridGlyph color={theme.ink} />} />
-          </Corner>
-          <Corner theme={theme} glass={glassy} label="Themes" style={{ bottom: insets.bottom + 12, right: insets.right + 14 }} onPress={() => router.push('/themes')}>
-            <Icon name="paintpalette" color={theme.ink} size={17} fallback={<GridGlyph color={theme.ink} />} />
+            <Icon name="square.grid.2x2" color={theme.ink} size={18} fallback={<GridGlyph color={theme.ink} />} />
           </Corner>
         </Animated.View>
       )}
@@ -600,6 +595,15 @@ function Title({ v, size, weight = 'heavy' }: { v: V; size: number; weight?: 'he
   );
 }
 
+/** The Themes button: a disc in the current theme's accent with a thin ring, so it reads as "colour", not as another icon. */
+function ThemeSwatch({ theme }: { theme: Theme }) {
+  return (
+    <View style={{ width: 18, height: 18, borderRadius: 9, backgroundColor: theme.accent, borderWidth: 2, borderColor: alpha(theme.ink, 0.55) }}>
+      <View style={{ position: 'absolute', left: 3, top: 3, width: 4, height: 4, borderRadius: 2, backgroundColor: alpha('#ffffff', 0.7) }} />
+    </View>
+  );
+}
+
 function Corner({
   theme,
   glass,
@@ -701,14 +705,6 @@ function AlertsCard({ theme, blocked, onDone }: { theme: Theme; blocked: boolean
   );
 }
 
-function PlannerGlyph({ color }: { color: string }) {
-  return (
-    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.7} strokeLinecap="round">
-      <Path d="M8 4.5h8a1 1 0 0 1 1 1V19a1 1 0 0 1-1 1H8a1 1 0 0 1-1-1V5.5a1 1 0 0 1 1-1Z" />
-      <Path d="M9.5 9h5M9.5 12.5h5M9.5 16h3.2" />
-    </Svg>
-  );
-}
 
 function GridGlyph({ color }: { color: string }) {
   return (

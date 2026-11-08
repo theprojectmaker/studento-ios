@@ -18,7 +18,6 @@ import { tap } from './ui';
 
 export const WIDGET_INFO: Record<WidgetId, { name: string; about: string }> = {
   progress: { name: 'Day progress', about: 'How much of the school day is done' },
-  homework: { name: 'Homework', about: "What's due today and tomorrow" },
   countdown: { name: 'Countdown', about: 'Days until your next big day' },
   next: { name: 'Up next', about: 'The class after this one' },
   date: { name: 'Date', about: "Today's date and schedule" },
@@ -63,7 +62,6 @@ const LINES = [
 
 /** In customize mode each tile gets a red ⊖ that removes it, and an "Add widget" tile appears. */
 export function WidgetArea({ ids, st, theme, names, h24, editing = false }: { ids: WidgetId[]; st: NowState; theme: Theme; names: Record<string, string>; h24: boolean; editing?: boolean }) {
-  const homework = usePlanner((p) => p.homework);
   const countdowns = usePlanner((p) => p.countdowns);
   const focus = useTools((t) => t.focus);
   const realNow = useRealNow();
@@ -78,12 +76,6 @@ export function WidgetArea({ ids, st, theme, names, h24, editing = false }: { id
         const b = toMin(list[list.length - 1].end) * 60;
         const f = Math.min(1, Math.max(0, (st.secOfDay - a) / (b - a)));
         return { big: `${Math.round(f * 100)}%`, small: 'of the school day', go: '/today', bar: f };
-      }
-      case 'homework': {
-        const tomorrow = addDays(st.date, 1);
-        const due = homework.filter((h) => !h.done && h.due && h.due <= tomorrow);
-        if (!due.length) return { big: 'All clear', small: 'nothing due soon', go: '/planner' };
-        return { big: `${due.length} due`, small: due[0].title, go: '/planner' };
       }
       case 'countdown': {
         const c = countdowns.find((x) => x.date >= st.date);

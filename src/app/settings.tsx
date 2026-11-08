@@ -113,15 +113,6 @@ export default function Settings() {
             </View>
             <Divider />
             <ToggleRow
-              label="Homework reminders"
-              sub="7 PM the evening before anything is due"
-              icon={{ name: 'checklist', color: '#34c759' }}
-              value={prefs.homeworkReminders}
-              disabled={!prefs.alerts}
-              onChange={(v) => setPref('homeworkReminders', v)}
-            />
-            <Divider />
-            <ToggleRow
               label="Lock Screen countdown"
               sub="Live Activity for the current class"
               icon={{ name: 'lock.iphone', color: '#5856d6' }}
@@ -178,7 +169,7 @@ export default function Settings() {
       </Section>
 
       <Section title="More" footer="Lock mode hides every button so the clock can just sit there. Hold the red dot in the top-right corner for 2 seconds to unlock.">
-        <Row label="Open the Hub" sub="Focus timer, this week, homework, notes, grades" icon={{ name: 'square.grid.2x2.fill', color: '#34c759' }} onPress={() => router.push('/hub')} />
+        <Row label="Open the Hub" sub="Focus timer, this week, countdowns, grades" icon={{ name: 'square.grid.2x2.fill', color: '#34c759' }} onPress={() => router.push('/hub')} />
         <Divider />
         <Row
           label="Lock the clock"
