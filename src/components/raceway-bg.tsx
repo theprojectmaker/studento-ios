@@ -1,18 +1,21 @@
 /**
- * Raceway for the Race Track themes: the night circuit image (full stands, floodlights),
- * shown whole ("contain"), with four cars racing on the image's own lane. Every minute of
- * the period is one lap; the accent car leads, the others run in loose formation behind it.
- * When the period ends (or outside school) the cars park on the start line.
+ * Raceway for the Race Track themes (iPad). The night circuit image is shown whole, with
+ * four cars racing on the image's own lane. Every minute of the period is one lap. Each
+ * period is a different race: car speeds, surges and slumps are seeded from the period, so
+ * the order keeps changing and the winner is anyone's. When the period ends the cars park
+ * on the start straight in finishing order. A small pill shows the lap and the running order.
  *
  * The lane was measured on the 1536x1024 image: for each angle from the image centre, the
  * distance to the middle of the asphalt.
  */
 import { Image } from 'expo-image';
 import { useEffect } from 'react';
-import { StyleSheet, useWindowDimensions, View } from 'react-native';
+import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
-import Svg, { Path, Polyline, Rect } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Path, Polyline, Rect, Stop } from 'react-native-svg';
 
+import { TYPE } from '@/lib/fonts';
+import { sz } from '@/lib/scale';
 import { alpha, mix, type Theme } from '@/lib/themes';
 
 const RACEWAY = require('../../assets/themes/raceway.jpg');
@@ -20,16 +23,12 @@ const IMG_W = 1536;
 const IMG_H = 1024;
 const IMG_CX = 768;
 const IMG_CY = 512;
+const EDGE = '#0b0e0c'; // the image's own top/bottom edge tone
 /* Lane centre radius (image px) every 15 degrees, angle measured with y down, 0 = right. */
 const LANE_R = [696, 663, 567, 431, 361, 321, 305, 321, 361, 431, 568, 663, 697, 689, 591, 458, 379, 337, 320, 337, 379, 459, 584, 674];
 const LANE_W = 70;
 const LAP_SEC = 60;
-/* Rivals: gap behind the leader (laps) and a wobble so they trade places a little. */
-const RIVALS = [
-  { gap: 0.055, wobble: 0.018, phase: 0.9, color: '#3b82f6' },
-  { gap: 0.105, wobble: 0.022, phase: 2.1, color: '#facc15' },
-  { gap: 0.16, wobble: 0.016, phase: 4.2, color: '#22c55e' },
-];
+const RIVAL_COLORS = ['#3b82f6', '#facc15', '#22c55e'];
 
 function laneRadius(deg: number): number {
   'worklet';
@@ -48,6 +47,55 @@ function lanePoint(t: number): { x: number; y: number } {
   const r = laneRadius(deg);
   const rad = (deg * Math.PI) / 180;
   return { x: IMG_CX + r * Math.cos(rad), y: IMG_CY + r * Math.sin(rad) };
+}
+
+/* Deterministic noise. */
+function rnd(i: number): number {
+  const x = Math.sin(i * 12.9898 + 78.233) * 43758.5453;
+  return x - Math.floor(x);
+}
+
+/** A car's race profile for this period: pace plus three overlapping surges. */
+interface Profile {
+  color: string;
+  grid: number; // starting gap behind the line (laps)
+  pace: number; // laps per lap of race time (0.94 .. 1.06)
+  a1: number;
+  f1: number;
+  p1: number;
+  a2: number;
+  f2: number;
+  p2: number;
+  a3: number;
+  f3: number;
+  p3: number;
+}
+
+function profiles(seed: number, accent: string): Profile[] {
+  const colors = [accent, ...RIVAL_COLORS];
+  return colors.map((color, k) => {
+    const b = seed * 7919 + k * 104729;
+    return {
+      color,
+      grid: k * 0.035,
+      pace: 0.94 + rnd(b + 1) * 0.12,
+      a1: 0.08 + rnd(b + 2) * 0.12,
+      f1: 0.15 + rnd(b + 3) * 0.25,
+      p1: rnd(b + 4) * 6.28,
+      a2: 0.03 + rnd(b + 5) * 0.06,
+      f2: 0.6 + rnd(b + 6) * 0.9,
+      p2: rnd(b + 7) * 6.28,
+      a3: 0.1 + rnd(b + 8) * 0.25,
+      f3: 0.03 + rnd(b + 9) * 0.05,
+      p3: rnd(b + 10) * 6.28,
+    };
+  });
+}
+
+/* Race position (in laps) of a car at race time l (laps). Plain math so it runs on the UI thread. */
+function position(p: Profile, l: number): number {
+  'worklet';
+  return l * p.pace - p.grid + p.a1 * Math.sin(l * p.f1 * 6.28 + p.p1) + p.a2 * Math.sin(l * p.f2 * 6.28 + p.p2) + p.a3 * Math.sin(l * p.f3 * 6.28 + p.p3);
 }
 
 /* Top-down F1 car, nose to the right, 58 x 20 box. */
@@ -95,12 +143,11 @@ interface Frame {
   carH: number;
 }
 
-/** One car, placed from the shared lap counter plus its own gap and wobble. */
-function Car({ laps, gap, wobble, phase, color, frame }: { laps: SharedValue<number>; gap: number; wobble: number; phase: number; color: string; frame: Frame }) {
+/** One car, placed from the shared race clock through its own profile; parked when the race is over. */
+function Car({ race, profile, parkAt, frame }: { race: SharedValue<number>; profile: Profile; parkAt: number | null; frame: Frame }) {
   const { scale, ox, oy, carW, carH } = frame;
   const style = useAnimatedStyle(() => {
-    const l = laps.value;
-    const t = l - gap + wobble * Math.sin(l * 2.3 + phase);
+    const t = parkAt != null ? parkAt : position(profile, race.value);
     const p = lanePoint(t);
     const q = lanePoint(t + 0.004);
     const heading = (Math.atan2(q.y - p.y, q.x - p.x) * 180) / Math.PI;
@@ -108,51 +155,82 @@ function Car({ laps, gap, wobble, phase, color, frame }: { laps: SharedValue<num
   });
   return (
     <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: carW, height: carH }, style]}>
-      <RaceCar color={color} width={carW} />
+      <RaceCar color={profile.color} width={carW} />
     </Animated.View>
   );
 }
 
-export function RacewayBackdrop({ theme, elapsedSec, motion }: { theme: Theme; elapsedSec: number | null; motion: boolean }) {
+export function RacewayBackdrop({ theme, elapsedSec, totalSec, seed, motion }: { theme: Theme; elapsedSec: number | null; totalSec: number | null; seed: number; motion: boolean }) {
   const { width: W, height: H } = useWindowDimensions();
-  // "contain": the whole circuit is always on screen.
+  // "contain": the whole circuit is always on screen; the bars above and below blend into the image's edges.
   const scale = Math.min(W / IMG_W, H / IMG_H);
   const ox = (W - IMG_W * scale) / 2;
   const oy = (H - IMG_H * scale) / 2;
 
-  // Laps completed so far in this period (fractional). Parked at the start line when the race is over.
-  const racing = elapsedSec != null && elapsedSec >= 0;
-  const target = racing ? elapsedSec / LAP_SEC : 0;
-  const laps = useSharedValue(target);
-  useEffect(() => {
-    // Jumps (new period, app reopened) snap; the normal 1 s tick glides.
-    const jump = Math.abs(target - laps.value) > 0.1;
-    laps.value = motion && !jump ? withTiming(target, { duration: 1000, easing: Easing.linear }) : target;
-  }, [target, motion, laps]);
+  const cars = profiles(seed, theme.accent);
+  const laps = totalSec != null ? totalSec / LAP_SEC : 0;
+  const racing = elapsedSec != null && totalSec != null && elapsedSec >= 0 && elapsedSec < totalSec;
+  const finished = elapsedSec != null && totalSec != null && elapsedSec >= totalSec;
+  const raceTime = racing ? (elapsedSec as number) / LAP_SEC : finished ? laps : 0;
 
-  const carW = Math.max(30, LANE_W * 1.45 * scale);
+  const race = useSharedValue(raceTime);
+  useEffect(() => {
+    const jump = Math.abs(raceTime - race.value) > 0.1;
+    race.value = motion && !jump ? withTiming(raceTime, { duration: 1000, easing: Easing.linear }) : raceTime;
+  }, [raceTime, motion, race]);
+
+  // Standings right now (JS side, once a second), and the finishing order when it is over.
+  const order = cars.map((p, k) => ({ k, pos: position(p, raceTime) })).sort((a, b) => b.pos - a.pos);
+  const parkSpots = new Map<number, number>();
+  if (finished || !racing) order.forEach((o, rank) => parkSpots.set(o.k, -rank * 0.03));
+  const lapNow = racing ? Math.min(Math.ceil(laps), Math.floor(raceTime) + 1) : null;
+
+  const carW = Math.max(30, LANE_W * 1.1 * scale);
   const frame: Frame = { scale, ox, oy, carW, carH: (carW * 20) / 58 };
 
-  // Driven part of the current lap.
-  const lapFrac = racing ? target % 1 : 0;
-  const steps = Math.max(2, Math.round(lapFrac * 360));
+  // Driven part of the leader's current lap.
+  const leadPos = racing ? Math.max(0, order[0].pos) % 1 : 0;
+  const steps = Math.max(2, Math.round(leadPos * 360));
   const pts: string[] = [];
   for (let i = 0; i <= steps; i++) {
-    const p = lanePoint((i / steps) * lapFrac);
+    const p = lanePoint((i / steps) * leadPos);
     pts.push(`${(ox + p.x * scale).toFixed(1)},${(oy + p.y * scale).toFixed(1)}`);
   }
 
+  const bar = Math.max(oy, 0) + 36;
   return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: EDGE }]}>
       <Image source={RACEWAY} style={StyleSheet.absoluteFill} contentFit="contain" contentPosition="center" transition={0} />
-      <View style={[StyleSheet.absoluteFill, { backgroundColor: alpha(theme.bg, theme.light ? 0.12 : 0.26) }]} />
+      <View style={[StyleSheet.absoluteFill, { backgroundColor: alpha(theme.bg, theme.light ? 0.1 : 0.22) }]} />
       <Svg width={W} height={H} style={StyleSheet.absoluteFill}>
-        {lapFrac > 0.003 ? <Polyline points={pts.join(' ')} fill="none" stroke={alpha(theme.accent, 0.5)} strokeWidth={LANE_W * 0.5 * scale} strokeLinecap="round" strokeLinejoin="round" /> : null}
+        <Defs>
+          <LinearGradient id="top" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor={EDGE} stopOpacity={1} />
+            <Stop offset="1" stopColor={EDGE} stopOpacity={0} />
+          </LinearGradient>
+          <LinearGradient id="bot" x1="0" y1="1" x2="0" y2="0">
+            <Stop offset="0" stopColor={EDGE} stopOpacity={1} />
+            <Stop offset="1" stopColor={EDGE} stopOpacity={0} />
+          </LinearGradient>
+        </Defs>
+        <Rect x={0} y={0} width={W} height={bar} fill="url(#top)" />
+        <Rect x={0} y={H - bar} width={W} height={bar} fill="url(#bot)" />
+        {leadPos > 0.003 ? <Polyline points={pts.join(' ')} fill="none" stroke={alpha(order[0] ? cars[order[0].k].color : theme.accent, 0.45)} strokeWidth={LANE_W * 0.45 * scale} strokeLinecap="round" strokeLinejoin="round" /> : null}
       </Svg>
-      {RIVALS.map((r) => (
-        <Car key={r.color} laps={laps} gap={racing ? r.gap : r.gap * 0.5} wobble={racing ? r.wobble : 0} phase={r.phase} color={r.color} frame={frame} />
+      {cars.map((p, k) => (
+        <Car key={p.color} race={race} profile={p} parkAt={parkSpots.has(k) ? (parkSpots.get(k) as number) : null} frame={frame} />
       ))}
-      <Car laps={laps} gap={0} wobble={0} phase={0} color={theme.accent} frame={frame} />
+      {/* lap + running order */}
+      <View style={{ position: 'absolute', left: ox + IMG_CX * scale - sz(70), top: oy + (IMG_CY - 230) * scale, width: sz(140), alignItems: 'center' }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: alpha('#000000', 0.45) }}>
+          <Text style={{ ...TYPE.heavy, fontSize: sz(11), letterSpacing: 1, color: '#f4f4f4' }}>{finished ? 'FINISH' : lapNow != null ? `LAP ${lapNow}/${Math.ceil(laps)}` : 'GRID'}</Text>
+          <View style={{ flexDirection: 'row', gap: 4 }}>
+            {order.map((o) => (
+              <View key={o.k} style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: cars[o.k].color, borderWidth: 1, borderColor: alpha('#ffffff', 0.6) }} />
+            ))}
+          </View>
+        </View>
+      </View>
     </View>
   );
 }

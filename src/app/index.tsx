@@ -150,13 +150,16 @@ export default function ClockScreen() {
   };
 
   const glassy = prefs.layout !== 'minimal';
+  // Race Track: the period's length and a seed that changes every period, so each race is different.
+  const raceTotal = copy.countdownSec != null && copy.remaining > 0 ? Math.round(copy.countdownSec / copy.remaining) : copy.countdownSec === 0 ? 1 : null;
+  const raceSeed = Number(st.date.replace(/-/g, '')) * 10 + Math.max(0, st.currentIndex);
 
   // First launch: ask whose schedule to run (default, scan, or type it).
   if (!prefs.onboarded) return <Redirect href="/setup" />;
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }} onTouchStart={wake}>
-      {theme.engine === 'race' ? <RacewayBackdrop theme={theme} elapsedSec={copy.countdownSec != null && copy.remaining > 0 ? Math.round(copy.countdownSec / copy.remaining) - copy.countdownSec : null} motion={prefs.motion} /> : null}
+      {theme.engine === 'race' ? <RacewayBackdrop theme={theme} elapsedSec={raceTotal != null ? raceTotal - (copy.countdownSec ?? 0) : null} totalSec={raceTotal} seed={raceSeed} motion={prefs.motion} /> : null}
       <LiveEffect theme={theme} motion={prefs.motion} />
       <NightDim hour={parts.hour} on={rawPrefs.night} />
       <FlashOverlay flash={flash} />
