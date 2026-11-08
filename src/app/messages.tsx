@@ -355,11 +355,57 @@ export default function Beam() {
       );
   }
 
+  /* ---------- phone: top bar + bottom tabs ---------- */
+  const topBar = (
+    <View style={{ paddingTop: insets.top + 2, paddingHorizontal: 8, height: insets.top + 46, flexDirection: 'row', alignItems: 'center', backgroundColor: c.sidebar }}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Back to the clock" onPress={goToClock} hitSlop={12} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', height: 40, paddingRight: 10, borderRadius: 10, opacity: pressed ? 0.5 : 1 })}>
+        <Glyph.Back color={c.blue} size={26} />
+        <Text style={{ color: c.blue, fontSize: 17 }}>Clock</Text>
+      </Pressable>
+      <View style={{ flex: 1 }} />
+      {me ? (
+        <Pressable accessibilityLabel="Account" onPress={() => router.push('/account')} hitSlop={8} style={{ paddingHorizontal: 6 }}>
+          <BeamAvatar name={me} size={32} />
+        </Pressable>
+      ) : null}
+    </View>
+  );
+  const tabBar = (
+    <View style={{ flexDirection: 'row', borderTopWidth: 0.5, borderTopColor: c.hairline, backgroundColor: c.glass, paddingBottom: Math.max(insets.bottom, 8), paddingTop: 6 }}>
+      {NAV.map((n) => {
+        const on = section === n.k;
+        const I = Glyph[n.icon];
+        return (
+          <Pressable
+            key={n.k}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: on }}
+            accessibilityLabel={n.label}
+            onPress={() => {
+              setSection(n.k);
+              setQ('');
+            }}
+            style={{ flex: 1, alignItems: 'center', gap: 3, paddingVertical: 2 }}>
+            <View>
+              <I color={on ? c.blue : c.text3} size={25} />
+              {n.badge > 0 ? (
+                <View style={{ position: 'absolute', top: -4, right: -10, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: c.red, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
+                  <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{n.badge}</Text>
+                </View>
+              ) : null}
+            </View>
+            <Text style={{ color: on ? c.blue : c.text3, fontSize: 10.5, fontWeight: '600' }}>{n.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+
   const listCol = (
     <View style={{ width: wide ? 340 : undefined, flex: wide ? undefined : 1, backgroundColor: c.sidebar, borderRightWidth: wide ? 0.5 : 0, borderRightColor: c.hairline }}>
-      <View style={{ paddingTop: insets.top + 8, paddingHorizontal: 14, paddingBottom: 8 }}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', height: 34 }}>
-          <Text style={{ flex: 1, color: c.text, fontSize: 24, fontWeight: '700', letterSpacing: -0.4 }}>{title}</Text>
+      <View style={{ paddingTop: wide ? insets.top + 8 : 0, paddingHorizontal: wide ? 14 : 16, paddingBottom: 8 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', height: wide ? 34 : 42 }}>
+          <Text style={{ flex: 1, color: c.text, fontSize: wide ? 24 : 32, fontWeight: wide ? '700' : '800', letterSpacing: -0.6 }}>{title}</Text>
           {section === 'messages' ? (
             <Pressable accessibilityLabel="New message" onPress={() => setSection('contacts')} hitSlop={10}>
               <Glyph.Compose color={c.blue} />
@@ -385,7 +431,7 @@ export default function Beam() {
           </View>
         ) : null}
       </View>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: 6, paddingBottom: insets.bottom + 16 }} keyboardShouldPersistTaps="handled">
+      <ScrollView contentContainerStyle={{ paddingHorizontal: wide ? 6 : 8, paddingBottom: wide ? insets.bottom + 16 : 16 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         {body}
         {section === 'contacts' && !searching && contacts.length ? <Text style={{ color: c.text3, fontSize: 11.5, textAlign: 'center', marginTop: 14 }}>Hold a saved contact to remove it.</Text> : null}
       </ScrollView>
@@ -394,9 +440,9 @@ export default function Beam() {
 
   if (!account) {
     return (
-      <View style={{ flex: 1, flexDirection: 'row', backgroundColor: c.sidebar }}>
-        {sidebar}
-        <View style={{ flex: 1, padding: 24, paddingTop: insets.top + 60, gap: 14, alignItems: 'center' }}>
+      <View style={{ flex: 1, flexDirection: wide ? 'row' : 'column', backgroundColor: c.sidebar }}>
+        {wide ? sidebar : topBar}
+        <View style={{ flex: 1, padding: 24, paddingTop: wide ? insets.top + 60 : 40, gap: 14, alignItems: 'center' }}>
           <Text style={{ color: c.text2, fontSize: 15, textAlign: 'center', lineHeight: 21 }}>Sign in so people know who they are talking to.</Text>
           <Pressable onPress={() => router.push('/account')} style={({ pressed }) => ({ backgroundColor: pressed ? '#0a6fd8' : c.blue, borderRadius: 12, paddingHorizontal: 22, paddingVertical: 12 })}>
             <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Sign in</Text>
@@ -435,6 +481,16 @@ export default function Beam() {
   }
 
   if (!unlockedBeam) return <BeamLockScreen />;
+
+  if (!wide) {
+    return (
+      <View style={{ flex: 1, backgroundColor: c.sidebar }}>
+        {topBar}
+        <View style={{ flex: 1 }}>{section === 'settings' ? <BeamSettingsPane c={c} wide={false} topPad={0} /> : listCol}</View>
+        {tabBar}
+      </View>
+    );
+  }
 
   return (
     <View style={{ flex: 1, flexDirection: 'row', backgroundColor: c.sidebar }}>

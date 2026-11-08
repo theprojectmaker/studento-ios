@@ -14,7 +14,7 @@ const SIZES: [string, number][] = [
   ['Huge', 21],
 ];
 
-export function BeamSettingsPane({ c, wide }: { c: BeamPalette; wide: boolean }) {
+export function BeamSettingsPane({ c, wide, topPad }: { c: BeamPalette; wide: boolean; topPad?: number }) {
   const insets = useSafeAreaInsets();
   const st = useBeamSettings();
   const [count, setCount] = useState<number | null>(null);
@@ -38,8 +38,8 @@ export function BeamSettingsPane({ c, wide }: { c: BeamPalette; wide: boolean })
 
   return (
     <View style={{ width: wide ? 340 : undefined, flex: wide ? undefined : 1, backgroundColor: c.sidebar, borderRightWidth: wide ? 0.5 : 0, borderRightColor: c.hairline }}>
-      <ScrollView contentContainerStyle={{ paddingTop: insets.top + 8, paddingHorizontal: 12, paddingBottom: insets.bottom + 20, gap: 18 }}>
-        <Text style={{ color: c.text, fontSize: 24, fontWeight: '700', letterSpacing: -0.4, paddingHorizontal: 2 }}>Settings</Text>
+      <ScrollView contentContainerStyle={{ paddingTop: topPad ?? insets.top + 8, paddingHorizontal: 12, paddingBottom: wide ? insets.bottom + 20 : 20, gap: 18 }}>
+        <Text style={{ color: c.text, fontSize: wide ? 24 : 32, fontWeight: wide ? '700' : '800', letterSpacing: -0.6, paddingHorizontal: 4 }}>Settings</Text>
 
         <View style={{ backgroundColor: c.blue, borderRadius: 18, padding: 16, gap: 2 }}>
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>

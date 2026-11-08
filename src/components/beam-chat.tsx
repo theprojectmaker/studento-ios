@@ -304,7 +304,7 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
           </Pressable>
         </View>
       ) : null}
-      <ScrollView ref={scroller} style={{ flex: 1 }} contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 110 }} onContentSizeChange={() => search === null && scroller.current?.scrollToEnd({ animated: false })}>
+      <ScrollView ref={scroller} style={{ flex: 1 }} onLayout={() => search === null && scroller.current?.scrollToEnd({ animated: false })} keyboardDismissMode="interactive" keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 12 }} onContentSizeChange={() => search === null && scroller.current?.scrollToEnd({ animated: false })}>
         {search ? <Text style={{ textAlign: 'center', color: c.text3, fontSize: 12, marginBottom: 6 }}>{`${msgs.filter((x) => !x.deleted && plain(x).toLowerCase().includes(search.toLowerCase())).length} found`}</Text> : null}
         {msgs.length === 0 && !err ? <Text style={{ textAlign: 'center', color: c.text3, fontSize: 12, marginTop: 20 }}>{`Say hi to ${username}.`}</Text> : null}
         {msgs.map((m, i) => {
@@ -374,7 +374,7 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
         {err ? <Text style={{ textAlign: 'center', color: c.red, fontSize: 12, marginTop: 10 }}>{err}</Text> : null}
       </ScrollView>
 
-      <View style={{ position: 'absolute', left: 12, right: 12, bottom: (onBack ? insets.bottom : 0) + 10 }}>
+      <View style={{ paddingHorizontal: 12, paddingTop: 6, paddingBottom: (onBack ? Math.max(insets.bottom - 8, 0) : 0) + 10 }}>
         {busy ? <Text style={{ alignSelf: 'center', color: c.text2, fontSize: 12, marginBottom: 6, backgroundColor: c.glass, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, overflow: 'hidden' }}>{busy}</Text> : null}
         {blocked ? (
           <View style={{ backgroundColor: c.glass, borderRadius: 24, padding: 12, alignItems: 'center' }}>
