@@ -12,13 +12,13 @@ export function Timeline({ periods, secOfDay, theme }: { periods: Period[]; secO
   const total = Math.max(1, last - first);
   const nowFrac = Math.min(1, Math.max(0, (secOfDay - first) / total));
   return (
-    <View style={{ height: 10, width: '100%', justifyContent: 'center' }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      <View style={{ height: 8, flexDirection: 'row', position: 'relative' }}>
+    <View style={{ height: 12, width: '100%', justifyContent: 'center' }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+      <View style={{ height: 5, flexDirection: 'row', position: 'relative' }}>
         {periods.map((p, i) => {
           const s = toMin(p.start) * 60;
           const e = toMin(p.end) * 60;
-          const left = ((s - first) / total) * 100;
-          const w = ((e - s) / total) * 100;
+          const left = ((s - first) / total) * 100 + 0.25;
+          const w = Math.max(0.5, ((e - s) / total) * 100 - 0.5);
           const fill = Math.min(1, Math.max(0, (secOfDay - s) / (e - s)));
           return (
             <View
@@ -29,9 +29,9 @@ export function Timeline({ periods, secOfDay, theme }: { periods: Period[]; secO
                 width: `${w}%`,
                 top: 0,
                 bottom: 0,
-                borderRadius: 4,
+                borderRadius: 3,
                 overflow: 'hidden',
-                backgroundColor: alpha(theme.ink, theme.light ? 0.12 : 0.14),
+                backgroundColor: alpha(theme.ink, theme.light ? 0.1 : 0.12),
               }}>
               <View style={{ width: `${fill * 100}%`, height: '100%', backgroundColor: fill >= 1 ? alpha(theme.accent, 0.55) : theme.accent }} />
             </View>
@@ -42,11 +42,11 @@ export function Timeline({ periods, secOfDay, theme }: { periods: Period[]; secO
             style={{
               position: 'absolute',
               left: `${nowFrac * 100}%`,
-              top: -4,
-              bottom: -4,
-              width: 3,
-              marginLeft: -1.5,
-              borderRadius: 2,
+              top: -3,
+              bottom: -3,
+              width: 2,
+              marginLeft: -1,
+              borderRadius: 1,
               backgroundColor: theme.ink,
             }}
           />

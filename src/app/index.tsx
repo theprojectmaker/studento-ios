@@ -14,7 +14,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Rect } from 'react-native-svg';
 
 import { ClockBanners } from '@/components/banners';
-import { Board, InkBoard, SmallClock } from '@/components/boards';
+import { Board, InkBoard } from '@/components/boards';
 import { MsReadout } from '@/components/millis';
 import { Editable } from '@/components/editable';
 import { LiveEffect } from '@/components/effects';
@@ -342,10 +342,13 @@ function Classic({ v }: { v: V }) {
   );
   // Landscape: widgets, clock and next/timeline sit side by side in ONE row under the countdown.
   const infoBlock = (
-    <View style={v.landscape ? { gap: 10, alignItems: 'center', width: '100%', maxWidth: sz(470), alignSelf: 'center', marginTop: 16 } : { gap: 12, alignItems: 'center', marginTop: 8 }}>
+    <View style={v.landscape ? { gap: 8, alignItems: 'center', width: '100%', maxWidth: sz(440), alignSelf: 'center', marginTop: 16 } : { gap: 10, alignItems: 'center', marginTop: 8 }}>
       {v.inSchool ? (
         <Piece v={v} k="showClock" label="clock">
-          <SmallClock text={v.clock.text} suffix={v.clock.suffix} theme={theme} motion={prefs.motion} glass />
+          <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
+            <Text style={[fontStyle(theme.type.label, '600'), { fontSize: sz(20), letterSpacing: 0.5, color: theme.ink, fontVariant: ['tabular-nums'] }]}>{v.clock.text}</Text>
+            {v.clock.suffix ? <Text style={[fontStyle(theme.type.label, '500'), { fontSize: sz(12), letterSpacing: 1, color: theme.muted }]}>{v.clock.suffix}</Text> : null}
+          </View>
           <MsReadout theme={theme} kind="clock" size={15} />
         </Piece>
       ) : null}
