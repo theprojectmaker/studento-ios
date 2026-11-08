@@ -3,7 +3,7 @@
  * cells; a cell cross-fades (180 ms) only when its own character changes, so
  * nothing jumps or flickers.
  */
-import { useEffect, useState, type ReactNode } from 'react';
+import { useLayoutEffect, useState, type ReactNode } from 'react';
 import { StyleSheet, Text, View, type TextStyle } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import Svg, { Circle, Line, Path, Text as SvgText } from 'react-native-svg';
@@ -67,7 +67,7 @@ function RollChar({ ch, w, h, style, motion }: { ch: string; w: number; h: numbe
     setCur(ch);
   }
   const p = useSharedValue(1);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!motion || prev === cur) return;
     p.value = 0;
     p.value = withTiming(1, { duration: 260, easing: Easing.out(Easing.cubic) });
@@ -252,7 +252,7 @@ function FlipTile({
     setCur(ch);
   }
   const p = useSharedValue(1);
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!motion || prev === cur) return;
     p.value = 0;
     p.value = withTiming(1, { duration: 460, easing: Easing.inOut(Easing.cubic) });

@@ -115,6 +115,36 @@ const CSS: Record<string, Partial<RawTheme> & { tile?: string; tileInk?: string;
 
 /** New in the app: casino reels and Art Deco gold (listed first in the picker). */
 const EXTRA: RawTheme[] = [
+  // Split-flap palettes
+  { id: 'cream', name: 'Cream', group: 'Split-flap', bg: '#f3ecdd', accent: '#b5542b', style: 'flap' },
+  { id: 'navyflap', name: 'Navy', group: 'Split-flap', bg: '#0b1f3a', accent: '#ffd166', style: 'flap' },
+  { id: 'coral', name: 'Coral', group: 'Split-flap', bg: '#ff6b57', accent: '#1d1b1a', style: 'flap' },
+  { id: 'pine', name: 'Pine', group: 'Split-flap', bg: '#0f2a1e', accent: '#d8c27a', style: 'flap' },
+  { id: 'plum', name: 'Plum', group: 'Split-flap', bg: '#2a0f2e', accent: '#ffb3c6', style: 'flap' },
+  // Reels
+  { id: 'ruby', name: 'Ruby', group: 'Casino', bg: '#1a0008', accent: '#ff2d55', style: 'reel' },
+  { id: 'emeraldreel', name: 'Emerald Reel', group: 'Casino', bg: '#021a12', accent: '#2bd889', style: 'reel' },
+  { id: 'silverreel', name: 'Silver Reel', group: 'Casino', bg: '#0c0c0f', accent: '#d9dde3', style: 'reel' },
+  { id: 'rollers-blue', name: 'Rollers Blue', group: 'Casino', bg: '#02060f', accent: '#5fb3ff', style: 'reelbare' },
+  // Deco
+  { id: 'jade', name: 'Jade', group: 'Gilded', bg: '#062a22', accent: '#bfe9d2', style: 'deco' },
+  { id: 'bordeaux', name: 'Bordeaux', group: 'Gilded', bg: '#2a0710', accent: '#e5c07b', style: 'deco' },
+  // LED signs
+  { id: 'cyanled', name: 'Cyan Sign', group: 'LED sign', bg: '#02070d', accent: '#36e5ff', style: 'led' },
+  { id: 'crimsonled', name: 'Crimson Sign', group: 'LED sign', bg: '#0a0000', accent: '#ff3b3b', style: 'led' },
+  { id: 'limeled', name: 'Lime Sign', group: 'LED sign', bg: '#050a02', accent: '#b4ff39', style: 'led' },
+  { id: 'dotmatrix', name: 'Dot Matrix', group: 'LED sign', bg: '#0b0b0b', accent: '#ffb000', style: 'dots' },
+  // Typographic / ink
+  { id: 'graphite', name: 'Graphite', group: 'Typographic', bg: '#202124', accent: '#e8eaed', style: 'ink' },
+  { id: 'rosewater', name: 'Rosewater', group: 'Typographic', bg: '#f7e4e7', accent: '#8a2f4a', style: 'ink' },
+  { id: 'olive', name: 'Olive', group: 'Typographic', bg: '#2b2f1e', accent: '#d6dca3', style: 'ink' },
+  { id: 'bars', name: 'Bars', group: 'Typographic', bg: '#101010', accent: '#ffffff', style: 'bars' },
+  // LCD / tubes / dials
+  { id: 'casio', name: 'Casio', group: 'LCD', bg: '#c9d6c2', accent: '#1c2a1a', style: 'lcd' },
+  { id: 'seven', name: 'Seven Segment', group: 'LCD', bg: '#000000', accent: '#ff5a1f', style: 'seven' },
+  { id: 'brass', name: 'Brass Tubes', group: 'Tubes', bg: '#1a1408', accent: '#ffb347', style: 'nixie' },
+  { id: 'sector', name: 'Sector Dial', group: 'Analog', bg: '#f0ede6', accent: '#c0392b', style: 'dial:sector' },
+  { id: 'minimaldial', name: 'Minimal Dial', group: 'Analog', bg: '#111111', accent: '#ffffff', style: 'dial:minimal' },
   { id: 'noirflip', name: 'Noir Flip', group: 'Split-flap', bg: '#000000', accent: '#ffffff', style: 'flap' },
   { id: 'slateflip', name: 'Slate Flip', group: 'Split-flap', bg: '#1b2430', accent: '#9fd3ff', style: 'flap' },
   { id: 'jackpot', name: 'Jackpot', group: 'Casino', bg: '#14060a', accent: '#f5c542', style: 'reel' },
@@ -165,6 +195,10 @@ const EXTRA: RawTheme[] = [
 
 /** One quiet live effect, only where it fits the theme. */
 const EFFECTS: Record<string, Effect> = {
+  ruby: 'glints',
+  jade: 'dust',
+  cyanled: 'scanlines',
+  plum: 'bokeh',
   jackpot: 'glints',
   vegas: 'bokeh',
   montecarlo: 'glints',
@@ -300,19 +334,19 @@ export const ALL_THEMES: Theme[] = [...EXTRA, ...RAW_THEMES].map(build).sort((x,
  */
 const CURATED = [
   // Split-flap
-  'departure', 'noirflip', 'slateflip', 'midnight', 'sunset', 'chalkboard', 'paper',
+  'departure', 'noirflip', 'slateflip', 'cream', 'navyflap', 'coral', 'pine', 'plum', 'midnight', 'sunset', 'chalkboard', 'paper',
   // Casino
-  'jackpot', 'highroller', 'rollers',
+  'jackpot', 'ruby', 'emeraldreel', 'silverreel', 'highroller', 'rollers', 'rollers-blue',
   // Gilded
-  'gatsby', 'ivory',
+  'gatsby', 'jade', 'bordeaux', 'ivory',
   // Fun / Quiet
   'bubblegum', 'fog', 'linen',
   // Analog
-  'watch', 'swiss', 'diver', 'bauhaus',
+  'watch', 'swiss', 'diver', 'bauhaus', 'sector', 'minimaldial',
   // LED / LCD / Tubes
-  'motorway', 'neon', 'terminal', 'vapor', 'gameboy', 'nixie',
+  'motorway', 'neon', 'cyanled', 'crimsonled', 'limeled', 'dotmatrix', 'terminal', 'vapor', 'gameboy', 'casio', 'seven', 'nixie', 'brass',
   // Typographic
-  'arctic', 'editorial', 'mono', 'space',
+  'arctic', 'editorial', 'mono', 'graphite', 'rosewater', 'olive', 'bars', 'space',
   // One from each collection
   'city-tokyo', 'city-newyork', 'mat-stainedglass', 'mat-kintsugi', 'nat-aurora', 'ret-phosphor', 'sci-blueprint', 'sci-cassini',
 ];
