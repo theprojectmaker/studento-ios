@@ -68,7 +68,7 @@ export default function Redeem() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
       <Screen>
-        <Section title="Enter a code" footer="A schedule code from another device, or a code for a beta feature.">
+        <Section title="Enter a code" footer="A schedule code from another device, or a promo code.">
           <View style={{ padding: 14, gap: 10 }}>
             <Field value={code} onChangeText={setCode} placeholder="Code" autoCapitalize="characters" autoCorrect={false} onSubmitEditing={() => void redeem()} accessibilityLabel="Code" style={{ fontSize: sz(20), letterSpacing: 2, textAlign: 'center' }} />
             <Button title={busy ? 'Checking…' : 'Redeem'} onPress={() => void redeem()} disabled={busy || !code.trim()} />

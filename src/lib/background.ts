@@ -9,6 +9,7 @@ import * as TaskManager from 'expo-task-manager';
 import { Platform } from 'react-native';
 
 import { refreshWidget, syncLiveActivity } from '../widgets';
+import { checkInbox } from './inbox';
 import { rescheduleAlerts } from './notify';
 import { load } from './store';
 
@@ -23,6 +24,7 @@ if (Platform.OS !== 'web') {
         await rescheduleAlerts();
         refreshWidget();
         await syncLiveActivity();
+        await checkInbox().catch(() => {});
         return BackgroundTask.BackgroundTaskResult.Success;
       } catch {
         return BackgroundTask.BackgroundTaskResult.Failed;

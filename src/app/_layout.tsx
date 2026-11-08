@@ -9,6 +9,7 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { registerBackgroundRefresh } from '@/lib/background';
 import { isHeavyWork } from '@/lib/heavy';
 import { useTheme } from '@/lib/hooks';
+import { CaptureShield } from '@/components/capture-shield';
 import { IncomingCall } from '@/components/incoming-call';
 import { watchForSync } from '@/lib/account';
 import { rescheduleAlerts, setupNotificationHandler, watchForReschedule } from '@/lib/notify';
@@ -159,6 +160,7 @@ export default function RootLayout() {
         <Stack.Screen name="chat" options={{ title: '', headerLargeTitle: false }} />
       </Stack>
       <IncomingCall />
+      <CaptureShield />
     </GestureHandlerRootView>
   );
 }

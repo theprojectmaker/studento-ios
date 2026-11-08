@@ -28,6 +28,33 @@ interface Env {
   TURN_URL?: string;
   TURN_USERNAME?: string;
   TURN_CREDENTIAL?: string;
+  /** Cloudflare Realtime TURN key (dashboard > Realtime > TURN): short-lived credentials, relays over UDP, TCP and TLS on 443. */
+  TURN_KEY_ID?: string;
+  TURN_KEY_TOKEN?: string;
+}
+
+type Ice = { urls: string | string[]; username?: string; credential?: string };
+let turnCache: { at: number; list: Ice[] } | null = null;
+/** STUN always; plus a TURN relay so calls connect on school / hotel / work Wi-Fi that blocks direct connections. */
+async function iceServers(env: Env): Promise<Ice[]> {
+  const list: Ice[] = [{ urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] }];
+  if (env.TURN_KEY_ID && env.TURN_KEY_TOKEN) {
+    if (!turnCache || Date.now() - turnCache.at > 6 * 3600_000) {
+      try {
+        const r = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${env.TURN_KEY_ID}/credentials/generate-ice-servers`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${env.TURN_KEY_TOKEN}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ttl: 12 * 3600 }),
+        });
+        const j = (await r.json()) as { iceServers?: Ice[] | Ice };
+        const got = Array.isArray(j.iceServers) ? j.iceServers : j.iceServers ? [j.iceServers] : [];
+        if (got.length) turnCache = { at: Date.now(), list: got };
+      } catch {}
+    }
+    if (turnCache) list.push(...turnCache.list);
+  }
+  if (env.TURN_URL && env.TURN_USERNAME && env.TURN_CREDENTIAL) list.push({ urls: env.TURN_URL.split(',').map((x) => x.trim()), username: env.TURN_USERNAME, credential: env.TURN_CREDENTIAL });
+  return list;
 }
 type Ctx = EventContext<Env, string, unknown>;
 type Period = { period: string; label: string; start: string; end: string };
@@ -802,9 +829,7 @@ export const onRequest = async (ctx: Ctx): Promise<Response> => {
     /* calls (beta): the server only sets calls up; audio and video go device to device */
     if (path === '/api/ice' && req.method === 'GET') {
       await requireUser(env, req);
-      const list: { urls: string | string[]; username?: string; credential?: string }[] = [{ urls: ['stun:stun.cloudflare.com:3478', 'stun:stun.l.google.com:19302'] }];
-      if (env.TURN_URL && env.TURN_USERNAME && env.TURN_CREDENTIAL) list.push({ urls: env.TURN_URL.split(',').map((x) => x.trim()), username: env.TURN_USERNAME, credential: env.TURN_CREDENTIAL });
-      return json({ ok: true, iceServers: list });
+      return json({ ok: true, iceServers: await iceServers(env) });
     }
     if (path === '/api/calls' && req.method === 'POST') {
       const u = await requireUser(env, req);

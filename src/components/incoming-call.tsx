@@ -1,24 +1,25 @@
 /**
- * Incoming Beam call banner. Polls while the app is open, only for signed-in users who
- * unlocked Beam. Accept opens the call screen; Decline tells the caller.
+ * Invite-only chat and calls, in the background of the app: a small notification-style card
+ * when someone calls (answer / decline), and "N new messages in inbox" alerts. Only runs for
+ * signed-in users who entered the code; otherwise it renders nothing and makes no requests.
  */
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { AppState, Pressable, Text, View } from 'react-native';
 import Animated, { FadeInUp, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import Svg, { Path } from 'react-native-svg';
 
 import { getToken } from '@/lib/account';
 import * as api from '@/lib/api';
 import { isInCall } from '@/lib/calls';
 import { TYPE } from '@/lib/fonts';
-import { useTheme } from '@/lib/hooks';
+import { checkInbox } from '@/lib/inbox';
 import { sz } from '@/lib/scale';
 import { useStore } from '@/lib/store';
-import { alpha, readableOn } from '@/lib/themes';
+import { alpha } from '@/lib/themes';
 
 export function IncomingCall() {
-  const theme = useTheme();
   const insets = useSafeAreaInsets();
   const account = useStore((s) => s.account);
   const on = useStore((s) => (s.prefs.unlocks ?? []).includes('messages'));
@@ -27,6 +28,7 @@ export function IncomingCall() {
   useEffect(() => {
     if (!account || !on) return;
     let dead = false;
+    let tick = 0;
     const check = async () => {
       if (isInCall() || AppState.currentState !== 'active') return;
       const t = await getToken();
@@ -35,6 +37,8 @@ export function IncomingCall() {
         const c = await api.incomingCall(t);
         if (!dead) setCall(c);
       } catch {}
+      // Inbox every ~20 s.
+      if (tick++ % 5 === 0) void checkInbox().catch(() => {});
     };
     void check();
     const id = setInterval(() => void check(), 4000);
@@ -62,24 +66,25 @@ export function IncomingCall() {
     if (t) void api.callAction(t, c.id, 'decline').catch(() => {});
   };
 
+  const pill = (bg: string, label: string, d: string, fn: () => void) => (
+    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={fn} hitSlop={6} style={{ width: sz(32), height: sz(32), borderRadius: sz(16), backgroundColor: bg, alignItems: 'center', justifyContent: 'center' }}>
+      <Svg width={15} height={15} viewBox="0 0 24 24" fill="#fff">
+        <Path d={d} />
+      </Svg>
+    </Pressable>
+  );
+  const phone = 'M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.25 11.4 11.4 0 0 0 3.6.57 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.45.57 3.6a1 1 0 0 1-.25 1z';
   return (
-    <Animated.View entering={FadeInUp.duration(200)} exiting={FadeOutUp.duration(160)} style={{ position: 'absolute', left: 12, right: 12, top: insets.top + 8, alignItems: 'center', zIndex: 1000 }}>
-      <View style={{ width: '100%', maxWidth: sz(520), flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12, borderRadius: sz(20), backgroundColor: '#1c1c1e', shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 18, shadowOffset: { width: 0, height: 8 } }}>
-        <View style={{ width: sz(44), height: sz(44), borderRadius: sz(22), backgroundColor: theme.accent, alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ ...TYPE.heavy, fontSize: sz(20), color: readableOn(theme.accent) }}>{call.peer.slice(0, 1).toUpperCase()}</Text>
-        </View>
+    <Animated.View entering={FadeInUp.duration(180)} exiting={FadeOutUp.duration(140)} style={{ position: 'absolute', left: 10, right: 10, top: insets.top + 6, alignItems: 'center', zIndex: 1000 }}>
+      <View style={{ width: '100%', maxWidth: sz(420), flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8, paddingLeft: 14, paddingRight: 8, borderRadius: sz(16), backgroundColor: 'rgba(30,30,32,0.96)', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 12, shadowOffset: { width: 0, height: 4 } }}>
         <View style={{ flex: 1 }}>
-          <Text style={{ ...TYPE.bold, fontSize: sz(16), color: '#ffffff' }} numberOfLines={1}>
-            {call.peer}
+          <Text style={{ ...TYPE.semibold, fontSize: sz(11), letterSpacing: 0.4, color: alpha('#ffffff', 0.55) }}>STUDENTO · NOW</Text>
+          <Text style={{ ...TYPE.semibold, fontSize: sz(14), color: '#ffffff' }} numberOfLines={1}>
+            {`${call.peer} is calling${call.video ? ' (video)' : ''}`}
           </Text>
-          <Text style={{ ...TYPE.regular, fontSize: sz(13), color: alpha('#ffffff', 0.6) }}>{call.video ? 'Beam video call' : 'Beam audio call'}</Text>
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel="Decline" onPress={() => void decline()} style={{ width: sz(44), height: sz(44), borderRadius: sz(22), backgroundColor: '#ff3b30', alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ ...TYPE.heavy, fontSize: sz(18), color: '#fff' }}>✕</Text>
-        </Pressable>
-        <Pressable accessibilityRole="button" accessibilityLabel="Accept" onPress={() => void answer()} style={{ width: sz(44), height: sz(44), borderRadius: sz(22), backgroundColor: '#34c759', alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ ...TYPE.heavy, fontSize: sz(18), color: '#fff' }}>✓</Text>
-        </Pressable>
+        {pill('#ff3b30', 'Decline', phone, () => void decline())}
+        {pill('#34c759', 'Answer', phone, () => void answer())}
       </View>
     </Animated.View>
   );

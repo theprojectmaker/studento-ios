@@ -61,6 +61,7 @@ export default function Account() {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
   const account = useStore((s) => s.account);
+  const hasBeam = useStore((s) => (s.prefs.unlocks ?? []).includes('messages'));
   const [mode, setMode] = useState<'in' | 'new'>('in');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -113,7 +114,7 @@ export default function Account() {
       }
     };
     if (Platform.OS === 'web') return void run();
-    Alert.alert('Delete your account?', 'Your username, saved schedule and any messages are removed from Studento for good. This device keeps its own copy of your schedule.', [
+    Alert.alert('Delete your account?', 'Your username and saved schedule are removed from Studento for good. This device keeps its own copy of your schedule.', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Delete', style: 'destructive', onPress: () => void run() },
     ]);
@@ -153,7 +154,7 @@ export default function Account() {
           />
         </Section>
         {msg ? <Note tone={msg.tone}>{msg.text}</Note> : null}
-        <Section title="Delete account" footer="Removes your username, everything saved to the account and any messages. This device keeps its own copy of your schedule.">
+        <Section title="Delete account" footer="Removes your username and everything saved to the account. This device keeps its own copy of your schedule.">
           <View style={{ padding: 12, gap: 10 }}>
             <Field value={delPassword} onChangeText={setDelPassword} placeholder="Your password" secureTextEntry autoCapitalize="none" accessibilityLabel="Password to delete the account" />
             <Button title="Delete my account" kind="danger" disabled={busy || delPassword.length < 8} onPress={confirmDelete} />
@@ -238,7 +239,7 @@ export default function Account() {
 
         <View style={{ gap: 10, padding: sz(16), borderRadius: sz(14), backgroundColor: theme.panel }}>
           <Text style={{ ...TYPE.semibold, fontSize: sz(13), color: theme.muted, letterSpacing: 0.3 }}>AN ACCOUNT GIVES YOU</Text>
-          {['Your classes, school and settings on every device', 'The schedule reader: snap a photo, get your classes', 'Beam (beta), if you have the code'].map((t) => (
+          {['Your classes, school and settings on every device', 'The schedule reader: snap a photo, get your classes', ...(hasBeam ? ['Beam: chats and calls'] : [])].map((t) => (
             <View key={t} style={{ flexDirection: 'row', gap: 10, alignItems: 'flex-start' }}>
               <View style={{ width: 6, height: 6, borderRadius: 3, backgroundColor: theme.accent, marginTop: sz(7) }} />
               <Text style={{ ...TYPE.regular, fontSize: sz(15), lineHeight: sz(20), color: theme.ink, flex: 1 }}>{t}</Text>

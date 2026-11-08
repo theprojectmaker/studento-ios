@@ -193,7 +193,7 @@ export default function Settings() {
           }}
         />
         <Divider />
-        <Row label="Redeem a code" sub="Schedule codes from friends, beta features" icon={{ name: 'ticket.fill', color: '#ff9500' }} onPress={() => router.push('/redeem')} />
+        <Row label="Redeem a code" sub="Schedule codes from friends and promo codes" icon={{ name: 'ticket.fill', color: '#ff9500' }} onPress={() => router.push('/redeem')} />
         <Divider />
         <Row label="Back up & restore" sub="Copy everything to another device, no account needed" icon={{ name: 'arrow.up.doc.fill', color: '#5856d6' }} onPress={() => router.push('/backup')} />
         <Divider />
