@@ -80,10 +80,29 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
     return () => clearInterval(id);
   }, [hasCountdown]);
 
+  const load = useCallback(async () => {
+    const t = await getToken();
+    if (!t || !username) return;
+    try {
+      const r = await api.getChat(t, username);
+      setRaw(r.messages);
+      setBlocked(r.blocked);
+      setErr(null);
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Couldn't load this chat.");
+    }
+  }, [username]);
+
   useFocusEffect(
     useCallback(() => {
       setRaw([]);
       if (!username) return;
+      void load();
+      const id = setInterval(() => void load(), 4000);
+      return () => clearInterval(id);
+    }, [username, load])
+  );
+  /* LIVE_REMOVED
       // Live listener: new messages appear as they arrive, without re-reading the whole chat.
       return api.watchChat(
         username,
@@ -95,7 +114,7 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
         (e) => setErr(e.message)
       );
     }, [username])
-  );
+  ); LIVE_REMOVED */
 
   const sendBody = async (body: string) => {
     const t = await getToken();
