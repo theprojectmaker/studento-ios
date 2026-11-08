@@ -18,6 +18,7 @@ import { Board, InkBoard } from '@/components/boards';
 import { MsReadout } from '@/components/millis';
 import { Editable } from '@/components/editable';
 import { LiveEffect } from '@/components/effects';
+import { RacewayBackdrop } from '@/components/raceway-bg';
 import { LockButton } from '@/components/lockmode';
 import { Blink, burnInOffset, FlashOverlay, NightDim, useThemeShuffle, useWarning } from '@/components/clock-extras';
 import { Glass, Icon } from '@/components/glass';
@@ -155,6 +156,7 @@ export default function ClockScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: theme.bg }} onTouchStart={wake}>
+      {theme.engine === 'race' ? <RacewayBackdrop theme={theme} progress={copy.remaining == null ? 0 : 1 - copy.remaining} motion={prefs.motion} /> : null}
       <LiveEffect theme={theme} motion={prefs.motion} />
       <NightDim hour={parts.hour} on={rawPrefs.night} />
       <FlashOverlay flash={flash} />
