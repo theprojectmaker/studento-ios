@@ -12,7 +12,7 @@ import { Image } from 'expo-image';
 import { useEffect } from 'react';
 import { StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, { Easing, useAnimatedStyle, useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
-import Svg, { Defs, LinearGradient, Path, Polyline, Rect, Stop } from 'react-native-svg';
+import Svg, { Defs, LinearGradient, Path, RadialGradient, Rect, Stop } from 'react-native-svg';
 
 import { TYPE } from '@/lib/fonts';
 import { sz } from '@/lib/scale';
@@ -27,7 +27,7 @@ const EDGE = '#0b0e0c'; // the image's own top/bottom edge tone
 /* Lane centre radius (image px) every 15 degrees, angle measured with y down, 0 = right. */
 const LANE_R = [696, 663, 567, 431, 361, 321, 305, 321, 361, 431, 568, 663, 697, 689, 591, 458, 379, 337, 320, 337, 379, 459, 584, 674];
 const LANE_W = 70;
-const LAP_SEC = 45;
+const LAP_SEC = 24; // 2.5 laps a minute
 const RIVAL_COLORS = ['#3b82f6', '#facc15', '#22c55e', '#f97316', '#a855f7', '#e5e7eb', '#06b6d4'];
 const SPIN_LAPS = 0.07; // how long a spin costs, in laps
 
@@ -42,10 +42,10 @@ function laneRadius(deg: number): number {
 }
 
 /* Point on the lane for lap fraction t (0 at the start line, top middle, clockwise on screen). */
-function lanePoint(t: number): { x: number; y: number } {
+function lanePoint(t: number, off = 0): { x: number; y: number } {
   'worklet';
   const deg = 270 + t * 360;
-  const r = laneRadius(deg);
+  const r = laneRadius(deg) + off;
   const rad = (deg * Math.PI) / 180;
   return { x: IMG_CX + r * Math.cos(rad), y: IMG_CY + r * Math.sin(rad) };
 }
@@ -73,6 +73,10 @@ interface Profile {
   /** When this car tangles with another and spins (race time, laps); -1 = never. */
   s1: number;
   s2: number;
+  /** Base line across the lane (image px off the centre) and how it wanders. */
+  line: number;
+  wander: number;
+  wf: number;
 }
 
 function profiles(seed: number, accent: string, laps: number): Profile[] {
@@ -101,6 +105,9 @@ function profiles(seed: number, accent: string, laps: number): Profile[] {
       p3: rnd(b + 10) * 6.28,
       s1: incident(pair, 0),
       s2: incident(pair, 1),
+      line: ((k - (colors.length - 1) / 2) / ((colors.length - 1) / 2)) * LANE_W * 0.3,
+      wander: 4 + rnd(b + 11) * 6,
+      wf: 0.5 + rnd(b + 12) * 1.5,
     };
   });
 }
@@ -173,13 +180,14 @@ interface Frame {
 }
 
 /** One car, placed from the shared race clock through its own profile; parked when the race is over. */
-function Car({ race, profile, parkAt, frame }: { race: SharedValue<number>; profile: Profile; parkAt: number | null; frame: Frame }) {
+function Car({ race, profile, parkAt, frame, leader }: { race: SharedValue<number>; profile: Profile; parkAt: number | null; frame: Frame; leader: boolean }) {
   const { scale, ox, oy, carW, carH } = frame;
   const style = useAnimatedStyle(() => {
     const l = race.value;
     const t = parkAt != null ? parkAt : position(profile, l);
-    const p = lanePoint(t);
-    const q = lanePoint(t + 0.004);
+    const off = (parkAt != null ? profile.line : profile.line + profile.wander * Math.sin(l * profile.wf * 6.28)) * scale;
+    const p = lanePoint(t, off / scale);
+    const q = lanePoint(t + 0.004, off / scale);
     const sp = parkAt != null ? -1 : spinning(profile, l);
     // A spin: two full turns, drifting a little toward the outside of the lane.
     const spin = sp >= 0 ? 720 * sp * (1 - sp * 0.3) : 0;
@@ -187,8 +195,21 @@ function Car({ race, profile, parkAt, frame }: { race: SharedValue<number>; prof
     const heading = (Math.atan2(q.y - p.y, q.x - p.x) * 180) / Math.PI + spin;
     return { transform: [{ translateX: ox + p.x * scale - carW / 2 }, { translateY: oy + p.y * scale - carH / 2 + drift }, { rotate: `${heading}deg` }] };
   });
+  const halo = carW * 1.5;
   return (
     <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: carW, height: carH }, style]}>
+      {leader ? (
+        <Svg width={halo} height={halo} style={{ position: 'absolute', left: carW / 2 - halo / 2, top: carH / 2 - halo / 2 }}>
+          <Defs>
+            <RadialGradient id="halo" cx="50%" cy="50%" r="50%">
+              <Stop offset="0" stopColor={profile.color} stopOpacity={0.55} />
+              <Stop offset="0.6" stopColor={profile.color} stopOpacity={0.18} />
+              <Stop offset="1" stopColor={profile.color} stopOpacity={0} />
+            </RadialGradient>
+          </Defs>
+          <Rect x={0} y={0} width={halo} height={halo} fill="url(#halo)" />
+        </Svg>
+      ) : null}
       <RaceCar color={profile.color} width={carW} />
     </Animated.View>
   );
@@ -222,14 +243,12 @@ export function RacewayBackdrop({ theme, elapsedSec, totalSec, seed, motion }: {
   const carW = Math.max(26, LANE_W * 0.78 * scale);
   const frame: Frame = { scale, ox, oy, carW, carH: (carW * 20) / 58 };
 
-  // Driven part of the leader's current lap.
-  const leadPos = racing ? Math.max(0, order[0].pos) % 1 : 0;
-  const steps = Math.max(2, Math.round(leadPos * 360));
-  const pts: string[] = [];
-  for (let i = 0; i <= steps; i++) {
-    const p = lanePoint((i / steps) * leadPos);
-    pts.push(`${(ox + p.x * scale).toFixed(1)},${(oy + p.y * scale).toFixed(1)}`);
-  }
+  // Start / finish: a checkered strip across the lane at the top of the oval.
+  const sfX = ox + IMG_CX * scale;
+  const sfY = oy + (IMG_CY - laneRadius(270)) * scale;
+  const sq = Math.max(4, (LANE_W / 7) * scale);
+  const checks: { x: number; y: number; dark: boolean }[] = [];
+  for (let r = -3; r < 4; r++) for (let c = 0; c < 2; c++) checks.push({ x: sfX - sq + c * sq, y: sfY + r * sq, dark: (r + c) % 2 === 0 });
 
   const bar = Math.max(oy, 0) + 36;
   return (
@@ -249,10 +268,12 @@ export function RacewayBackdrop({ theme, elapsedSec, totalSec, seed, motion }: {
         </Defs>
         <Rect x={0} y={0} width={W} height={bar} fill="url(#top)" />
         <Rect x={0} y={H - bar} width={W} height={bar} fill="url(#bot)" />
-        {leadPos > 0.003 ? <Polyline points={pts.join(' ')} fill="none" stroke={alpha(order[0] ? cars[order[0].k].color : theme.accent, 0.45)} strokeWidth={LANE_W * 0.45 * scale} strokeLinecap="round" strokeLinejoin="round" /> : null}
+        {checks.map((c, i) => (
+          <Rect key={i} x={c.x} y={c.y} width={sq} height={sq} fill={c.dark ? '#111111' : '#f2f2f2'} opacity={0.9} />
+        ))}
       </Svg>
       {cars.map((p, k) => (
-        <Car key={p.color} race={race} profile={p} parkAt={parkSpots.has(k) ? (parkSpots.get(k) as number) : null} frame={frame} />
+        <Car key={p.color} race={race} profile={p} parkAt={parkSpots.has(k) ? (parkSpots.get(k) as number) : null} frame={frame} leader={racing && order[0]?.k === k} />
       ))}
       {/* lap + running order */}
       <View style={{ position: 'absolute', left: ox + (IMG_CX - 520) * scale, top: oy + (IMG_CY - 305 + LANE_W * 0.55) * scale + 6, alignItems: 'flex-start' }}>
