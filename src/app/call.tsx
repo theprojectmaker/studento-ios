@@ -5,8 +5,9 @@ import { View } from 'react-native';
 
 import { CallFrame } from '@/components/call-frame';
 import { getToken } from '@/lib/account';
-import { API_BASE } from '@/lib/api';
+import { API_BASE, callAction } from '@/lib/api';
 import { setInCall } from '@/lib/calls';
+import { useCapturing } from '@/lib/capture';
 import { useTheme } from '@/lib/hooks';
 
 export default function Call() {
@@ -30,5 +31,12 @@ export default function Call() {
     else router.replace('/');
   }, []);
 
-  return <View style={{ flex: 1, backgroundColor: '#000' }}>{url ? <CallFrame url={url} params={params} onClose={close} /> : null}</View>;
+  // Screen sharing started: hang up for both people; the capture shield takes over the screen.
+  const captured = useCapturing();
+  useEffect(() => {
+    if (!captured || !id) return;
+    void getToken().then((t) => t && callAction(t, Number(id), 'end').catch(() => {}));
+  }, [captured, id]);
+
+  return <View style={{ flex: 1, backgroundColor: '#000' }}>{url && !captured ? <CallFrame url={url} params={params} onClose={close} /> : null}</View>;
 }

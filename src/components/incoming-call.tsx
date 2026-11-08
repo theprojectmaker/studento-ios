@@ -14,6 +14,7 @@ import Svg, { Path } from 'react-native-svg';
 import { getToken } from '@/lib/account';
 import * as api from '@/lib/api';
 import { isInCall } from '@/lib/calls';
+import { isCapturing, useCapturing } from '@/lib/capture';
 import { TYPE } from '@/lib/fonts';
 import { fbDb, currentUser } from '@/lib/fb';
 import { notifyUnread } from '@/lib/inbox';
@@ -26,6 +27,8 @@ export function IncomingCall() {
   const account = useStore((s) => s.account);
   const on = useStore((s) => (s.prefs.unlocks ?? []).includes('messages'));
   const [call, setCall] = useState<{ id: number; video: boolean; peer: string } | null>(null);
+  // While the screen is shared nothing rings and no message alerts fire (capture-shield.tsx).
+  const captured = useCapturing();
 
   useEffect(() => {
     if (!account || !on) return;
@@ -46,7 +49,7 @@ export function IncomingCall() {
               .filter((x) => Date.now() - x.d.createdAt < 40_000)
               .sort((x, y) => y.d.createdAt - x.d.createdAt)[0];
             clearTimeout(expire);
-            if (!c || isInCall()) return setCall(null);
+            if (!c || isInCall() || isCapturing()) return setCall(null);
             setCall({ id: c.id, video: c.d.video, peer: c.d.fromName });
             expire = setTimeout(() => setCall(null), Math.max(0, 40_000 - (Date.now() - c.d.createdAt)));
           },
@@ -58,7 +61,7 @@ export function IncomingCall() {
           query(collection(db, 'chats'), where('members', 'array-contains', u.uid)),
           (snap) => {
             const total = snap.docs.reduce((n, d) => n + Number((d.data().unread as Record<string, number> | undefined)?.[u.uid] ?? 0), 0);
-            void notifyUnread(total).catch(() => {});
+            if (!isCapturing()) void notifyUnread(total).catch(() => {});
           },
           () => {}
         )
@@ -71,7 +74,7 @@ export function IncomingCall() {
     };
   }, [account, on]);
 
-  if (!call) return null;
+  if (!call || captured) return null;
   const answer = async () => {
     const c = call;
     setCall(null);
