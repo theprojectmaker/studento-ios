@@ -57,21 +57,39 @@ function trackPath(w: number, h: number, r: number): string {
   return [`M ${w / 2} 0`, `H ${w - r}`, `A ${r} ${r} 0 0 1 ${w} ${r}`, `V ${h - r}`, `A ${r} ${r} 0 0 1 ${w - r} ${h}`, `H ${r}`, `A ${r} ${r} 0 0 1 0 ${h - r}`, `V ${r}`, `A ${r} ${r} 0 0 1 ${r} 0`, 'Z'].join(' ');
 }
 
-/* Top-down F1 car, 16 x 9 pixels, nose to the right. C body, W wings, T tyres, H helmet, X cockpit. */
-const CAR = ['...TT.......TT..', '...TT.......TT..', 'WW..CCCCCCCC..WW', 'WWCCCCCXXCCCCCWW', 'WWCCCCCHHCCCCCCC', 'WWCCCCCXXCCCCCWW', 'WW..CCCCCCCC..WW', '...TT.......TT..', '...TT.......TT..'];
+/* Top-down F1 car, 24 x 9 pixels, nose to the right. C body, S stripe, W wings, T tyres, H helmet, X cockpit, N nose. */
+const CAR = [
+  '....TTTT...........TTTT.',
+  '....TTTT...........TTTT.',
+  'WWW.TTTTCCCCCCCCCCCTTTT.',
+  'WWWCCCCCCCCCXXCCCCCCCCWW',
+  'WWWCSSSSSSSSHHSSSSSSCCCN',
+  'WWWCCCCCCCCCXXCCCCCCCCWW',
+  'WWW.TTTTCCCCCCCCCCCTTTT.',
+  '....TTTT...........TTTT.',
+  '....TTTT...........TTTT.',
+];
+const CAR_W = 24;
+const CAR_H = 9;
 
 function PixelCar({ accent, width }: { accent: string; width: number }) {
   const cells: { x: number; y: number; c: string }[] = [];
-  const body = accent;
-  const dark = mix(accent, '#000000', 0.45);
+  const colors: Record<string, string> = {
+    C: accent,
+    S: mix(accent, '#ffffff', 0.35),
+    N: mix(accent, '#000000', 0.25),
+    W: '#1f2024',
+    T: '#141518',
+    H: '#f6f6f6',
+    X: '#26272c',
+  };
   CAR.forEach((row, y) =>
     [...row].forEach((ch, x) => {
-      if (ch === '.') return;
-      cells.push({ x, y, c: ch === 'C' ? body : ch === 'W' ? dark : ch === 'T' ? '#15161a' : ch === 'H' ? '#f4f4f4' : '#2a2b30' });
+      if (ch !== '.') cells.push({ x, y, c: colors[ch] });
     })
   );
   return (
-    <Svg width={width} height={(width * 9) / 16} viewBox="0 0 16 9">
+    <Svg width={width} height={(width * CAR_H) / CAR_W} viewBox="0 0 24 9">
       {cells.map((c, i) => (
         <Rect key={i} x={c.x} y={c.y} width={1} height={1} fill={c.c} />
       ))}
@@ -84,8 +102,8 @@ export function RaceBoard({ text, theme, width, maxSize, motion, remaining }: Bo
   const h = w * 0.44;
   const lane = Math.max(10, w * 0.055);
   const r = h * 0.42;
-  const carW = lane * 3.4;
-  const carH = (carW * 9) / 16;
+  const carW = lane * 4.2;
+  const carH = (carW * CAR_H) / CAR_W;
 
   const target = remaining == null ? 0 : Math.min(1, Math.max(0, 1 - remaining));
   const prog = useSharedValue(target);
