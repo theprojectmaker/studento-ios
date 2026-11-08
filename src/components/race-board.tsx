@@ -57,42 +57,36 @@ function trackPath(w: number, h: number, r: number): string {
   return [`M ${w / 2} 0`, `H ${w - r}`, `A ${r} ${r} 0 0 1 ${w} ${r}`, `V ${h - r}`, `A ${r} ${r} 0 0 1 ${w - r} ${h}`, `H ${r}`, `A ${r} ${r} 0 0 1 0 ${h - r}`, `V ${r}`, `A ${r} ${r} 0 0 1 ${r} 0`, 'Z'].join(' ');
 }
 
-/* Top-down F1 car, 24 x 9 pixels, nose to the right. C body, S stripe, W wings, T tyres, H helmet, X cockpit, N nose. */
-const CAR = [
-  '....TTTT...........TTTT.',
-  '....TTTT...........TTTT.',
-  'WWW.TTTTCCCCCCCCCCCTTTT.',
-  'WWWCCCCCCCCCXXCCCCCCCCWW',
-  'WWWCSSSSSSSSHHSSSSSSCCCN',
-  'WWWCCCCCCCCCXXCCCCCCCCWW',
-  'WWW.TTTTCCCCCCCCCCCTTTT.',
-  '....TTTT...........TTTT.',
-  '....TTTT...........TTTT.',
-];
-const CAR_W = 24;
-const CAR_H = 9;
+/* Top-down F1 car as crisp vector shapes, nose to the right. 48 x 20 box. */
+const CAR_W = 48;
+const CAR_H = 20;
 
-function PixelCar({ accent, width }: { accent: string; width: number }) {
-  const cells: { x: number; y: number; c: string }[] = [];
-  const colors: Record<string, string> = {
-    C: accent,
-    S: mix(accent, '#ffffff', 0.35),
-    N: mix(accent, '#000000', 0.25),
-    W: '#1f2024',
-    T: '#141518',
-    H: '#f6f6f6',
-    X: '#26272c',
-  };
-  CAR.forEach((row, y) =>
-    [...row].forEach((ch, x) => {
-      if (ch !== '.') cells.push({ x, y, c: colors[ch] });
-    })
-  );
+function RaceCar({ accent, width }: { accent: string; width: number }) {
+  const dark = '#1c1d21';
+  const tyre = '#121316';
+  const body = accent;
+  const pod = mix(accent, '#000000', 0.22);
+  const stripe = mix(accent, '#ffffff', 0.55);
   return (
-    <Svg width={width} height={(width * CAR_H) / CAR_W} viewBox="0 0 24 9">
-      {cells.map((c, i) => (
-        <Rect key={i} x={c.x} y={c.y} width={1} height={1} fill={c.c} />
-      ))}
+    <Svg width={width} height={(width * CAR_H) / CAR_W} viewBox="0 0 48 20">
+      {/* rear wing */}
+      <Rect x={1} y={2.5} width={4.5} height={15} rx={1.2} fill={dark} />
+      {/* tyres */}
+      <Rect x={7} y={0.5} width={9} height={5} rx={1.6} fill={tyre} />
+      <Rect x={7} y={14.5} width={9} height={5} rx={1.6} fill={tyre} />
+      <Rect x={33} y={1.5} width={7.5} height={4.4} rx={1.4} fill={tyre} />
+      <Rect x={33} y={14.1} width={7.5} height={4.4} rx={1.4} fill={tyre} />
+      {/* body: engine cover to nose */}
+      <Path d="M5.5 6.2 H25 L29.5 4.6 H35.5 L46.5 9.1 V10.9 L35.5 15.4 H29.5 L25 13.8 H5.5 Z" fill={body} />
+      {/* sidepods */}
+      <Rect x={13} y={4.2} width={13} height={11.6} rx={3.2} fill={pod} />
+      {/* centre stripe */}
+      <Rect x={8} y={9.35} width={32} height={1.3} rx={0.6} fill={stripe} opacity={0.9} />
+      {/* cockpit + helmet */}
+      <Path d="M20.5 10 a4.2 2.7 0 1 0 8.4 0 a4.2 2.7 0 1 0 -8.4 0 Z" fill="#202126" />
+      <Path d="M22.9 10 a1.9 1.9 0 1 0 3.8 0 a1.9 1.9 0 1 0 -3.8 0 Z" fill="#f5f5f5" />
+      {/* front wing */}
+      <Rect x={40.5} y={3.2} width={2.6} height={13.6} rx={0.9} fill={dark} />
     </Svg>
   );
 }
@@ -102,7 +96,7 @@ export function RaceBoard({ text, theme, width, maxSize, motion, remaining }: Bo
   const h = w * 0.44;
   const lane = Math.max(10, w * 0.055);
   const r = h * 0.42;
-  const carW = lane * 4.2;
+  const carW = lane * 4.8;
   const carH = (carW * CAR_H) / CAR_W;
 
   const target = remaining == null ? 0 : Math.min(1, Math.max(0, 1 - remaining));
@@ -147,7 +141,7 @@ export function RaceBoard({ text, theme, width, maxSize, motion, remaining }: Bo
         )}
       </Svg>
       <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: carW, height: carH }, carStyle]}>
-        <PixelCar accent={theme.accent} width={carW} />
+        <RaceCar accent={theme.accent} width={carW} />
       </Animated.View>
       <View style={[StyleSheet.absoluteFill, { alignItems: 'center', justifyContent: 'center' }]}>
         <Text allowFontScaling={false} style={{ ...TYPE.heavy, fontSize: digits, lineHeight: digits * 1.1, letterSpacing: -digits * 0.03, color: theme.ink, fontVariant: ['tabular-nums'] }}>
