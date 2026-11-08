@@ -5,14 +5,20 @@ import { useEffect, useMemo, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { BeamLockScreen } from '@/components/beam-lock-screen';
 import { BeamAvatar, Glyph, useBeam } from '@/components/beam-ui';
 import { tap } from '@/components/ui';
 import { playMove, resign, watchGame, type Game } from '@/lib/beam-extra';
+import { useBeamUnlocked } from '@/lib/beam-lock';
 
 const GLYPH: Record<string, string> = { k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟' };
 const FILES = 'abcdefgh';
 
 export default function ChessScreen() {
+  return useBeamUnlocked() ? <ChessGame /> : <BeamLockScreen />;
+}
+
+function ChessGame() {
   const c = useBeam();
   const insets = useSafeAreaInsets();
   const { width, height } = useWindowDimensions();

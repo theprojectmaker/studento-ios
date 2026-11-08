@@ -11,7 +11,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BeamChat } from '@/components/beam-chat';
 import { requestAccess, watchMyAccess, type AccessStatus } from '@/lib/beam-extra';
+import { lockBeam, useBeamUnlocked } from '@/lib/beam-lock';
 import { useBeamFlags, useBeamVisible } from '@/lib/beam-on';
+import { BeamLockScreen } from '@/components/beam-lock-screen';
 import { BeamSettingsPane } from '@/components/beam-settings-pane';
 import { BeamAvatar, Glyph, useBeam, type BeamPalette } from '@/components/beam-ui';
 import { getToken } from '@/lib/account';
@@ -46,6 +48,9 @@ export default function Beam() {
   const wide = width >= 760;
   const account = useStore((s) => s.account);
   const admin = !!account?.user.admin;
+  const unlockedBeam = useBeamUnlocked();
+  // Leaving Beam locks it again.
+  useEffect(() => () => lockBeam(), []);
   const visible = useBeamVisible();
   const { waitlist } = useBeamFlags();
   const [access, setAccess] = useState<AccessStatus | null>(null);
@@ -394,6 +399,8 @@ export default function Beam() {
       </View>
     );
   }
+
+  if (!unlockedBeam) return <BeamLockScreen />;
 
   return (
     <View style={{ flex: 1, flexDirection: 'row', backgroundColor: c.sidebar }}>
