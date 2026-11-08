@@ -1,14 +1,10 @@
 /**
  * Photos and videos for Beam. Photos are shrunk (long side 1000 px, JPEG ~0.55) and travel
- * inside the message itself as a data URI, so they work on any backend. Videos are too big for
- * that and go to Firebase Storage (beam/<uid>/...), which lives on googleapis.com.
+ * inside the message itself as a data URI, so they work on any backend. Videos are kept short and
+ * low quality so they travel inside the message too (no Storage bucket).
  */
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
-import { getApps } from 'firebase/app';
-import { getDownloadURL, getStorage, ref, uploadBytes } from 'firebase/storage';
-
-import { currentUser, fbDb } from './fb';
 
 async function shrink(a: ImagePicker.ImagePickerAsset): Promise<string> {
   const ctx = ImageManipulator.manipulate(a.uri);
@@ -40,22 +36,31 @@ export async function getPhotos(camera: boolean): Promise<string[]> {
   return out;
 }
 
-/** Pick or record a video (60 s max) and upload it. Returns its link and length. */
+/** Biggest video that fits in one message: base64 makes it 4/3 bigger, and a message holds 900 KB. */
+const MAX_VIDEO_BYTES = 640 * 1024;
+
+function toDataUri(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(String(r.result));
+    r.onerror = () => reject(new Error("Couldn't read that video."));
+    r.readAsDataURL(blob);
+  });
+}
+
+/**
+ * Pick or record a short, low-quality video and return it as a data URI that travels inside the
+ * message itself (no Storage bucket). Long clips don't fit, so recording stops at 15 seconds.
+ */
 export async function getVideo(camera: boolean, onStage?: (s: string) => void): Promise<{ url: string; seconds: number } | null> {
   const perm = camera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!perm.granted) throw new Error(camera ? 'Camera access is off. Turn it on in Settings.' : 'Photo access is off. Turn it on in Settings.');
-  const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['videos'], videoMaxDuration: 60, videoQuality: ImagePicker.UIImagePickerControllerQualityType.Medium };
+  const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['videos'], videoMaxDuration: 15, videoQuality: ImagePicker.UIImagePickerControllerQualityType.Low, allowsEditing: true };
   const res = camera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
   if (res.canceled || !res.assets?.[0]) return null;
   const a = res.assets[0];
-  if ((a.fileSize ?? 0) > 60 * 1024 * 1024) throw new Error('That video is too big. Pick one under a minute.');
-  onStage?.('Uploading video…');
-  fbDb();
-  const u = await currentUser();
-  if (!u) throw new Error('Sign in first.');
+  onStage?.('Getting video ready…');
   const blob = await (await fetch(a.uri)).blob();
-  const path = `beam/${u.uid}/${Date.now()}.mp4`;
-  const r = ref(getStorage(getApps()[0]), path);
-  await uploadBytes(r, blob, { contentType: a.mimeType || 'video/mp4' });
-  return { url: await getDownloadURL(r), seconds: Math.round((a.duration ?? 0) / 1000) };
+  if (blob.size > MAX_VIDEO_BYTES) throw new Error('That video is too long to send. Trim it to a few seconds.');
+  return { url: await toDataUri(blob), seconds: Math.round((a.duration ?? 0) / 1000) };
 }

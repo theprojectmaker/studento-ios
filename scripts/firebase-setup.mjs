@@ -1,11 +1,10 @@
 /**
  * One-shot Firebase setup + move from the old Cloudflare D1 database (studento-clock).
  *
- *   node scripts/firebase-setup.mjs <service-account.json> [--rules] [--storage] [--indexes] [--auth] [--migrate] [--dry]
+ *   node scripts/firebase-setup.mjs <service-account.json> [--rules] [--indexes] [--auth] [--migrate] [--dry]
  *
  * --auth     turn on email/password sign-in (usernames sign in as <name>@users.studento.app)
  * --rules    publish firestore.rules
- * --storage  publish storage.rules (Beam videos; turn Storage on in the console first)
  * --indexes  create the composite indexes the app's queries need
  * --migrate  copy D1 -> Firebase: accounts (same passwords: PBKDF2 hashes imported as-is),
  *            saved data, schools, bell schedules, reports, share codes, chats, blocks, flags.
@@ -85,18 +84,6 @@ if (has('--rules')) {
   console.log('rules: published', rs.name);
 }
 
-/* ---------- storage rules (Beam videos); Storage must be turned on in the console first ---------- */
-if (has('--storage')) {
-  const content = readFileSync(join(root, 'storage.rules'), 'utf8');
-  const rs = await g('POST', `https://firebaserules.googleapis.com/v1/projects/${P}/rulesets`, { source: { files: [{ name: 'storage.rules', content }] } });
-  const name = `projects/${P}/releases/firebase.storage/${P}.firebasestorage.app`;
-  try {
-    await g('PATCH', `https://firebaserules.googleapis.com/v1/${name}`, { release: { name, rulesetName: rs.name } });
-  } catch {
-    await g('POST', `https://firebaserules.googleapis.com/v1/projects/${P}/releases`, { name, rulesetName: rs.name });
-  }
-  console.log('storage rules: published', rs.name);
-}
 
 /* ---------- indexes ---------- */
 if (has('--indexes')) {
