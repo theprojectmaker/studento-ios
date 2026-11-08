@@ -152,6 +152,9 @@ export default function RootLayout() {
         <Stack.Screen name="schedules" options={{ title: 'Schedules' }} />
         <Stack.Screen name="schedule-edit" options={{ title: 'Custom Day' }} />
         <Stack.Screen name="backup" options={{ title: 'Back Up & Restore' }} />
+        <Stack.Screen name="redeem" options={{ title: 'Redeem' }} />
+        <Stack.Screen name="messages" options={{ title: 'Messages' }} />
+        <Stack.Screen name="chat" options={{ title: '', headerLargeTitle: false }} />
       </Stack>
     </GestureHandlerRootView>
   );

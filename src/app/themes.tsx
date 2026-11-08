@@ -8,8 +8,8 @@ import { Screen, tap } from '@/components/ui';
 import { TYPE } from '@/lib/fonts';
 import { fontStyle } from '@/lib/typefaces';
 import { useTheme } from '@/lib/hooks';
-import { setPref } from '@/lib/store';
-import { alpha, GROUPS, THEMES, type Effect, type Theme } from '@/lib/themes';
+import { setPref , useStore } from '@/lib/store';
+import { alpha, pickerThemes, type Effect, type Theme } from '@/lib/themes';
 import { sz } from '@/lib/scale';
 
 const EFFECT_LABEL: Record<Effect, string> = {
@@ -29,6 +29,9 @@ const EFFECT_LABEL: Record<Effect, string> = {
 
 export default function Themes() {
   const current = useTheme();
+  const unlocks = useStore((s) => s.prefs.unlocks);
+  const THEMES = pickerThemes(unlocks ?? []);
+  const GROUPS = [...new Set(THEMES.map((t) => t.group))];
   const { width } = useWindowDimensions();
   const cols = width > 700 ? 3 : 2;
   const cardW = (Math.min(width, 680) - 32 - (cols - 1) * 12) / cols;
@@ -38,7 +41,7 @@ export default function Themes() {
     if (shown >= GROUPS.length) return;
     const t = setTimeout(() => setShown((n) => n + 2), 120);
     return () => clearTimeout(t);
-  }, [shown]);
+  }, [shown, GROUPS.length]);
   return (
     <Screen>
       <Text style={{ ...TYPE.regular, fontSize: sz(15), color: current.muted, paddingHorizontal: 4 }}>

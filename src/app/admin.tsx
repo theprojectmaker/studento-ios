@@ -79,10 +79,10 @@ export default function Admin() {
           <View key={r.id}>
             {i ? <Divider /> : null}
             <View style={{ padding: 14, gap: 8 }}>
-              <Row label={`${r.kind === 'school' ? 'School' : 'Schedule'}: ${r.targetName}`} sub={`${r.reason}${r.note ? ` · ${r.note}` : ''} · ${new Date(r.createdAt).toLocaleDateString()}${r.status === 'dismissed' ? ' · dismissed' : ''}`} />
+              <Row label={`${r.kind === 'school' ? 'School' : r.kind === 'message' ? 'Message' : 'Schedule'}: ${r.targetName}`} sub={`${r.reason}${r.note ? ` · ${r.note}` : ''} · ${new Date(r.createdAt).toLocaleDateString()}${r.status === 'dismissed' ? ' · dismissed' : ''}`} />
               <View style={{ flexDirection: 'row', gap: 8 }}>
                 <View style={{ flex: 1 }}>
-                  <Button title={r.kind === 'school' ? 'Delete school' : 'Delete schedule'} kind="danger" onPress={() => confirm(`Delete “${r.targetName}”?`, 'This removes the flagged item for everyone and closes the report.', () => void run('Removed.', async (t) => { if (r.kind === 'school') await api.deleteSchool(t, r.targetId); else await api.deleteSchedule(t, r.targetId); await api.deleteReport(t, r.id); }))} />
+                  <Button title={r.kind === 'school' ? 'Delete school' : r.kind === 'message' ? 'Delete message' : 'Delete schedule'} kind="danger" onPress={() => confirm(`Delete “${r.targetName}”?`, 'This removes the flagged item for everyone and closes the report.', () => void run('Removed.', async (t) => { if (r.kind === 'school') await api.deleteSchool(t, r.targetId); else if (r.kind === 'message') await api.deleteMessage(t, r.targetId); else await api.deleteSchedule(t, r.targetId); await api.deleteReport(t, r.id); }))} />
                 </View>
                 <View style={{ flex: 1 }}>
                   <Button title={r.status === 'dismissed' ? 'Clear' : 'Dismiss'} kind="plain" onPress={() => void run('Report cleared.', (t) => (r.status === 'dismissed' ? api.deleteReport(t, r.id) : api.dismissReport(t, r.id)))} />
@@ -101,6 +101,8 @@ export default function Admin() {
             <ToggleRow label="Sharing schools and schedules" value={cfg.sharing} onChange={(v) => void run(`Sharing ${v ? 'on' : 'off'}`, (t) => api.setConfig(t, { sharing: v }))} />
             <Divider />
             <ToggleRow label="Schedule reader (AI)" value={cfg.ai} onChange={(v) => void run(`Reader ${v ? 'on' : 'off'}`, (t) => api.setConfig(t, { ai: v }))} />
+            <Divider />
+            <ToggleRow label="Messages (beta)" value={cfg.messaging} onChange={(v) => void run(`Messages ${v ? 'on' : 'off'}`, (t) => api.setConfig(t, { messaging: v }))} />
           </>
         ) : (
           <Note>Loading…</Note>

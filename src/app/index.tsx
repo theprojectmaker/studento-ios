@@ -271,6 +271,11 @@ export default function ClockScreen() {
           <Corner theme={theme} glass={glassy} label="Hub: today and tools" style={{ bottom: insets.bottom + 12, left: insets.left + 14 }} onPress={() => router.push('/hub')}>
             <Icon name="square.grid.2x2" color={theme.ink} size={18} fallback={<GridGlyph color={theme.ink} />} />
           </Corner>
+          {(rawPrefs.unlocks ?? []).includes('messages') ? (
+            <Corner theme={theme} glass={glassy} label="Messages" style={{ bottom: insets.bottom + 12, right: insets.right + 14 }} onPress={() => router.push('/messages')}>
+              <Icon name="bubble.left.and.bubble.right" color={theme.ink} size={17} fallback={<ChatGlyph color={theme.ink} />} />
+            </Corner>
+          ) : null}
         </Animated.View>
       )}
     </View>
@@ -643,6 +648,16 @@ function Title({ v, size, weight = 'heavy' }: { v: V; size: number; weight?: 'he
         </Text>
       </Animated.View>
     </Pressable>
+  );
+}
+
+/** Messages: two speech bubbles, same stroke as the other corner glyphs. */
+function ChatGlyph({ color }: { color: string }) {
+  return (
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+      <Path d="M4 5.5h11a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2H9l-3.5 3v-3H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2Z" />
+      <Path d="M19 9.5h1a2 2 0 0 1 2 2v4.5a2 2 0 0 1-2 2h-1v2.5L16 18h-3" />
+    </Svg>
   );
 }
 

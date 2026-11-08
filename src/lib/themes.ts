@@ -343,7 +343,7 @@ const CURATED = [
   // Gilded
   'gatsby', 'jade', 'bordeaux', 'ivory',
   // Fun / Quiet
-  'racetrack', 'racetrack-day', 'bubblegum', 'fog', 'linen',
+  'bubblegum', 'fog', 'linen',
   // Analog
   'watch', 'swiss', 'diver', 'bauhaus', 'sector', 'minimaldial',
   // LED / LCD / Tubes
@@ -355,6 +355,19 @@ const CURATED = [
 ];
 export const THEMES: Theme[] = CURATED.map((id) => ALL_THEMES.find((t) => t.id === id)).filter((t): t is Theme => !!t && (TABLET || t.engine !== 'race'));
 export const GROUPS: string[] = [...new Set(THEMES.map((t) => t.group))];
+
+/** Beta themes, shown only after their code is redeemed (and Race Track only on iPad). */
+const BETA: { id: string; unlock: string }[] = [
+  { id: 'racetrack', unlock: 'race' },
+  { id: 'racetrack-day', unlock: 'race' },
+];
+export function pickerThemes(unlocks: string[]): Theme[] {
+  const beta = BETA.filter((b) => unlocks.includes(b.unlock))
+    .map((b) => ALL_THEMES.find((t) => t.id === b.id))
+    .filter((t): t is Theme => !!t && (TABLET || t.engine !== 'race'))
+    .map((t) => ({ ...t, group: 'Beta' }));
+  return [...beta, ...THEMES];
+}
 export const DEFAULT_THEME = 'departure';
 
 /** Any id ever shipped still resolves; unknown ids fall back to Train Station. */

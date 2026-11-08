@@ -7,7 +7,10 @@
  *              PATCH|DELETE /api/schools/:id, PATCH|DELETE /api/schedules/:id   (admin or creator)
  *   AI reader  POST /api/ai-schedule  (signed in; image or text -> rows with confidence)
  *   reports    POST /api/reports (signed in), GET /api/reports, PATCH|DELETE /api/reports/:id (admin)
- * plus GET /api/config (kill switches: signup, sharing, ai; PATCH by admin) and GET /api/health.
+ *   share      POST /api/share (schedule -> 6-char code, 30 days), GET /api/share/:code
+ *   messages   (beta, signed in) GET /api/users?q=, GET /api/messages, GET /api/messages/:username,
+ *              POST /api/messages, POST /api/blocks, DELETE /api/messages/id/:id (admin)
+ * plus GET /api/config (kill switches: signup, sharing, ai, messaging; PATCH by admin) and GET /api/health.
  *
  * Passwords: PBKDF2-SHA256, 100k iterations (the Workers runtime maximum), 16-byte salt. Tokens: 32 random bytes, stored hashed.
  * The first account ever created is the owner: admin + their own classes seeded (see OWNER_*).
@@ -107,9 +110,34 @@ async function limit(env: Env, key: string, max: number, windowSec: number) {
 
 async function getConfig(env: Env): Promise<Record<string, boolean>> {
   const rows = await env.DB.prepare('SELECT key, value FROM config').all<{ key: string; value: string }>();
-  const out: Record<string, boolean> = { signup: true, sharing: true, ai: true };
+  const out: Record<string, boolean> = { signup: true, sharing: true, ai: true, messaging: true };
   for (const r of rows.results ?? []) out[r.key] = r.value === '1';
   return out;
+}
+
+/* Tables for share codes and beta messaging, created on first use (no manual migration). */
+let betaReady = false;
+async function ensureBeta(env: Env) {
+  if (betaReady) return;
+  await env.DB.batch([
+    env.DB.prepare('CREATE TABLE IF NOT EXISTS share_codes (code TEXT PRIMARY KEY, data TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL)'),
+    env.DB.prepare('CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY AUTOINCREMENT, from_id INTEGER NOT NULL, to_id INTEGER NOT NULL, body TEXT NOT NULL, created_at INTEGER NOT NULL, read_at INTEGER)'),
+    env.DB.prepare('CREATE INDEX IF NOT EXISTS messages_from ON messages(from_id, created_at)'),
+    env.DB.prepare('CREATE INDEX IF NOT EXISTS messages_to ON messages(to_id, created_at)'),
+    env.DB.prepare('CREATE TABLE IF NOT EXISTS blocks (user_id INTEGER NOT NULL, blocked_id INTEGER NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY (user_id, blocked_id))'),
+  ]);
+  betaReady = true;
+}
+const SHARE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no 0/O, 1/I
+const SHARE_DAYS = 30;
+function shareCode(): string {
+  const b = crypto.getRandomValues(new Uint8Array(6));
+  return [...b].map((x) => SHARE_ALPHABET[x % SHARE_ALPHABET.length]).join('');
+}
+async function requireMessaging(env: Env) {
+  const cfg = await getConfig(env);
+  if (!cfg.messaging) throw new HttpError(503, 'Messages are paused right now.');
+  await ensureBeta(env);
 }
 
 interface User {
@@ -417,7 +445,7 @@ export const onRequest = async (ctx: Ctx): Promise<Response> => {
       const u = await requireUser(env, req);
       if (!u.is_admin) throw new HttpError(403, 'Admins only.');
       const body = await readJson<Record<string, unknown>>(req);
-      for (const k of ['signup', 'sharing', 'ai']) if (typeof body[k] === 'boolean') await env.DB.prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)').bind(k, body[k] ? '1' : '0').run();
+      for (const k of ['signup', 'sharing', 'ai', 'messaging']) if (typeof body[k] === 'boolean') await env.DB.prepare('INSERT OR REPLACE INTO config (key, value) VALUES (?, ?)').bind(k, body[k] ? '1' : '0').run();
       return json({ ok: true, config: await getConfig(env) });
     }
 
@@ -474,7 +502,10 @@ export const onRequest = async (ctx: Ctx): Promise<Response> => {
       const { password } = await readJson<{ password?: string }>(req);
       const row = await env.DB.prepare('SELECT salt, hash FROM users WHERE id = ?').bind(u.id).first<{ salt: string; hash: string }>();
       if (!row || !sameHex(await pbkdf2(String(password ?? ''), row.salt), row.hash)) throw new HttpError(401, 'Wrong password.');
+      await ensureBeta(env);
       await env.DB.batch([
+        env.DB.prepare('DELETE FROM messages WHERE from_id = ? OR to_id = ?').bind(u.id, u.id),
+        env.DB.prepare('DELETE FROM blocks WHERE user_id = ? OR blocked_id = ?').bind(u.id, u.id),
         env.DB.prepare('DELETE FROM tokens WHERE user_id = ?').bind(u.id),
         env.DB.prepare('DELETE FROM user_data WHERE user_id = ?').bind(u.id),
         env.DB.prepare('UPDATE schools SET created_by = NULL WHERE created_by = ?').bind(u.id),
@@ -595,7 +626,7 @@ export const onRequest = async (ctx: Ctx): Promise<Response> => {
       const u = await requireUser(env, req);
       await limit(env, `user:${u.id}:report`, 20, 86400);
       const body = await readJson<{ kind?: string; targetId?: number; reason?: string; note?: string }>(req);
-      const kind = body.kind === 'school' ? 'school' : body.kind === 'schedule' ? 'schedule' : null;
+      const kind = body.kind === 'school' ? 'school' : body.kind === 'schedule' ? 'schedule' : body.kind === 'message' ? 'message' : null;
       const targetId = Number(body.targetId);
       const reason = String(body.reason ?? '')
         .trim()
@@ -604,8 +635,11 @@ export const onRequest = async (ctx: Ctx): Promise<Response> => {
         .trim()
         .slice(0, 500);
       if (!kind || !Number.isInteger(targetId) || !reason) throw new HttpError(400, 'Pick what to report and why.');
+      if (kind === 'message') await ensureBeta(env);
       const row =
-        kind === 'school'
+        kind === 'message'
+          ? await env.DB.prepare('SELECT u.username || \': "\' || substr(m.body, 1, 120) || \'"\' AS name FROM messages m JOIN users u ON u.id = m.from_id WHERE m.id = ? AND m.to_id = ?').bind(targetId, u.id).first<{ name: string }>()
+          : kind === 'school'
           ? await env.DB.prepare('SELECT name FROM schools WHERE id = ?').bind(targetId).first<{ name: string }>()
           : await env.DB.prepare('SELECT s.name || \' · \' || c.name AS name FROM schedules s JOIN schools c ON c.id = s.school_id WHERE s.id = ?').bind(targetId).first<{ name: string }>();
       if (!row) throw new HttpError(404, 'That item no longer exists.');
@@ -625,6 +659,119 @@ export const onRequest = async (ctx: Ctx): Promise<Response> => {
       const id = Number(m[1]);
       if (req.method === 'DELETE') await env.DB.prepare('DELETE FROM reports WHERE id = ?').bind(id).run();
       else await env.DB.prepare('UPDATE reports SET status = \'dismissed\' WHERE id = ?').bind(id).run();
+      return json({ ok: true });
+    }
+
+    /* schedule share codes */
+    if (path === '/api/share' && req.method === 'POST') {
+      await ensureBeta(env);
+      await limit(env, `ip:${ip}:share`, 30, 86400);
+      const text = await req.text();
+      if (text.length > MAX_DATA_BYTES) throw new HttpError(413, 'That schedule is too big to share.');
+      let parsed: { data?: unknown };
+      try {
+        parsed = JSON.parse(text);
+      } catch {
+        throw new HttpError(400, 'Bad JSON');
+      }
+      if (!parsed || typeof parsed.data !== 'object' || parsed.data === null) throw new HttpError(400, 'Nothing to share.');
+      const now = Date.now();
+      await env.DB.prepare('DELETE FROM share_codes WHERE expires_at < ?').bind(now).run();
+      const expires = now + SHARE_DAYS * 86400_000;
+      for (let tries = 0; tries < 5; tries++) {
+        const code = shareCode();
+        const r = await env.DB.prepare('INSERT OR IGNORE INTO share_codes (code, data, created_at, expires_at) VALUES (?, ?, ?, ?)').bind(code, JSON.stringify(parsed.data), now, expires).run();
+        if (r.meta.changes) return json({ ok: true, code, expiresAt: expires });
+      }
+      throw new HttpError(500, 'Could not make a code. Try again.');
+    }
+    m = path.match(/^\/api\/share\/([A-Za-z0-9]{6})$/);
+    if (m && req.method === 'GET') {
+      await ensureBeta(env);
+      await limit(env, `ip:${ip}:shareget`, 40, 3600);
+      const row = await env.DB.prepare('SELECT data, expires_at FROM share_codes WHERE code = ?').bind(m[1].toUpperCase()).first<{ data: string; expires_at: number }>();
+      if (!row || row.expires_at < Date.now()) throw new HttpError(404, 'That code did not work. Check it, or ask for a new one.');
+      return json({ ok: true, data: JSON.parse(row.data), expiresAt: row.expires_at });
+    }
+
+    /* messages (beta) */
+    if (path === '/api/users' && req.method === 'GET') {
+      const u = await requireUser(env, req);
+      await requireMessaging(env);
+      const q = (url.searchParams.get('q') || '').trim().toLowerCase().slice(0, 24);
+      if (q.length < 2) return json({ ok: true, users: [] });
+      const rows = await env.DB.prepare('SELECT id, username FROM users WHERE substr(username, 1, ?) = ? AND id != ? ORDER BY username LIMIT 10').bind(q.length, q, u.id).all<{ id: number; username: string }>();
+      return json({ ok: true, users: rows.results ?? [] });
+    }
+    if (path === '/api/messages' && req.method === 'GET') {
+      const u = await requireUser(env, req);
+      await requireMessaging(env);
+      const rows = await env.DB.prepare(
+        `SELECT t.other AS id, us.username AS username, t.last_at AS lastAt, t.unread AS unread,
+           (SELECT body FROM messages m WHERE (m.from_id = ?1 AND m.to_id = t.other) OR (m.from_id = t.other AND m.to_id = ?1) ORDER BY m.created_at DESC LIMIT 1) AS lastBody
+         FROM (SELECT CASE WHEN from_id = ?1 THEN to_id ELSE from_id END AS other, MAX(created_at) AS last_at,
+                 SUM(CASE WHEN to_id = ?1 AND read_at IS NULL THEN 1 ELSE 0 END) AS unread
+               FROM messages WHERE from_id = ?1 OR to_id = ?1 GROUP BY other) t
+         JOIN users us ON us.id = t.other
+         WHERE t.other NOT IN (SELECT blocked_id FROM blocks WHERE user_id = ?1)
+         ORDER BY t.last_at DESC LIMIT 50`
+      )
+        .bind(u.id)
+        .all();
+      return json({ ok: true, threads: rows.results ?? [] });
+    }
+    m = path.match(/^\/api\/messages\/([a-z0-9_.-]{3,24})$/);
+    if (m && req.method === 'GET') {
+      const u = await requireUser(env, req);
+      await requireMessaging(env);
+      const other = await env.DB.prepare('SELECT id, username FROM users WHERE username = ?').bind(m[1]).first<{ id: number; username: string }>();
+      if (!other) throw new HttpError(404, 'No one with that username.');
+      const rows = await env.DB.prepare('SELECT id, from_id, body, created_at FROM messages WHERE (from_id = ?1 AND to_id = ?2) OR (from_id = ?2 AND to_id = ?1) ORDER BY created_at DESC LIMIT 200').bind(u.id, other.id).all<{ id: number; from_id: number; body: string; created_at: number }>();
+      await env.DB.prepare('UPDATE messages SET read_at = ? WHERE to_id = ? AND from_id = ? AND read_at IS NULL').bind(Date.now(), u.id, other.id).run();
+      const blocked = !!(await env.DB.prepare('SELECT 1 FROM blocks WHERE user_id = ? AND blocked_id = ?').bind(u.id, other.id).first());
+      return json({
+        ok: true,
+        user: other,
+        blocked,
+        messages: (rows.results ?? []).reverse().map((r) => ({ id: r.id, mine: r.from_id === u.id, body: r.body, createdAt: r.created_at })),
+      });
+    }
+    if (path === '/api/messages' && req.method === 'POST') {
+      const u = await requireUser(env, req);
+      await requireMessaging(env);
+      await limit(env, `user:${u.id}:msg`, 40, 3600);
+      await limit(env, `user:${u.id}:msgday`, 300, 86400);
+      const body = await readJson<{ to?: string; body?: string }>(req, 8 * 1024);
+      const text = String(body.body ?? '')
+        .replace(/\s+\n/g, '\n')
+        .trim()
+        .slice(0, 500);
+      if (!text) throw new HttpError(400, 'Type a message first.');
+      const other = await env.DB.prepare('SELECT id, username FROM users WHERE username = ?').bind(String(body.to ?? '').toLowerCase()).first<{ id: number; username: string }>();
+      if (!other) throw new HttpError(404, 'No one with that username.');
+      if (other.id === u.id) throw new HttpError(400, "You can't message yourself.");
+      const block = await env.DB.prepare('SELECT 1 FROM blocks WHERE (user_id = ?1 AND blocked_id = ?2) OR (user_id = ?2 AND blocked_id = ?1)').bind(u.id, other.id).first();
+      if (block) throw new HttpError(403, "You can't message this person.");
+      const now = Date.now();
+      const r = await env.DB.prepare('INSERT INTO messages (from_id, to_id, body, created_at) VALUES (?, ?, ?, ?)').bind(u.id, other.id, text, now).run();
+      return json({ ok: true, message: { id: Number(r.meta.last_row_id), mine: true, body: text, createdAt: now } });
+    }
+    if (path === '/api/blocks' && req.method === 'POST') {
+      const u = await requireUser(env, req);
+      await ensureBeta(env);
+      const body = await readJson<{ username?: string; block?: boolean }>(req);
+      const other = await env.DB.prepare('SELECT id FROM users WHERE username = ?').bind(String(body.username ?? '').toLowerCase()).first<{ id: number }>();
+      if (!other) throw new HttpError(404, 'No one with that username.');
+      if (body.block === false) await env.DB.prepare('DELETE FROM blocks WHERE user_id = ? AND blocked_id = ?').bind(u.id, other.id).run();
+      else await env.DB.prepare('INSERT OR IGNORE INTO blocks (user_id, blocked_id, created_at) VALUES (?, ?, ?)').bind(u.id, other.id, Date.now()).run();
+      return json({ ok: true, blocked: body.block !== false });
+    }
+    m = path.match(/^\/api\/messages\/id\/(\d+)$/);
+    if (m && req.method === 'DELETE') {
+      const u = await requireUser(env, req);
+      if (!u.is_admin) throw new HttpError(403, 'Admins only.');
+      await ensureBeta(env);
+      await env.DB.prepare('DELETE FROM messages WHERE id = ?').bind(Number(m[1])).run();
       return json({ ok: true });
     }
 

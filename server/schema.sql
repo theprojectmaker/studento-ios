@@ -63,3 +63,11 @@ CREATE TABLE IF NOT EXISTS reports (
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS reports_status ON reports(status);
+
+-- Schedule share codes (6 chars, 30 days). Also created on first use by the API.
+CREATE TABLE IF NOT EXISTS share_codes (code TEXT PRIMARY KEY, data TEXT NOT NULL, created_at INTEGER NOT NULL, expires_at INTEGER NOT NULL);
+-- Beta messaging between signed-in users, plus blocks. Also created on first use by the API.
+CREATE TABLE IF NOT EXISTS messages (id INTEGER PRIMARY KEY AUTOINCREMENT, from_id INTEGER NOT NULL, to_id INTEGER NOT NULL, body TEXT NOT NULL, created_at INTEGER NOT NULL, read_at INTEGER);
+CREATE INDEX IF NOT EXISTS messages_from ON messages(from_id, created_at);
+CREATE INDEX IF NOT EXISTS messages_to ON messages(to_id, created_at);
+CREATE TABLE IF NOT EXISTS blocks (user_id INTEGER NOT NULL, blocked_id INTEGER NOT NULL, created_at INTEGER NOT NULL, PRIMARY KEY (user_id, blocked_id));

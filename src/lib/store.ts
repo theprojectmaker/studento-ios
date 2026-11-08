@@ -66,6 +66,8 @@ export interface Prefs extends AlertPrefs {
   alertsAsked: boolean;
   /** Evening-before reminder for homework with a due date. */
   homeworkReminders: boolean;
+  /** Beta features unlocked with a code: "race" (Race Track themes), "messages". */
+  unlocks: string[];
   /** The first-launch "whose schedule?" screen was answered. */
   onboarded: boolean;
   /** Where the first-launch setup wizard is (resumes here if the app is killed mid-way). */
@@ -156,6 +158,7 @@ export const DEFAULT_PREFS: Prefs = {
   endWarning: true,
   warnMin: 5,
   homeworkReminders: true,
+  unlocks: [],
   alertsAsked: false,
   onboarded: false,
   setupStep: 0,

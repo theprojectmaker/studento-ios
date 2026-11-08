@@ -47,6 +47,7 @@ export interface ServerConfig {
   signup: boolean;
   sharing: boolean;
   ai: boolean;
+  messaging: boolean;
 }
 export interface AccountUser {
   id: number;
@@ -123,7 +124,7 @@ export const deleteSchedule = (token: string, id: number) => call<object>(`/api/
 /* ---------------- reports on shared content ---------------- */
 export interface Report {
   id: number;
-  kind: 'school' | 'schedule';
+  kind: 'school' | 'schedule' | 'message';
   targetId: number;
   targetName: string;
   reason: string;
@@ -131,11 +132,36 @@ export interface Report {
   status: 'open' | 'dismissed';
   createdAt: number;
 }
-export const sendReport = (token: string, kind: 'school' | 'schedule', targetId: number, reason: string, note: string) =>
+export const sendReport = (token: string, kind: 'school' | 'schedule' | 'message', targetId: number, reason: string, note: string) =>
   call<object>('/api/reports', { method: 'POST', body: { kind, targetId, reason, note }, token });
 export const listReports = (token: string) => call<{ reports: Report[] }>('/api/reports', { token }).then((r) => r.reports);
 export const dismissReport = (token: string, id: number) => call<object>(`/api/reports/${id}`, { method: 'PATCH', token });
 export const deleteReport = (token: string, id: number) => call<object>(`/api/reports/${id}`, { method: 'DELETE', token });
+
+/* ---------------- schedule share codes ---------------- */
+export const shareSchedule = (data: unknown) => call<{ code: string; expiresAt: number }>('/api/share', { method: 'POST', body: { data } });
+export const getSharedSchedule = (code: string) => call<{ data: unknown; expiresAt: number }>(`/api/share/${encodeURIComponent(code)}`);
+
+/* ---------------- messages (beta) ---------------- */
+export interface Thread {
+  id: number;
+  username: string;
+  lastAt: number;
+  lastBody: string;
+  unread: number;
+}
+export interface ChatMessage {
+  id: number;
+  mine: boolean;
+  body: string;
+  createdAt: number;
+}
+export const searchUsers = (token: string, q: string) => call<{ users: { id: number; username: string }[] }>(`/api/users?q=${encodeURIComponent(q)}`, { token }).then((r) => r.users);
+export const listThreads = (token: string) => call<{ threads: Thread[] }>('/api/messages', { token }).then((r) => r.threads);
+export const getChat = (token: string, username: string) => call<{ user: { id: number; username: string }; blocked: boolean; messages: ChatMessage[] }>(`/api/messages/${encodeURIComponent(username)}`, { token });
+export const sendMessage = (token: string, to: string, body: string) => call<{ message: ChatMessage }>('/api/messages', { method: 'POST', body: { to, body }, token }).then((r) => r.message);
+export const setBlocked = (token: string, username: string, block: boolean) => call<object>('/api/blocks', { method: 'POST', body: { username, block }, token });
+export const deleteMessage = (token: string, id: number) => call<object>(`/api/messages/id/${id}`, { method: 'DELETE', token });
 
 /* ---------------- schedule reader ---------------- */
 export const readScheduleAI = (token: string, input: { image?: { data: string; mimeType: string }; text?: string }, bells?: Record<SchoolDay, Period[]> | null) =>
