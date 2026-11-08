@@ -28,7 +28,7 @@ const EDGE = '#0b0e0c'; // the image's own top/bottom edge tone
 const LANE_R = [696, 663, 567, 431, 361, 321, 305, 321, 361, 431, 568, 663, 697, 689, 591, 458, 379, 337, 320, 337, 379, 459, 584, 674];
 const LANE_W = 70;
 const LAP_SEC = 24; // 2.5 laps a minute
-const RIVAL_COLORS = ['#3b82f6', '#facc15', '#22c55e', '#f97316', '#a855f7', '#e5e7eb', '#06b6d4'];
+const RIVAL_COLORS = ['#3b82f6', '#facc15', '#22c55e', '#f97316', '#a855f7', '#ec4899', '#06b6d4'];
 /* Events: 0 = tangle/spin, 1 = wipeout onto the grass, 2 = pit stop. Duration in laps. */
 const EV_DUR = [0.08, 0.2, 0.3];
 const EV_MAX = 6;
@@ -155,39 +155,33 @@ function eventAt(p: Profile, l: number): { kind: number; phase: number } {
   return { kind: -1, phase: 0 };
 }
 
-/* Top-down F1 car, nose to the right, 58 x 20 box. */
+/* Top-down race car built for small sizes: fat tyres that stick out, a wide body, a big rear wing. 40 x 20 box, nose right. */
 function RaceCar({ color, width }: { color: string; width: number }) {
-  const dark = '#1c1d21';
-  const tyre = '#121316';
-  const rim = '#3a3c42';
-  const pod = mix(color, '#000000', 0.22);
-  const stripe = mix(color, '#ffffff', 0.55);
-  const tyres = [
-    [7, 0.5, 9, 5],
-    [7, 14.5, 9, 5],
-    [33, 1.5, 7.5, 4.4],
-    [33, 14.1, 7.5, 4.4],
-  ];
+  const tyre = '#0f1013';
+  const wing = '#17181c';
+  const shade = mix(color, '#000000', 0.3);
+  const light = mix(color, '#ffffff', 0.4);
   return (
-    <Svg width={width} height={(width * 20) / 58} viewBox="-10 0 58 20">
-      <Rect x={-9} y={7.6} width={9} height={1.1} rx={0.55} fill={color} opacity={0.18} />
-      <Rect x={-6} y={11.3} width={6} height={1.1} rx={0.55} fill={color} opacity={0.14} />
-      <Path d="M6 7.2 H26 L30.5 5.6 H36.5 L47.5 10.1 V11.9 L36.5 16.4 H30.5 L26 14.8 H6 Z" fill="#000000" opacity={0.3} />
-      <Rect x={1} y={2.5} width={4.5} height={15} rx={1.2} fill={dark} />
-      {tyres.map(([x, y, w, h], i) => (
-        <Rect key={i} x={x} y={y} width={w} height={h} rx={1.5} fill={tyre} />
-      ))}
-      {tyres.map(([x, y, w, h], i) => (
-        <Rect key={`r${i}`} x={x + w * 0.3} y={y + h * 0.3} width={w * 0.4} height={h * 0.4} rx={0.7} fill={rim} />
-      ))}
-      <Path d="M5.5 6.2 H25 L29.5 4.6 H35.5 L46.5 9.1 V10.9 L35.5 15.4 H29.5 L25 13.8 H5.5 Z" fill={color} />
-      <Path d="M5.5 6.2 H25 L29.5 4.6 H35.5 L46.5 9.1 V10 H5.5 Z" fill="#ffffff" opacity={0.12} />
-      <Rect x={13} y={4.2} width={13} height={11.6} rx={3.2} fill={pod} />
-      <Rect x={8} y={9.35} width={32} height={1.3} rx={0.6} fill={stripe} opacity={0.9} />
-      <Path d="M20.5 10 a4.2 2.7 0 1 0 8.4 0 a4.2 2.7 0 1 0 -8.4 0 Z" fill="#202126" />
-      <Path d="M22.9 10 a1.9 1.9 0 1 0 3.8 0 a1.9 1.9 0 1 0 -3.8 0 Z" fill="#f5f5f5" />
-      <Path d="M27.2 7.6 a3 3 0 0 1 0 4.8" fill="none" stroke="#0f1013" strokeWidth={0.8} strokeLinecap="round" />
-      <Rect x={40.5} y={3.2} width={2.6} height={13.6} rx={0.9} fill={dark} />
+    <Svg width={width} height={width / 2} viewBox="0 0 40 20">
+      {/* shadow */}
+      <Path d="M7 7.5 H30 L37.5 10 L30 12.5 H7 Z" fill="#000000" opacity={0.35} transform="translate(0.8 1.2)" />
+      {/* tyres */}
+      <Rect x={7} y={0.5} width={8} height={5.5} rx={1.8} fill={tyre} />
+      <Rect x={7} y={14} width={8} height={5.5} rx={1.8} fill={tyre} />
+      <Rect x={26} y={1.5} width={7} height={5} rx={1.6} fill={tyre} />
+      <Rect x={26} y={13.5} width={7} height={5} rx={1.6} fill={tyre} />
+      {/* rear wing */}
+      <Rect x={1.5} y={2.5} width={4} height={15} rx={1} fill={wing} />
+      {/* body */}
+      <Path d="M5.5 6 H28 L37.5 9.2 V10.8 L28 14 H5.5 Z" fill={color} />
+      <Path d="M5.5 6 H28 L37.5 9.2 V10 H5.5 Z" fill={light} opacity={0.35} />
+      {/* sidepods */}
+      <Rect x={11} y={4.6} width={12} height={10.8} rx={3} fill={shade} />
+      {/* front wing */}
+      <Rect x={34.5} y={3.5} width={2.6} height={13} rx={0.9} fill={wing} />
+      {/* cockpit + helmet */}
+      <Path d="M17 10 a4 3 0 1 0 8 0 a4 3 0 1 0 -8 0 Z" fill="#1a1b1f" />
+      <Path d="M19 10 a2 2 0 1 0 4 0 a2 2 0 1 0 -4 0 Z" fill="#ffffff" />
     </Svg>
   );
 }
@@ -263,8 +257,8 @@ export function RacewayBackdrop({ theme, elapsedSec, totalSec, seed, motion }: {
   if (finished || !racing) order.forEach((o, rank) => parkSpots.set(o.k, -rank * 0.022));
   const lapNow = racing ? Math.min(Math.ceil(laps), Math.floor(raceTime) + 1) : null;
 
-  const carW = Math.max(26, LANE_W * 0.78 * scale);
-  const frame: Frame = { scale, ox, oy, carW, carH: (carW * 20) / 58 };
+  const carW = Math.max(30, LANE_W * 0.95 * scale);
+  const frame: Frame = { scale, ox, oy, carW, carH: carW / 2 };
 
   // Start / finish: a checkered strip across the lane at the top of the oval.
   const sfX = ox + IMG_CX * scale;
