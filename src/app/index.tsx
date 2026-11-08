@@ -183,6 +183,7 @@ export default function ClockScreen() {
           >
             <AlertsCard
               theme={theme}
+              compact={width > height}
               blocked={alertPerm === 'denied'}
               onDone={async (turnOn) => {
                 if (!turnOn) return setSnoozed(true);
@@ -305,7 +306,7 @@ function Classic({ v }: { v: V }) {
   const heroW = v.landscape ? Math.min(v.width * 0.82, sz(1040)) : Math.min(v.width - 36, sz(820));
   // Leave room for the widgets so nothing overlaps on smaller phones.
   const rows = Math.ceil(Math.min(prefs.widgets.length, 4) / 2);
-  const maxDigit = v.landscape ? v.height * 0.34 : v.width >= 700 ? Math.min(v.height * (0.27 - rows * 0.02), sz(340)) : Math.min(v.height * (0.17 - rows * 0.025), 210);
+  const maxDigit = v.landscape ? v.height * 0.22 : v.width >= 700 ? Math.min(v.height * (0.27 - rows * 0.02), sz(340)) : Math.min(v.height * (0.17 - rows * 0.025), 210);
   const heroBlock = (
     <View
       style={{
@@ -328,7 +329,7 @@ function Classic({ v }: { v: V }) {
           <Text style={[styles.times, fontStyle(theme.type.label, '500'), { color: theme.muted }]}>{copy.times}</Text>
         </Piece>
       ) : null}
-      <View style={{ marginTop: 12 }}>
+      <View style={{ marginTop: 6 }}>
         <Hero v={v} width={heroW} maxDigit={maxDigit} glass />
       </View>
       {theme.engine !== 'ring' || !v.inSchool ? (
@@ -341,7 +342,7 @@ function Classic({ v }: { v: V }) {
   );
   // Landscape: widgets, clock and next/timeline sit side by side in ONE row under the countdown.
   const infoBlock = (
-    <View style={v.landscape ? { gap: 10, alignItems: 'center', width: '100%', maxWidth: sz(470), alignSelf: 'center' } : { gap: 12, alignItems: 'center' }}>
+    <View style={v.landscape ? { gap: 10, alignItems: 'center', width: '100%', maxWidth: sz(470), alignSelf: 'center', marginTop: 16 } : { gap: 12, alignItems: 'center', marginTop: 8 }}>
       {v.inSchool ? (
         <Piece v={v} k="showClock" label="clock">
           <SmallClock text={v.clock.text} suffix={v.clock.suffix} theme={theme} motion={prefs.motion} glass />
@@ -680,7 +681,22 @@ function Corner({
   );
 }
 
-function AlertsCard({ theme, blocked, onDone }: { theme: Theme; blocked: boolean; onDone: (turnOn: boolean) => void }) {
+function AlertsCard({ theme, blocked, compact = false, onDone }: { theme: Theme; blocked: boolean; compact?: boolean; onDone: (turnOn: boolean) => void }) {
+  if (compact) {
+    return (
+      <Glass theme={theme} radius={16} style={{ paddingVertical: 8, paddingHorizontal: 14, flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+        <Text style={{ ...TYPE.semibold, fontSize: sz(14), color: theme.ink, flex: 1 }} numberOfLines={1}>
+          {blocked ? 'Bell alerts are off in iPhone Settings' : 'Turn on bell alerts?'}
+        </Text>
+        <Pressable accessibilityRole="button" onPress={() => onDone(true)} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 999, backgroundColor: theme.accent }}>
+          <Text style={{ ...TYPE.semibold, fontSize: sz(13), color: readableOn(theme.accent) }}>{blocked ? 'Open Settings' : 'Turn on'}</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={() => onDone(false)} hitSlop={8}>
+          <Text style={{ ...TYPE.semibold, fontSize: sz(13), color: theme.muted }}>Not now</Text>
+        </Pressable>
+      </Glass>
+    );
+  }
   return (
     <Glass theme={theme} radius={22} style={{ padding: 16, gap: 12 }}>
       <View>
@@ -863,7 +879,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
     textAlign: 'center',
   },
-  unit: { ...TYPE.medium, fontSize: sz(16), marginTop: 12, textAlign: 'center' },
+  unit: { ...TYPE.medium, fontSize: sz(15), marginTop: 6, textAlign: 'center', opacity: 0.85 },
   nextRow: {
     flexDirection: 'row',
     alignItems: 'center',
