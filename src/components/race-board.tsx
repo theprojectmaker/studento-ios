@@ -58,35 +58,55 @@ function trackPath(w: number, h: number, r: number): string {
 }
 
 /* Top-down F1 car as crisp vector shapes, nose to the right. 48 x 20 box. */
-const CAR_W = 48;
+const CAR_W = 58;
 const CAR_H = 20;
+
+const TYRE = '#121316';
+const RIM = '#3a3c42';
+function Tyre({ x, y, w, h }: { x: number; y: number; w: number; h: number }) {
+  return (
+    <>
+      <Rect x={x} y={y} width={w} height={h} rx={1.5} fill={TYRE} />
+      <Rect x={x + w * 0.3} y={y + h * 0.3} width={w * 0.4} height={h * 0.4} rx={0.7} fill={RIM} />
+    </>
+  );
+}
 
 function RaceCar({ accent, width }: { accent: string; width: number }) {
   const dark = '#1c1d21';
-  const tyre = '#121316';
   const body = accent;
   const pod = mix(accent, '#000000', 0.22);
   const stripe = mix(accent, '#ffffff', 0.55);
   return (
-    <Svg width={width} height={(width * CAR_H) / CAR_W} viewBox="0 0 48 20">
+    <Svg width={width} height={(width * CAR_H) / CAR_W} viewBox="-10 0 58 20">
+      {/* speed trail */}
+      <Rect x={-9} y={7.6} width={9} height={1.1} rx={0.55} fill={accent} opacity={0.18} />
+      <Rect x={-6} y={11.3} width={6} height={1.1} rx={0.55} fill={accent} opacity={0.14} />
+      {/* ground shadow */}
+      <Path d="M6 7.2 H26 L30.5 5.6 H36.5 L47.5 10.1 V11.9 L36.5 16.4 H30.5 L26 14.8 H6 Z" fill="#000000" opacity={0.28} />
       {/* rear wing */}
       <Rect x={1} y={2.5} width={4.5} height={15} rx={1.2} fill={dark} />
+      <Rect x={1.8} y={3.3} width={1.2} height={13.4} rx={0.6} fill="#2c2e34" />
       {/* tyres */}
-      <Rect x={7} y={0.5} width={9} height={5} rx={1.6} fill={tyre} />
-      <Rect x={7} y={14.5} width={9} height={5} rx={1.6} fill={tyre} />
-      <Rect x={33} y={1.5} width={7.5} height={4.4} rx={1.4} fill={tyre} />
-      <Rect x={33} y={14.1} width={7.5} height={4.4} rx={1.4} fill={tyre} />
+      <Tyre x={7} y={0.5} w={9} h={5} />
+      <Tyre x={7} y={14.5} w={9} h={5} />
+      <Tyre x={33} y={1.5} w={7.5} h={4.4} />
+      <Tyre x={33} y={14.1} w={7.5} h={4.4} />
       {/* body: engine cover to nose */}
       <Path d="M5.5 6.2 H25 L29.5 4.6 H35.5 L46.5 9.1 V10.9 L35.5 15.4 H29.5 L25 13.8 H5.5 Z" fill={body} />
+      {/* light catch on the upper half */}
+      <Path d="M5.5 6.2 H25 L29.5 4.6 H35.5 L46.5 9.1 V10 H5.5 Z" fill="#ffffff" opacity={0.12} />
       {/* sidepods */}
       <Rect x={13} y={4.2} width={13} height={11.6} rx={3.2} fill={pod} />
       {/* centre stripe */}
       <Rect x={8} y={9.35} width={32} height={1.3} rx={0.6} fill={stripe} opacity={0.9} />
-      {/* cockpit + helmet */}
+      {/* cockpit, helmet, halo */}
       <Path d="M20.5 10 a4.2 2.7 0 1 0 8.4 0 a4.2 2.7 0 1 0 -8.4 0 Z" fill="#202126" />
       <Path d="M22.9 10 a1.9 1.9 0 1 0 3.8 0 a1.9 1.9 0 1 0 -3.8 0 Z" fill="#f5f5f5" />
+      <Path d="M27.2 7.6 a3 3 0 0 1 0 4.8" fill="none" stroke="#0f1013" strokeWidth={0.8} strokeLinecap="round" />
       {/* front wing */}
       <Rect x={40.5} y={3.2} width={2.6} height={13.6} rx={0.9} fill={dark} />
+      <Rect x={41.1} y={3.9} width={0.9} height={12.2} rx={0.45} fill="#2c2e34" />
     </Svg>
   );
 }
