@@ -11,7 +11,7 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { AppState, Linking, Pressable, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Svg, { Rect } from 'react-native-svg';
+import Svg, { Path, Rect } from 'react-native-svg';
 
 import { ClockBanners } from '@/components/banners';
 import { Board, InkBoard, SmallClock } from '@/components/boards';
@@ -257,7 +257,7 @@ export default function ClockScreen() {
             </Pressable>
           ) : null}
           <Corner theme={theme} glass={glassy} label={`Themes: ${theme.name}`} style={{ top: insets.top + 8, left: insets.left + 14 }} onPress={() => router.push('/themes')}>
-            <ThemeSwatch theme={theme} />
+            <Icon name="rectangle.stack" color={theme.ink} size={18} fallback={<ThemesGlyph color={theme.ink} />} />
           </Corner>
           <Corner theme={theme} glass={glassy} label="Settings" style={{ top: insets.top + 8, right: insets.right + 14 }} onPress={() => router.push('/settings')}>
             <Icon name="gearshape" color={theme.ink} size={18} fallback={<GearIcon color={theme.ink} />} />
@@ -599,13 +599,13 @@ function Title({ v, size, weight = 'heavy' }: { v: V; size: number; weight?: 'he
   );
 }
 
-/** The Themes button: a black-and-white split disc (half ink, half background) with a thin ring. No colour, no icon. */
-function ThemeSwatch({ theme }: { theme: Theme }) {
+/** Themes: three stacked cards, same 1.7 stroke as the gear and grid glyphs. Monochrome. */
+function ThemesGlyph({ color }: { color: string }) {
   return (
-    <View style={{ width: 18, height: 18, borderRadius: 9, overflow: 'hidden', flexDirection: 'row', borderWidth: 1.5, borderColor: alpha(theme.ink, 0.7) }}>
-      <View style={{ flex: 1, backgroundColor: theme.ink }} />
-      <View style={{ flex: 1, backgroundColor: theme.bg }} />
-    </View>
+    <Svg width={18} height={18} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
+      <Rect x={4} y={10} width={16} height={10} rx={2} />
+      <Path d="M6.5 7h11M9 4h6" />
+    </Svg>
   );
 }
 
