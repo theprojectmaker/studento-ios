@@ -27,8 +27,9 @@ const EDGE = '#0b0e0c'; // the image's own top/bottom edge tone
 /* Lane centre radius (image px) every 15 degrees, angle measured with y down, 0 = right. */
 const LANE_R = [696, 663, 567, 431, 361, 321, 305, 321, 361, 431, 568, 663, 697, 689, 591, 458, 379, 337, 320, 337, 379, 459, 584, 674];
 const LANE_W = 70;
-const LAP_SEC = 60;
-const RIVAL_COLORS = ['#3b82f6', '#facc15', '#22c55e'];
+const LAP_SEC = 45;
+const RIVAL_COLORS = ['#3b82f6', '#facc15', '#22c55e', '#f97316', '#a855f7', '#e5e7eb', '#06b6d4'];
+const SPIN_LAPS = 0.07; // how long a spin costs, in laps
 
 function laneRadius(deg: number): number {
   'worklet';
@@ -69,33 +70,61 @@ interface Profile {
   a3: number;
   f3: number;
   p3: number;
+  /** When this car tangles with another and spins (race time, laps); -1 = never. */
+  s1: number;
+  s2: number;
 }
 
-function profiles(seed: number, accent: string): Profile[] {
+function profiles(seed: number, accent: string, laps: number): Profile[] {
   const colors = [accent, ...RIVAL_COLORS];
+  // Incidents: pairs of cars (k, k+1) tangle at the same moment, 0 to 2 times a race each.
+  const incident = (pair: number, n: number) => {
+    const b = seed * 31 + pair * 977 + n * 7;
+    if (rnd(b) < 0.35 || laps < 2) return -1;
+    return 0.5 + rnd(b + 1) * Math.max(0.5, laps - 1.5);
+  };
   return colors.map((color, k) => {
     const b = seed * 7919 + k * 104729;
+    const pair = Math.floor(k / 2);
     return {
       color,
-      grid: k * 0.035,
-      pace: 0.94 + rnd(b + 1) * 0.12,
-      a1: 0.08 + rnd(b + 2) * 0.12,
-      f1: 0.15 + rnd(b + 3) * 0.25,
+      grid: k * 0.028,
+      pace: 0.9 + rnd(b + 1) * 0.2,
+      a1: 0.1 + rnd(b + 2) * 0.16,
+      f1: 0.15 + rnd(b + 3) * 0.3,
       p1: rnd(b + 4) * 6.28,
-      a2: 0.03 + rnd(b + 5) * 0.06,
-      f2: 0.6 + rnd(b + 6) * 0.9,
+      a2: 0.04 + rnd(b + 5) * 0.08,
+      f2: 0.6 + rnd(b + 6) * 1.2,
       p2: rnd(b + 7) * 6.28,
-      a3: 0.1 + rnd(b + 8) * 0.25,
-      f3: 0.03 + rnd(b + 9) * 0.05,
+      a3: 0.15 + rnd(b + 8) * 0.35,
+      f3: 0.03 + rnd(b + 9) * 0.06,
       p3: rnd(b + 10) * 6.28,
+      s1: incident(pair, 0),
+      s2: incident(pair, 1),
     };
   });
 }
 
-/* Race position (in laps) of a car at race time l (laps). Plain math so it runs on the UI thread. */
-function position(p: Profile, l: number): number {
+function pace(p: Profile, l: number): number {
   'worklet';
   return l * p.pace - p.grid + p.a1 * Math.sin(l * p.f1 * 6.28 + p.p1) + p.a2 * Math.sin(l * p.f2 * 6.28 + p.p2) + p.a3 * Math.sin(l * p.f3 * 6.28 + p.p3);
+}
+
+/* Race position (in laps) at race time l: the pace curve minus the ground lost in each spin. Runs on the UI thread. */
+function position(p: Profile, l: number): number {
+  'worklet';
+  let x = pace(p, l);
+  if (p.s1 >= 0 && l > p.s1) x -= pace(p, Math.min(l, p.s1 + SPIN_LAPS)) - pace(p, p.s1);
+  if (p.s2 >= 0 && l > p.s2) x -= pace(p, Math.min(l, p.s2 + SPIN_LAPS)) - pace(p, p.s2);
+  return x;
+}
+
+/* 0..1 while the car is spinning, else -1. */
+function spinning(p: Profile, l: number): number {
+  'worklet';
+  if (p.s1 >= 0 && l > p.s1 && l < p.s1 + SPIN_LAPS) return (l - p.s1) / SPIN_LAPS;
+  if (p.s2 >= 0 && l > p.s2 && l < p.s2 + SPIN_LAPS) return (l - p.s2) / SPIN_LAPS;
+  return -1;
 }
 
 /* Top-down F1 car, nose to the right, 58 x 20 box. */
@@ -147,11 +176,16 @@ interface Frame {
 function Car({ race, profile, parkAt, frame }: { race: SharedValue<number>; profile: Profile; parkAt: number | null; frame: Frame }) {
   const { scale, ox, oy, carW, carH } = frame;
   const style = useAnimatedStyle(() => {
-    const t = parkAt != null ? parkAt : position(profile, race.value);
+    const l = race.value;
+    const t = parkAt != null ? parkAt : position(profile, l);
     const p = lanePoint(t);
     const q = lanePoint(t + 0.004);
-    const heading = (Math.atan2(q.y - p.y, q.x - p.x) * 180) / Math.PI;
-    return { transform: [{ translateX: ox + p.x * scale - carW / 2 }, { translateY: oy + p.y * scale - carH / 2 }, { rotate: `${heading}deg` }] };
+    const sp = parkAt != null ? -1 : spinning(profile, l);
+    // A spin: two full turns, drifting a little toward the outside of the lane.
+    const spin = sp >= 0 ? 720 * sp * (1 - sp * 0.3) : 0;
+    const drift = sp >= 0 ? Math.sin(sp * 3.1416) * carH * 0.9 : 0;
+    const heading = (Math.atan2(q.y - p.y, q.x - p.x) * 180) / Math.PI + spin;
+    return { transform: [{ translateX: ox + p.x * scale - carW / 2 }, { translateY: oy + p.y * scale - carH / 2 + drift }, { rotate: `${heading}deg` }] };
   });
   return (
     <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: carW, height: carH }, style]}>
@@ -167,8 +201,8 @@ export function RacewayBackdrop({ theme, elapsedSec, totalSec, seed, motion }: {
   const ox = (W - IMG_W * scale) / 2;
   const oy = (H - IMG_H * scale) / 2;
 
-  const cars = profiles(seed, theme.accent);
   const laps = totalSec != null ? totalSec / LAP_SEC : 0;
+  const cars = profiles(seed, theme.accent, laps);
   const racing = elapsedSec != null && totalSec != null && elapsedSec >= 0 && elapsedSec < totalSec;
   const finished = elapsedSec != null && totalSec != null && elapsedSec >= totalSec;
   const raceTime = racing ? (elapsedSec as number) / LAP_SEC : finished ? laps : 0;
@@ -182,10 +216,10 @@ export function RacewayBackdrop({ theme, elapsedSec, totalSec, seed, motion }: {
   // Standings right now (JS side, once a second), and the finishing order when it is over.
   const order = cars.map((p, k) => ({ k, pos: position(p, raceTime) })).sort((a, b) => b.pos - a.pos);
   const parkSpots = new Map<number, number>();
-  if (finished || !racing) order.forEach((o, rank) => parkSpots.set(o.k, -rank * 0.03));
+  if (finished || !racing) order.forEach((o, rank) => parkSpots.set(o.k, -rank * 0.022));
   const lapNow = racing ? Math.min(Math.ceil(laps), Math.floor(raceTime) + 1) : null;
 
-  const carW = Math.max(30, LANE_W * 1.1 * scale);
+  const carW = Math.max(26, LANE_W * 0.78 * scale);
   const frame: Frame = { scale, ox, oy, carW, carH: (carW * 20) / 58 };
 
   // Driven part of the leader's current lap.
@@ -221,12 +255,12 @@ export function RacewayBackdrop({ theme, elapsedSec, totalSec, seed, motion }: {
         <Car key={p.color} race={race} profile={p} parkAt={parkSpots.has(k) ? (parkSpots.get(k) as number) : null} frame={frame} />
       ))}
       {/* lap + running order */}
-      <View style={{ position: 'absolute', left: ox + IMG_CX * scale - sz(70), top: oy + (IMG_CY - 230) * scale, width: sz(140), alignItems: 'center' }}>
+      <View style={{ position: 'absolute', left: ox + (IMG_CX - 520) * scale, top: oy + (IMG_CY - 305 + LANE_W * 0.55) * scale + 6, alignItems: 'flex-start' }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 999, backgroundColor: alpha('#000000', 0.45) }}>
           <Text style={{ ...TYPE.heavy, fontSize: sz(11), letterSpacing: 1, color: '#f4f4f4' }}>{finished ? 'FINISH' : lapNow != null ? `LAP ${lapNow}/${Math.ceil(laps)}` : 'GRID'}</Text>
           <View style={{ flexDirection: 'row', gap: 4 }}>
             {order.map((o) => (
-              <View key={o.k} style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: cars[o.k].color, borderWidth: 1, borderColor: alpha('#ffffff', 0.6) }} />
+              <View key={o.k} style={{ width: 7, height: 7, borderRadius: 4, backgroundColor: cars[o.k].color, borderWidth: 1, borderColor: alpha('#ffffff', 0.6) }} />
             ))}
           </View>
         </View>
