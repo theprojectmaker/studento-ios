@@ -24,6 +24,7 @@ import { Blink, burnInOffset, FlashOverlay, NightDim, useThemeShuffle, useWarnin
 import { Glass, Icon } from '@/components/glass';
 import { Timeline } from '@/components/timeline';
 import { Button, GearIcon, tap } from '@/components/ui';
+import { useBeamVisible } from '@/lib/beam-on';
 import { TYPE } from '@/lib/fonts';
 import { fontStyle } from '@/lib/typefaces';
 import { useNow, useTheme } from '@/lib/hooks';
@@ -42,6 +43,7 @@ export default function ClockScreen() {
   const now = useNow();
   const baseTheme = useTheme();
   const rawPrefs = useStore((s) => s.prefs);
+  const beamOn = useBeamVisible();
   const prefs = focusPrefs(rawPrefs);
   const { width, height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
@@ -271,7 +273,7 @@ export default function ClockScreen() {
           <Corner theme={theme} glass={glassy} label="Hub: today and tools" style={{ bottom: insets.bottom + 12, left: insets.left + 14 }} onPress={() => router.push('/hub')}>
             <Icon name="square.grid.2x2" color={theme.ink} size={18} fallback={<GridGlyph color={theme.ink} />} />
           </Corner>
-          {(rawPrefs.unlocks ?? []).includes('messages') ? (
+          {beamOn ? (
             <Corner theme={theme} glass={glassy} label="Beam" style={{ bottom: insets.bottom + 12, right: insets.right + 14 }} onPress={() => router.push('/messages')}>
               <Icon name="bubble.left.and.bubble.right" color={theme.ink} size={17} fallback={<ChatGlyph color={theme.ink} />} />
             </Corner>

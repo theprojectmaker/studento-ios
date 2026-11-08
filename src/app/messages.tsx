@@ -10,6 +10,9 @@ import { Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } fro
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BeamChat } from '@/components/beam-chat';
+import { requestAccess, watchMyAccess, type AccessStatus } from '@/lib/beam-extra';
+import { useBeamFlags, useBeamVisible } from '@/lib/beam-on';
+import { BeamSettingsPane } from '@/components/beam-settings-pane';
 import { BeamAvatar, Glyph, useBeam, type BeamPalette } from '@/components/beam-ui';
 import { getToken } from '@/lib/account';
 import * as api from '@/lib/api';
@@ -17,7 +20,7 @@ import { preview } from '@/lib/beam-msg';
 import { startCall } from '@/lib/calls';
 import { useStore } from '@/lib/store';
 
-type Section = 'messages' | 'calls' | 'contacts';
+type Section = 'messages' | 'calls' | 'contacts' | 'settings';
 const K_CONTACTS = 'beam.contacts';
 
 function when(ms: number): string {
@@ -42,6 +45,15 @@ export default function Beam() {
   const { width } = useWindowDimensions();
   const wide = width >= 760;
   const account = useStore((s) => s.account);
+  const admin = !!account?.user.admin;
+  const visible = useBeamVisible();
+  const { waitlist } = useBeamFlags();
+  const [access, setAccess] = useState<AccessStatus | null>(null);
+  const [asking, setAsking] = useState(false);
+  useEffect(() => {
+    if (!account || admin) return;
+    return watchMyAccess(setAccess);
+  }, [account, admin]);
   const me = account?.user.username ?? '';
   const [section, setSection] = useState<Section>('messages');
   const [unreadOnly, setUnreadOnly] = useState(false);
@@ -122,6 +134,7 @@ export default function Beam() {
     { k: 'messages', label: 'Messages', icon: 'Bubble', badge: unreadTotal },
     { k: 'calls', label: 'Calls', icon: 'Phone', badge: missed },
     { k: 'contacts', label: 'Contacts', icon: 'Person', badge: 0 },
+    { k: 'settings', label: 'Settings', icon: 'Gear', badge: 0 },
   ];
   const sidebar = (
     <View style={{ width: wide ? 210 : 68, backgroundColor: c.window, borderRightWidth: 0.5, borderRightColor: c.hairline, paddingTop: insets.top + 8, paddingBottom: insets.bottom + 10, paddingHorizontal: wide ? 10 : 6 }}>
@@ -354,10 +367,38 @@ export default function Beam() {
     );
   }
 
+  // Switched off by the admin, or still waiting to be let in.
+  const blockedMsg = !visible ? 'Beam is off right now.' : waitlist && !admin && access !== 'approved' ? (access === 'denied' ? "You weren't let in this time." : access === 'waiting' ? "You're on the waiting list. You'll get in once you're approved." : 'Beam has a waiting list. Ask to join and the admin will let you in.') : null;
+  if (blockedMsg) {
+    return (
+      <View style={{ flex: 1, backgroundColor: c.sidebar, alignItems: 'center', justifyContent: 'center', padding: 28, gap: 14 }}>
+        <Text style={{ color: c.text, fontSize: 22, fontWeight: '700' }}>{visible ? 'Waiting list' : 'Beam'}</Text>
+        <Text style={{ color: c.text2, fontSize: 15, textAlign: 'center', lineHeight: 21 }}>{blockedMsg}</Text>
+        {visible && access === 'none' ? (
+          <Pressable
+            disabled={asking}
+            onPress={() => {
+              setAsking(true);
+              void requestAccess()
+                .catch((e) => setErr(e instanceof Error ? e.message : "Couldn't send that."))
+                .finally(() => setAsking(false));
+            }}
+            style={({ pressed }) => ({ backgroundColor: pressed ? '#0a6fd8' : c.blue, borderRadius: 12, paddingHorizontal: 22, paddingVertical: 12, opacity: asking ? 0.5 : 1 })}>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Join the waiting list</Text>
+          </Pressable>
+        ) : null}
+        {err ? <Text style={{ color: c.red, fontSize: 13 }}>{err}</Text> : null}
+        <Pressable onPress={() => router.back()} hitSlop={10}>
+          <Text style={{ color: c.blue, fontSize: 16 }}>Back to the clock</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   return (
     <View style={{ flex: 1, flexDirection: 'row', backgroundColor: c.sidebar }}>
       {sidebar}
-      {listCol}
+      {section === 'settings' ? <BeamSettingsPane c={c} wide={wide} /> : listCol}
       {wide ? (
         <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: c.chatBg }}>
           {open ? (

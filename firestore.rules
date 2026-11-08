@@ -90,7 +90,7 @@ service cloud.firestore {
         allow create: if signedIn() && flagOn('messaging')
           && key.split('_').hasAny([me()])
           && request.resource.data.from == me()
-          && request.resource.data.body is string && request.resource.data.body.size() <= 500
+          && request.resource.data.body is string && request.resource.data.body.size() <= 900000
           && !blockedBy(key.split('_')[0] == me() ? key.split('_')[1] : key.split('_')[0]);
         allow delete: if isAdmin() || (signedIn() && key.split('_').hasAny([me()]));
       }
@@ -107,6 +107,49 @@ service cloud.firestore {
         allow read, create: if signedIn()
           && me() in get(/databases/$(database)/documents/calls/$(callId)).data.members;
       }
+    }
+
+    // Live message counter: anyone signed in reads it; a write may only add 1.
+    match /stats/global {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.keys().hasOnly(['messages']) && request.resource.data.messages == 1;
+      allow update: if signedIn() && request.resource.data.keys().hasOnly(['messages'])
+        && request.resource.data.messages == resource.data.messages + 1;
+    }
+
+    // Monthly TURN relay usage (bytes), for the 900 GB cap. Public read (Apps Script checks it);
+    // signed-in calls may only add up to 200 MB per write.
+    match /usage/{month} {
+      allow read: if true;
+      allow create: if signedIn() && request.resource.data.keys().hasOnly(['turnBytes'])
+        && request.resource.data.turnBytes is int && request.resource.data.turnBytes <= 200000000;
+      allow update: if signedIn() && request.resource.data.keys().hasOnly(['turnBytes'])
+        && request.resource.data.turnBytes > resource.data.turnBytes
+        && request.resource.data.turnBytes <= resource.data.turnBytes + 200000000;
+    }
+
+    // Pop-up announcements: the admin posts and takes them down.
+    match /announcements/{id} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // Beam waiting list: a person asks once (status waiting); only the admin lets them in or denies.
+    match /access/{uid} {
+      allow get: if signedIn() && (me() == uid || isAdmin());
+      allow list: if isAdmin();
+      allow create: if signedIn() && me() == uid && request.resource.data.status == 'waiting'
+        && request.resource.data.keys().hasOnly(['username', 'status', 'at']);
+      allow update, delete: if isAdmin();
+    }
+
+    // Chess games between two people.
+    match /games/{id} {
+      allow read: if signedIn() && me() in resource.data.members;
+      allow create: if signedIn() && me() in request.resource.data.members && request.resource.data.members.size() == 2
+        && request.resource.data.white == me();
+      allow update: if signedIn() && me() in resource.data.members
+        && onlyChanges(['fen', 'moves', 'status', 'winner', 'updatedAt']);
     }
 
     match /{document=**} {

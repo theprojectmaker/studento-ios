@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react';
 import { Alert, Platform, View } from 'react-native';
 
+import { BeamAdminSection } from '@/components/beam-admin-section';
 import { Button, Divider, Field, Note, Row, Screen, Section, ToggleRow } from '@/components/ui';
 import { getToken } from '@/lib/account';
 import * as api from '@/lib/api';
@@ -9,6 +10,7 @@ import { useStore } from '@/lib/store';
 
 export default function Admin() {
   const account = useStore((s) => s.account);
+  const unlocked = useStore((s) => (s.prefs.unlocks ?? []).includes('messages'));
   const [cfg, setCfg] = useState<api.ServerConfig | null>(null);
   const [schools, setSchools] = useState<api.SchoolHit[]>([]);
   const [open, setOpen] = useState<{ school: { id: number; name: string }; schedules: api.BellSet[] } | null>(null);
@@ -93,6 +95,8 @@ export default function Admin() {
         ))}
       </Section>
 
+      {unlocked ? <BeamAdminSection /> : null}
+
       <Section title="Kill switches" footer="Off = that feature pauses for everyone right away. The clock and alerts keep working.">
         {cfg ? (
           <>
@@ -102,7 +106,7 @@ export default function Admin() {
             <Divider />
             <ToggleRow label="Schedule reader (AI)" value={cfg.ai} onChange={(v) => void run(`Reader ${v ? 'on' : 'off'}`, (t) => api.setConfig(t, { ai: v }))} />
             <Divider />
-            <ToggleRow label="Messages (beta)" value={cfg.messaging} onChange={(v) => void run(`Messages ${v ? 'on' : 'off'}`, (t) => api.setConfig(t, { messaging: v }))} />
+            <ToggleRow label="Messages (beta)" sub="Off hides the Beam button for everyone but you" value={cfg.messaging} onChange={(v) => void run(`Messages ${v ? 'on' : 'off'}`, (t) => api.setConfig(t, { messaging: v }))} />
           </>
         ) : (
           <Note>Loading…</Note>

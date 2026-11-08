@@ -659,6 +659,7 @@ export const sendMessage = (_t: string, to: string, body: string) =>
       { merge: true }
     );
     b.set(doc(db, 'chats', key, 'msgs', String(id)), { id, from: u.uid, body: text, createdAt: now });
+    b.set(doc(db, 'stats', 'global'), { messages: increment(1) }, { merge: true });
     // Blocked by the other person: the rules refuse the message.
     await b.commit().catch((e) => {
       if ((e as { code?: string })?.code?.includes('permission-denied')) throw new ApiError("You can't message this person.", 403);

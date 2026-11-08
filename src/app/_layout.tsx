@@ -10,6 +10,7 @@ import { registerBackgroundRefresh } from '@/lib/background';
 import { isHeavyWork } from '@/lib/heavy';
 import { useTheme } from '@/lib/hooks';
 import { CaptureShield } from '@/components/capture-shield';
+import { Announcements } from '@/components/announcements';
 import { IncomingCall } from '@/components/incoming-call';
 import { reconcileSession, watchForSync } from '@/lib/account';
 import { rescheduleAlerts, setupNotificationHandler, watchForReschedule } from '@/lib/notify';
@@ -159,7 +160,9 @@ export default function RootLayout() {
         <Stack.Screen name="messages" options={{ headerShown: false }} />
         <Stack.Screen name="call" options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }} />
         <Stack.Screen name="chat" options={{ headerShown: false }} />
+        <Stack.Screen name="chess" options={{ headerShown: false }} />
       </Stack>
+      <Announcements />
       <IncomingCall />
       <CaptureShield />
     </GestureHandlerRootView>

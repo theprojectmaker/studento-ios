@@ -3,7 +3,7 @@
  * one-time photos, videos, polls, countdowns, stickers, replies, reactions, edit, unsend).
  * Used full screen on phones (/chat) and as the right pane of the Beam sidebar layout on iPad.
  */
-import { useFocusEffect } from 'expo-router';
+import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,7 +13,9 @@ import { BeamAvatar, Glyph, Tail, useBeam, type BeamPalette } from '@/components
 import { tap } from '@/components/ui';
 import { getToken } from '@/lib/account';
 import * as api from '@/lib/api';
+import { newGame } from '@/lib/beam-extra';
 import { getPhotos, getVideo } from '@/lib/beam-media';
+import { useBeamSettings } from '@/lib/beam-settings';
 import { encode, fold, MAX_BODY, preview, type Folded, type Rich } from '@/lib/beam-msg';
 import { startCall } from '@/lib/calls';
 
@@ -54,7 +56,9 @@ function plain(f: Folded): string {
 }
 
 export function BeamChat({ username, onBack }: { username: string; onBack?: () => void }) {
-  const c = useBeam();
+  const base = useBeam();
+  const st = useBeamSettings();
+  const c = useMemo(() => ({ ...base, outBubble: st.bubble }), [base, st.bubble]);
   const insets = useSafeAreaInsets();
   const [raw, setRaw] = useState<api.ChatMessage[]>([]);
   const [blocked, setBlocked] = useState(false);
@@ -100,7 +104,7 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
   const sendBody = async (body: string) => {
     const t = await getToken();
     if (!t) throw new Error('Sign in first.');
-    if (body.length > MAX_BODY) throw new Error('That is too big to send for now. Photos are coming soon.');
+    if (body.length > MAX_BODY) throw new Error('That is too big to send. Try fewer photos.');
     const m = await api.sendMessage(t, username, body);
     setRaw((prev) => (prev.some((x) => x.id === m.id) ? prev : [...prev, m]));
     setErr(null);
@@ -142,6 +146,19 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
   const attach = async (k: AttachKind) => {
     setSheet(k === 'poll' ? 'poll' : k === 'countdown' ? 'cd' : k === 'sticker' ? 'stk' : null);
     if (k === 'poll' || k === 'countdown' || k === 'sticker') return;
+    if (k === 'chess') {
+      setBusy('Starting a game…');
+      try {
+        const g = await newGame(username);
+        await sendBody(encode({ k: 'chess', g }));
+        router.push({ pathname: '/chess', params: { g } });
+      } catch (e) {
+        setErr(e instanceof Error ? e.message : "Couldn't start a game.");
+      } finally {
+        setBusy(null);
+      }
+      return;
+    }
     // let the sheet fade before the system picker slides up
     await new Promise((r) => setTimeout(r, 250));
     try {
@@ -208,7 +225,7 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
     if (m.rich.k !== 'poll') return;
     const cur = m.votes.mine;
     const next = m.rich.multi ? (cur.includes(i) ? cur.filter((x) => x !== i) : [...cur, i]) : cur.includes(i) ? [] : [i];
-    tap();
+    if (st.haptics) tap();
     void sendRich({ k: 'vote', m: m.id, o: next }, 'Voting…');
   };
 
@@ -276,7 +293,7 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
                 ) : null}
                 <Pressable
                   onLongPress={() => {
-                    tap();
+                    if (st.haptics) tap();
                     setAct(m);
                   }}
                   delayLongPress={300}
@@ -336,9 +353,12 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
                   onChangeText={setText}
                   placeholder={editing ? 'Edit message' : 'Message'}
                   placeholderTextColor={c.text3}
-                  multiline
+                  multiline={!st.enterSends}
+                  blurOnSubmit={false}
+                  returnKeyType={st.enterSends ? 'send' : 'default'}
+                  onSubmitEditing={st.enterSends ? () => void sendText() : undefined}
                   maxLength={500}
-                  style={{ flex: 1, color: c.text, fontSize: 16, lineHeight: 20, paddingLeft: 13, paddingRight: 8, paddingTop: 8, paddingBottom: 8, maxHeight: 140 }}
+                  style={{ flex: 1, color: c.text, fontSize: st.textSize, lineHeight: 20, paddingLeft: 13, paddingRight: 8, paddingTop: 8, paddingBottom: 8, maxHeight: 140 }}
                   accessibilityLabel="Message"
                 />
                 {text.trim() ? (
@@ -423,6 +443,7 @@ function Body({
   onOnce: () => void;
   onVideo: (u: string) => void;
 }) {
+  const st = useBeamSettings();
   const bg = m.mine ? c.outBubble : c.inBubble;
   const fg = m.mine ? c.outText : c.inText;
   const bubble = (child: React.ReactNode, pad = true) => (
@@ -441,8 +462,18 @@ function Body({
   switch (r.k) {
     case 'txt':
       // a message that is only one or two emoji shows big, like iMessage
-      if (/^\p{Extended_Pictographic}(‍?\p{Extended_Pictographic}|️){0,6}$/u.test(r.t.trim())) return <Text style={{ fontSize: 44 }}>{r.t.trim()}</Text>;
-      return bubble(<Text style={{ color: fg, fontSize: 16, lineHeight: 21 }}>{r.t}</Text>);
+      if (st.bigEmoji && /^\p{Extended_Pictographic}(‍?\p{Extended_Pictographic}|️){0,6}$/u.test(r.t.trim())) return <Text style={{ fontSize: 44 }}>{r.t.trim()}</Text>;
+      return bubble(<Text style={{ color: fg, fontSize: st.textSize, lineHeight: st.textSize * 1.32 }}>{r.t}</Text>);
+    case 'chess':
+      return (
+        <Pressable onPress={() => router.push({ pathname: '/chess', params: { g: r.g } })} style={{ width: 230, borderRadius: 18, padding: 14, backgroundColor: '#3a2f22', gap: 6 }}>
+          <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11.5, fontWeight: '600' }}>CHESS</Text>
+          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{m.mine ? 'You started a game' : 'Wants to play chess'}</Text>
+          <View style={{ backgroundColor: '#ebecd0', borderRadius: 10, paddingVertical: 8, alignItems: 'center', marginTop: 4 }}>
+            <Text style={{ color: '#3a2f22', fontSize: 15, fontWeight: '700' }}>Open game</Text>
+          </View>
+        </Pressable>
+      );
     case 'stk':
       return <Text style={{ fontSize: 64 }}>{r.e}</Text>;
     case 'img':

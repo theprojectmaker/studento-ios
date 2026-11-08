@@ -14,6 +14,8 @@ import Svg, { Path } from 'react-native-svg';
 import { getToken } from '@/lib/account';
 import * as api from '@/lib/api';
 import { isInCall } from '@/lib/calls';
+import { useBeamVisible } from '@/lib/beam-on';
+import { getBeamSettings } from '@/lib/beam-settings';
 import { isCapturing, useCapturing } from '@/lib/capture';
 import { TYPE } from '@/lib/fonts';
 import { fbDb, currentUser } from '@/lib/fb';
@@ -25,7 +27,7 @@ import { alpha } from '@/lib/themes';
 export function IncomingCall() {
   const insets = useSafeAreaInsets();
   const account = useStore((s) => s.account);
-  const on = useStore((s) => (s.prefs.unlocks ?? []).includes('messages'));
+  const on = useBeamVisible();
   const [call, setCall] = useState<{ id: number; video: boolean; peer: string } | null>(null);
   // While the screen is shared nothing rings and no message alerts fire (capture-shield.tsx).
   const captured = useCapturing();
@@ -61,7 +63,7 @@ export function IncomingCall() {
           query(collection(db, 'chats'), where('members', 'array-contains', u.uid)),
           (snap) => {
             const total = snap.docs.reduce((n, d) => n + Number((d.data().unread as Record<string, number> | undefined)?.[u.uid] ?? 0), 0);
-            if (!isCapturing()) void notifyUnread(total).catch(() => {});
+            if (!isCapturing() && getBeamSettings().alerts) void notifyUnread(total).catch(() => {});
           },
           () => {}
         )

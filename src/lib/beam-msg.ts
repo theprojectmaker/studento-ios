@@ -13,6 +13,7 @@ export type Rich =
   | { k: 'poll'; q: string; o: string[]; multi?: boolean }
   | { k: 'cd'; t: string; at: number }
   | { k: 'stk'; e: string }
+  | { k: 'chess'; g: string }
   // events
   | { k: 'vote'; m: number; o: number[] }
   | { k: 're'; m: number; e: string }
@@ -20,11 +21,8 @@ export type Rich =
   | { k: 'edit'; m: number; t: string }
   | { k: 'seen'; m: number };
 
-/**
- * Longest body the backend keeps. The pages.dev backend cuts messages at 500 characters, so
- * photos don't fit yet; raise this to 900_000 when the Firebase backend is live.
- */
-export const MAX_BODY = 500;
+/** Longest body Firestore keeps for a message (a document holds up to 1 MB). */
+export const MAX_BODY = 900_000;
 
 export const encode = (r: Rich) => RICH + JSON.stringify(r);
 
@@ -54,6 +52,8 @@ export function preview(body: string): string {
       return `Poll: ${r.q}`;
     case 'cd':
       return `Countdown: ${r.t}`;
+    case 'chess':
+      return 'Chess game';
     case 'stk':
       return r.e;
     case 'vote':

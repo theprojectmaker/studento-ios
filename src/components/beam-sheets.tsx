@@ -21,7 +21,7 @@ function Sheet({ c, open, onClose, children }: { c: BeamPalette; open: boolean; 
   );
 }
 
-export type AttachKind = 'camera' | 'photos' | 'once' | 'video' | 'record' | 'poll' | 'countdown' | 'sticker';
+export type AttachKind = 'camera' | 'photos' | 'once' | 'video' | 'record' | 'poll' | 'countdown' | 'sticker' | 'chess';
 
 const ATTACH: { k: AttachKind; label: string; tint: string; icon: keyof typeof Glyph }[] = [
   { k: 'camera', label: 'Camera', tint: '#8e8e93', icon: 'Camera' },
@@ -32,6 +32,7 @@ const ATTACH: { k: AttachKind; label: string; tint: string; icon: keyof typeof G
   { k: 'poll', label: 'Poll', tint: '#30d158', icon: 'Poll' },
   { k: 'countdown', label: 'Countdown', tint: '#64d2ff', icon: 'Timer' },
   { k: 'sticker', label: 'Stickers', tint: '#ffd60a', icon: 'Smile' },
+  { k: 'chess', label: 'Chess', tint: '#a2845e', icon: 'Person' },
 ];
 
 export function AttachSheet({ c, open, onClose, onPick }: { c: BeamPalette; open: boolean; onClose: () => void; onPick: (k: AttachKind) => void }) {
