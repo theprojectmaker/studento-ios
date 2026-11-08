@@ -82,9 +82,8 @@ export default function Beam() {
   useFocusEffect(
     useCallback(() => {
       if (!account) return;
-      void load();
-      const id = setInterval(() => void load(), 6000);
-      return () => clearInterval(id);
+      // Reload only when a chat or call actually changes (live listeners), not on a timer.
+      return api.watchInbox(() => void load());
     }, [account, load])
   );
 

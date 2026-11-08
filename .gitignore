@@ -46,3 +46,6 @@ example
 store.config.local.json
 .eas-metadata/
 .shots/
+
+# Apps Script project link (local)
+relay/.clasp.json

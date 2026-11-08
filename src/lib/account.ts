@@ -4,36 +4,24 @@
  * The token lives in SecureStore (Keychain). Everything here fails soft: offline just
  * means "not saved yet".
  */
-import * as SecureStore from 'expo-secure-store';
-import { Platform } from 'react-native';
-
 import * as api from './api';
+import { currentUser } from './fb';
 import type { PersonalSchedule } from './schedule';
 import { getState, setAccount, setPersonal, setPref, setSchool, subscribe, type Prefs } from './store';
 
-const TOKEN_KEY = 'studento_token';
-let token: string | null | undefined;
-
+/** The 'token' is now just the Firebase uid; the real session is Firebase's own (kept in AsyncStorage). */
 async function readToken(): Promise<string | null> {
-  if (token !== undefined) return token;
-  try {
-    token = Platform.OS === 'web' ? (globalThis.localStorage?.getItem(TOKEN_KEY) ?? null) : await SecureStore.getItemAsync(TOKEN_KEY);
-  } catch {
-    token = null;
-  }
-  return token;
+  return (await currentUser())?.uid ?? null;
 }
-async function writeToken(t: string | null) {
-  token = t;
-  try {
-    if (Platform.OS === 'web') {
-      if (t) globalThis.localStorage?.setItem(TOKEN_KEY, t);
-      else globalThis.localStorage?.removeItem(TOKEN_KEY);
-    } else if (t) await SecureStore.setItemAsync(TOKEN_KEY, t);
-    else await SecureStore.deleteItemAsync(TOKEN_KEY);
-  } catch {
-    // Keychain unavailable: the session just won't survive a relaunch.
-  }
+async function writeToken(_t: string | null) {}
+
+/**
+ * After moving to Firebase, people signed in on the old server have no Firebase session yet:
+ * sign them out locally once so they sign in again (same username and password).
+ */
+export async function reconcileSession(): Promise<void> {
+  const u = await currentUser();
+  if (!u && getState().account) await setAccount(null);
 }
 
 export const getToken = readToken;

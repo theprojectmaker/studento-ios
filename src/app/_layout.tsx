@@ -11,7 +11,7 @@ import { isHeavyWork } from '@/lib/heavy';
 import { useTheme } from '@/lib/hooks';
 import { CaptureShield } from '@/components/capture-shield';
 import { IncomingCall } from '@/components/incoming-call';
-import { watchForSync } from '@/lib/account';
+import { reconcileSession, watchForSync } from '@/lib/account';
 import { rescheduleAlerts, setupNotificationHandler, watchForReschedule } from '@/lib/notify';
 import { loadPlanner } from '@/lib/planner';
 import { loadTools, subscribeTools } from '@/lib/tools';
@@ -57,6 +57,7 @@ export default function RootLayout() {
     void load().then(() => {
       stopWatch = watchForReschedule();
       stopSync = watchForSync();
+      void reconcileSession();
       // Always refill the alert queue on launch, then pull the shared schedule.
       void rescheduleAlerts();
       void registerBackgroundRefresh();

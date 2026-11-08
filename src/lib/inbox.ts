@@ -20,7 +20,12 @@ export async function checkInbox(): Promise<void> {
   const t = await getToken();
   if (!t) return;
   const threads = await api.listThreads(t);
-  const unread = threads.reduce((a, x) => a + (x.unread || 0), 0);
+  await notifyUnread(threads.reduce((a, x) => a + (x.unread || 0), 0));
+}
+
+/** Show "N new messages in inbox" when the unread total went up since last time. */
+export async function notifyUnread(unread: number): Promise<void> {
+  if (Platform.OS === 'web') return;
   const seen = Number((await AsyncStorage.getItem(KEY)) || 0);
   await AsyncStorage.setItem(KEY, String(unread));
   if (unread > seen) {

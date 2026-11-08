@@ -56,7 +56,22 @@
 
 <script>
 (() => {
-  const P = Object.fromEntries(new URLSearchParams(location.hash.slice(1)));
+  // Params come in the hash (hosted page) or window.__P (the app loads this page inline).
+  const P = window.__P || Object.fromEntries(new URLSearchParams(location.hash.slice(1)));
+  // Bridge mode (the app): every API call is answered by the app from Firestore, so this page
+  // never needs to reach a server itself. Hosted mode (no bridge) still uses fetch.
+  const BRIDGE = !!window.ReactNativeWebView || (P.bridge === '1' && window.parent !== window);
+  let bridgeSeq = 0;
+  const waiting = {};
+  window.__apiReply = (id, ok, data) => { const w = waiting[id]; if (!w) return; delete waiting[id]; ok ? w.res(data) : w.rej(new Error((data && data.error) || 'failed')); };
+  window.addEventListener('message', (e) => { try { const m = typeof e.data === 'string' ? JSON.parse(e.data) : e.data; if (m && m.type === 'apiReply') window.__apiReply(m.id, m.ok, m.data); } catch {} });
+  const bridgeApi = (path, opts) => new Promise((res, rej) => {
+    const id = ++bridgeSeq;
+    waiting[id] = { res, rej };
+    const msg = JSON.stringify({ type: 'api', id, path, method: opts.method || 'GET', body: opts.body });
+    if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(msg); else window.parent.postMessage(msg, '*');
+    setTimeout(() => { if (waiting[id]) { delete waiting[id]; rej(new Error('timeout')); } }, 20000);
+  });
   const API = P.api || location.origin;
   const token = P.token || '';
   const callId = Number(P.call || 0);
@@ -77,6 +92,7 @@
 
   const say = (t) => { $('status').textContent = t; $('topStatus').textContent = t; };
   const api = async (path, opts = {}) => {
+    if (BRIDGE) return bridgeApi(path, opts);
     const r = await fetch(API + path, { method: opts.method || 'GET', headers: { Authorization: 'Bearer ' + token, ...(opts.body ? { 'Content-Type': 'application/json' } : {}) }, body: opts.body ? JSON.stringify(opts.body) : undefined });
     const j = await r.json().catch(() => ({}));
     if (!r.ok || j.ok === false) throw new Error(j.error || ('HTTP ' + r.status));
@@ -205,7 +221,7 @@
       $('local').style.transform = facing === 'user' ? 'scaleX(-1)' : 'none';
     } catch {}
   };
-  window.addEventListener('pagehide', () => { if (!done) navigator.sendBeacon && fetch(API + `/api/calls/${callId}/end`, { method: 'POST', keepalive: true, headers: { Authorization: 'Bearer ' + token } }).catch(() => {}); });
+  window.addEventListener('pagehide', () => { if (!done && BRIDGE) { api(`/api/calls/${callId}/end`, { method: 'POST' }).catch(() => {}); return; } if (!done) navigator.sendBeacon && fetch(API + `/api/calls/${callId}/end`, { method: 'POST', keepalive: true, headers: { Authorization: 'Bearer ' + token } }).catch(() => {}); });
 
   start();
 })();

@@ -1,0 +1,116 @@
+rules_version = '2';
+// Studento (project studento-clock). Paste into Firebase console > Firestore > Rules, or
+// deploy with scripts/firebase-setup.mjs. Layout is documented at the top of src/lib/api.ts.
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function me() { return request.auth.uid; }
+    function isAdmin() {
+      return signedIn() && get(/databases/$(database)/documents/users/$(me())).data.get('admin', false) == true;
+    }
+    function flagOn(name) {
+      return !exists(/databases/$(database)/documents/config/flags)
+        || get(/databases/$(database)/documents/config/flags).data.get(name, true) != false;
+    }
+    function onlyChanges(keys) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys); }
+    function blockedBy(other) {
+      return exists(/databases/$(database)/documents/blocks/$(other))
+        && me() in get(/databases/$(database)/documents/blocks/$(other)).data.get('ids', []);
+    }
+
+    match /config/flags {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // Numeric ids for schools, schedules, reports and accounts: +1 at a time only.
+    match /counters/{kind} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.keys().hasOnly(['next']);
+      allow update: if signedIn() && request.resource.data.next == resource.data.next + 1;
+    }
+
+    match /users/{uid} {
+      allow read: if signedIn() && (me() == uid || isAdmin());
+      allow create: if signedIn() && me() == uid && flagOn('signup')
+        && request.resource.data.admin == false
+        && request.resource.data.keys().hasOnly(['username', 'num', 'admin', 'data', 'updatedAt']);
+      allow update: if signedIn() && me() == uid && onlyChanges(['data', 'updatedAt']);
+      allow delete: if signedIn() && me() == uid;
+    }
+
+    match /usernames/{name} {
+      allow read: if signedIn();
+      allow create: if signedIn() && request.resource.data.uid == me() && name.matches('^[a-z0-9_.-]{3,24}$');
+      allow delete: if signedIn() && resource.data.uid == me();
+    }
+
+    match /schools/{id} {
+      allow read: if true;
+      allow create: if signedIn() && flagOn('sharing') && request.resource.data.createdBy == me()
+        && request.resource.data.name is string && request.resource.data.name.size() <= 80;
+      allow update, delete: if isAdmin();
+    }
+
+    match /schedules/{id} {
+      allow read: if true;
+      allow create: if signedIn() && flagOn('sharing') && request.resource.data.createdBy == me()
+        && request.resource.data.name is string && request.resource.data.name.size() <= 40;
+      allow update, delete: if isAdmin() || (signedIn() && resource.data.createdBy == me());
+    }
+
+    match /reports/{id} {
+      allow create: if signedIn() && request.resource.data.uid == me();
+      allow read, update, delete: if isAdmin();
+    }
+
+    // Share codes: anyone can make one (no account needed); read by exact code only.
+    match /shares/{code} {
+      allow get: if true;
+      allow create: if flagOn('sharing') && code.matches('^[A-Z2-9]{6}$')
+        && request.resource.data.keys().hasOnly(['data', 'createdAt', 'expiresAt'])
+        && request.resource.data.expiresAt <= request.time.toMillis() + 31 * 86400000;
+    }
+
+    match /blocks/{uid} {
+      allow read, write: if signedIn() && me() == uid;
+    }
+
+    match /chats/{key} {
+      // The key is the two uids, so it proves membership even before the chat exists.
+      allow get: if signedIn() && key.split('_').hasAny([me()]);
+      allow list: if signedIn() && me() in resource.data.members;
+      allow create: if signedIn() && flagOn('messaging') && me() in request.resource.data.members
+        && request.resource.data.members.size() == 2 && key == request.resource.data.members[0] + '_' + request.resource.data.members[1];
+      allow update: if signedIn() && me() in resource.data.members && request.resource.data.members == resource.data.members;
+      allow delete: if signedIn() && me() in resource.data.members;
+
+      match /msgs/{msgId} {
+        allow read: if signedIn() && (key.split('_').hasAny([me()]) || isAdmin());
+        allow create: if signedIn() && flagOn('messaging')
+          && key.split('_').hasAny([me()])
+          && request.resource.data.from == me()
+          && request.resource.data.body is string && request.resource.data.body.size() <= 500
+          && !blockedBy(key.split('_')[0] == me() ? key.split('_')[1] : key.split('_')[0]);
+        allow delete: if isAdmin() || (signedIn() && key.split('_').hasAny([me()]));
+      }
+    }
+
+    match /calls/{callId} {
+      allow read: if signedIn() && (resource.data.to == me() || resource.data.from == me() || me() in resource.data.members);
+      allow create: if signedIn() && flagOn('messaging') && request.resource.data.from == me()
+        && request.resource.data.members.size() == 2 && me() in request.resource.data.members
+        && !blockedBy(request.resource.data.to);
+      allow update: if signedIn() && me() in resource.data.members
+        && onlyChanges(['status', 'answeredAt', 'endedAt']);
+      match /signals/{sig} {
+        allow read, create: if signedIn()
+          && me() in get(/databases/$(database)/documents/calls/$(callId)).data.members;
+      }
+    }
+
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

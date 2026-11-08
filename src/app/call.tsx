@@ -13,11 +13,13 @@ export default function Call() {
   const theme = useTheme();
   const { id, role, video, peer } = useLocalSearchParams<{ id: string; role: string; video: string; peer: string }>();
   const [url, setUrl] = useState<string | null>(null);
+  const [params, setParams] = useState<Record<string, string>>({});
 
   useEffect(() => {
     setInCall(true);
     void getToken().then((t) => {
       const p = new URLSearchParams({ token: t ?? '', call: String(id ?? ''), role: role === 'callee' ? 'callee' : 'caller', video: video === '1' ? '1' : '0', peer: String(peer ?? ''), bg: theme.bg, ink: theme.ink, accent: theme.accent, api: API_BASE });
+      setParams(Object.fromEntries(p.entries()));
       setUrl(`${API_BASE}/call#${p.toString()}`);
     });
     return () => setInCall(false);
@@ -28,5 +30,5 @@ export default function Call() {
     else router.replace('/');
   }, []);
 
-  return <View style={{ flex: 1, backgroundColor: '#000' }}>{url ? <CallFrame url={url} onClose={close} /> : null}</View>;
+  return <View style={{ flex: 1, backgroundColor: '#000' }}>{url ? <CallFrame url={url} params={params} onClose={close} /> : null}</View>;
 }

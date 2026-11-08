@@ -5,7 +5,8 @@
  */
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { AppState, Pressable, Text, View } from 'react-native';
+import { collection, onSnapshot, query, where } from 'firebase/firestore';
+import { Pressable, Text, View } from 'react-native';
 import Animated, { FadeInUp, FadeOutUp } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path } from 'react-native-svg';
@@ -14,7 +15,8 @@ import { getToken } from '@/lib/account';
 import * as api from '@/lib/api';
 import { isInCall } from '@/lib/calls';
 import { TYPE } from '@/lib/fonts';
-import { checkInbox } from '@/lib/inbox';
+import { fbDb, currentUser } from '@/lib/fb';
+import { notifyUnread } from '@/lib/inbox';
 import { sz } from '@/lib/scale';
 import { useStore } from '@/lib/store';
 import { alpha } from '@/lib/themes';
@@ -28,23 +30,44 @@ export function IncomingCall() {
   useEffect(() => {
     if (!account || !on) return;
     let dead = false;
-    let tick = 0;
-    const check = async () => {
-      if (isInCall() || AppState.currentState !== 'active') return;
-      const t = await getToken();
-      if (!t) return;
-      try {
-        const c = await api.incomingCall(t);
-        if (!dead) setCall(c);
-      } catch {}
-      // Inbox every ~20 s.
-      if (tick++ % 5 === 0) void checkInbox().catch(() => {});
-    };
-    void check();
-    const id = setInterval(() => void check(), 4000);
+    const stops: (() => void)[] = [];
+    let expire: ReturnType<typeof setTimeout> | undefined;
+    // Live Firestore listeners: a ringing call addressed to me, and my chats' unread counts.
+    // One read per change instead of polling, and it all goes over googleapis.com.
+    void currentUser().then((u) => {
+      if (!u || dead) return;
+      const db = fbDb();
+      stops.push(
+        onSnapshot(
+          query(collection(db, 'calls'), where('to', '==', u.uid), where('status', '==', 'ringing')),
+          (snap) => {
+            const c = snap.docs
+              .map((d) => ({ id: Number(d.id), d: d.data() as api.CallDoc }))
+              .filter((x) => Date.now() - x.d.createdAt < 40_000)
+              .sort((x, y) => y.d.createdAt - x.d.createdAt)[0];
+            clearTimeout(expire);
+            if (!c || isInCall()) return setCall(null);
+            setCall({ id: c.id, video: c.d.video, peer: c.d.fromName });
+            expire = setTimeout(() => setCall(null), Math.max(0, 40_000 - (Date.now() - c.d.createdAt)));
+          },
+          () => {}
+        )
+      );
+      stops.push(
+        onSnapshot(
+          query(collection(db, 'chats'), where('members', 'array-contains', u.uid)),
+          (snap) => {
+            const total = snap.docs.reduce((n, d) => n + Number((d.data().unread as Record<string, number> | undefined)?.[u.uid] ?? 0), 0);
+            void notifyUnread(total).catch(() => {});
+          },
+          () => {}
+        )
+      );
+    });
     return () => {
       dead = true;
-      clearInterval(id);
+      clearTimeout(expire);
+      stops.forEach((f) => f());
     };
   }, [account, on]);
 
