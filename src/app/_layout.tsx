@@ -155,9 +155,9 @@ export default function RootLayout() {
         <Stack.Screen name="schedule-edit" options={{ title: 'Custom Day' }} />
         <Stack.Screen name="backup" options={{ title: 'Back Up & Restore' }} />
         <Stack.Screen name="redeem" options={{ title: 'Redeem' }} />
-        <Stack.Screen name="messages" options={{ title: 'Beam' }} />
+        <Stack.Screen name="messages" options={{ headerShown: false }} />
         <Stack.Screen name="call" options={{ headerShown: false, presentation: 'fullScreenModal', gestureEnabled: false }} />
-        <Stack.Screen name="chat" options={{ title: '', headerLargeTitle: false }} />
+        <Stack.Screen name="chat" options={{ headerShown: false }} />
       </Stack>
       <IncomingCall />
       <CaptureShield />

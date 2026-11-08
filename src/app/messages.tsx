@@ -1,41 +1,33 @@
-/** Beam (beta): chats and calls with other Studento users. */
+/** Beam: the conversation list, styled like the Beam website (rows, avatars, search pill, filter chips). */
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Button, Divider, Field, Note, Row, Screen, Section, Segmented } from '@/components/ui';
+import { BeamAvatar, Glyph, useBeam } from '@/components/beam-ui';
 import { getToken } from '@/lib/account';
 import * as api from '@/lib/api';
 import { startCall } from '@/lib/calls';
-import { CallButtons } from '@/components/call-buttons';
-import { TYPE } from '@/lib/fonts';
-import { useTheme } from '@/lib/hooks';
 import { sz } from '@/lib/scale';
 import { useStore } from '@/lib/store';
-import { alpha, readableOn } from '@/lib/themes';
 
-function ago(ms: number): string {
-  const s = Math.max(0, (Date.now() - ms) / 1000);
-  if (s < 60) return 'now';
-  if (s < 3600) return `${Math.floor(s / 60)}m`;
-  if (s < 86400) return `${Math.floor(s / 3600)}h`;
-  return new Date(ms).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+function when(ms: number): string {
+  const d = new Date(ms);
+  const now = new Date();
+  if (d.toDateString() === now.toDateString()) return d.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  const y = new Date(now);
+  y.setDate(now.getDate() - 1);
+  if (d.toDateString() === y.toDateString()) return 'Yesterday';
+  if (now.getTime() - ms < 6 * 86400_000) return d.toLocaleDateString([], { weekday: 'long' });
+  return d.toLocaleDateString([], { month: 'numeric', day: 'numeric', year: '2-digit' });
 }
 const dur = (s: number) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
 
-function Avatar({ name, size = 36 }: { name: string; size?: number }) {
-  const theme = useTheme();
-  return (
-    <View style={{ width: sz(size), height: sz(size), borderRadius: sz(size / 2), backgroundColor: alpha(theme.accent, 0.2), alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ ...TYPE.bold, fontSize: sz(size * 0.42), color: theme.accent }}>{name.slice(0, 1).toUpperCase()}</Text>
-    </View>
-  );
-}
-
 export default function Beam() {
-  const theme = useTheme();
+  const c = useBeam();
+  const insets = useSafeAreaInsets();
   const account = useStore((s) => s.account);
-  const [tab, setTab] = useState<'chats' | 'calls'>('chats');
+  const [tab, setTab] = useState<'all' | 'unread' | 'calls'>('all');
   const [threads, setThreads] = useState<api.Thread[] | null>(null);
   const [calls, setCalls] = useState<api.RecentCall[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -51,7 +43,7 @@ export default function Beam() {
       setCalls(cl);
       setErr(null);
     } catch (e) {
-      setErr(e instanceof Error ? e.message : "Couldn't load Beam.");
+      setErr(e instanceof Error ? e.message : "Couldn't load.");
     }
   }, []);
 
@@ -85,97 +77,125 @@ export default function Beam() {
 
   const call = (peer: string, video: boolean) => void startCall(peer, video).catch((e) => setErr(e instanceof Error ? e.message : "Couldn't start the call."));
 
+  const header = (
+    <View style={{ paddingTop: insets.top + 6, paddingHorizontal: 16, paddingBottom: 6, backgroundColor: c.sidebar }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', height: 36 }}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={() => router.back()} hitSlop={10} style={{ flexDirection: 'row', alignItems: 'center', marginLeft: -6 }}>
+          <Glyph.Back color={c.blue} />
+          <Text style={{ color: c.blue, fontSize: 17 }}>Clock</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityLabel="New message" onPress={() => setQ(q || ' ')} hitSlop={10}>
+          <Glyph.Compose color={c.blue} />
+        </Pressable>
+      </View>
+      <Text style={{ color: c.text, fontSize: sz(32), fontWeight: '700', letterSpacing: -0.6, marginTop: 4 }}>Beam</Text>
+    </View>
+  );
+
   if (!account) {
     return (
-      <Screen>
-        <View style={{ alignItems: 'center', gap: 8, paddingVertical: 12 }}>
-          <Text style={{ ...TYPE.heavy, fontSize: sz(34), letterSpacing: -1, color: theme.accent }}>Beam</Text>
-          <Text style={{ ...TYPE.regular, fontSize: sz(15), color: theme.muted, textAlign: 'center' }}>Chat and call other Studento users. Beam needs an account so people know who they are talking to.</Text>
+      <View style={{ flex: 1, backgroundColor: c.sidebar }}>
+        {header}
+        <View style={{ padding: 24, gap: 14, alignItems: 'center' }}>
+          <Text style={{ color: c.text2, fontSize: 15, textAlign: 'center', lineHeight: 21 }}>Sign in so people know who they are talking to.</Text>
+          <Pressable onPress={() => router.push('/account')} style={({ pressed }) => ({ backgroundColor: pressed ? '#0a6fd8' : c.blue, borderRadius: 12, paddingHorizontal: 22, paddingVertical: 12 })}>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Sign in</Text>
+          </Pressable>
         </View>
-        <Button title="Sign in or create an account" onPress={() => router.push('/account')} />
-      </Screen>
+      </View>
     );
   }
 
-  const shownHits = q.trim().length >= 2 ? hits : [];
-  const unread = (threads ?? []).reduce((a, t) => a + (t.unread || 0), 0);
+  const searching = q.trim().length >= 2;
+  const list = (threads ?? []).filter((t) => tab !== 'unread' || t.unread > 0);
   return (
-    <Screen>
-      <Segmented
-        value={tab}
-        options={[
-          { value: 'chats', label: unread ? `Chats (${unread})` : 'Chats' },
-          { value: 'calls', label: 'Calls' },
-        ]}
-        onChange={setTab}
-      />
-
-      <Section title={tab === 'chats' ? 'New chat' : 'New call'}>
-        <View style={{ padding: 12 }}>
-          <Field value={q} onChangeText={setQ} placeholder="Search by username" autoCapitalize="none" autoCorrect={false} accessibilityLabel="Search users" />
+    <View style={{ flex: 1, backgroundColor: c.sidebar }}>
+      {header}
+      <View style={{ marginHorizontal: 12, marginBottom: 8, height: 34, borderRadius: 10, backgroundColor: c.search, flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 9 }}>
+        <Glyph.Search color={c.text3} />
+        <TextInput value={q} onChangeText={setQ} placeholder="Search people" placeholderTextColor={c.text3} autoCapitalize="none" autoCorrect={false} style={{ flex: 1, color: c.text, fontSize: 15, height: '100%' }} />
+      </View>
+      {!searching ? (
+        <View style={{ flexDirection: 'row', gap: 6, marginHorizontal: 12, marginBottom: 8 }}>
+          {(['all', 'unread', 'calls'] as const).map((k) => (
+            <Pressable key={k} onPress={() => setTab(k)} style={{ paddingHorizontal: 12, paddingVertical: 5, borderRadius: 10, backgroundColor: tab === k ? c.blue : c.search }}>
+              <Text style={{ fontSize: 12.5, fontWeight: '600', color: tab === k ? '#fff' : c.text2 }}>{k === 'all' ? 'All' : k === 'unread' ? 'Unread' : 'Calls'}</Text>
+            </Pressable>
+          ))}
         </View>
-        {shownHits.map((h) => (
-          <View key={h.id}>
-            <Divider />
-            {tab === 'chats' ? (
-              <Row label={h.username} icon={{ name: 'person.fill', color: '#007aff' }} onPress={() => router.push({ pathname: '/chat', params: { u: h.username } })} />
-            ) : (
-              <Row label={h.username} icon={{ name: 'person.fill', color: '#007aff' }} right={<CallButtons onAudio={() => call(h.username, false)} onVideo={() => call(h.username, true)} />} />
-            )}
-          </View>
-        ))}
-      </Section>
+      ) : null}
 
-      {tab === 'chats' ? (
-        <Section title="Chats" footer="Beta. Keep it to school stuff and be kind. In a chat you can call, block someone, or long-press a message to report it.">
-          {threads === null ? <Note>{err ?? 'Loading…'}</Note> : threads.length === 0 ? <Note>No chats yet. Search for a friend above.</Note> : null}
-          {(threads ?? []).map((t, i) => (
-            <View key={t.id}>
-              {i ? <Divider inset={64} /> : null}
-              <Pressable onPress={() => router.push({ pathname: '/chat', params: { u: t.username } })} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 11, backgroundColor: pressed ? alpha(theme.ink, 0.08) : 'transparent' })}>
-                <Avatar name={t.username} />
-                <View style={{ flex: 1, gap: 2 }}>
-                  <Text style={{ ...TYPE.semibold, fontSize: sz(16), color: theme.ink }}>{t.username}</Text>
-                  <Text style={{ ...TYPE.regular, fontSize: sz(14), color: theme.muted }} numberOfLines={1}>
+      <ScrollView contentContainerStyle={{ paddingHorizontal: 8, paddingBottom: insets.bottom + 16 }} keyboardShouldPersistTaps="handled">
+        {searching ? (
+          hits.length === 0 ? (
+            <Text style={{ color: c.text3, fontSize: 14, textAlign: 'center', marginTop: 24 }}>No one by that name.</Text>
+          ) : (
+            hits.map((h) => (
+              <Pressable key={h.id} onPress={() => router.push({ pathname: '/chat', params: { u: h.username } })} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 9, paddingLeft: 18, borderRadius: 12, backgroundColor: pressed ? c.rowPress : 'transparent' })}>
+                <BeamAvatar name={h.username} />
+                <Text style={{ flex: 1, color: c.text, fontSize: 16, fontWeight: '600' }}>{h.username}</Text>
+                <Pressable onPress={() => call(h.username, false)} hitSlop={8} style={{ padding: 6 }}>
+                  <Glyph.Phone color={c.blue} size={20} />
+                </Pressable>
+                <Pressable onPress={() => call(h.username, true)} hitSlop={8} style={{ padding: 6 }}>
+                  <Glyph.Video color={c.blue} size={22} />
+                </Pressable>
+              </Pressable>
+            ))
+          )
+        ) : tab === 'calls' ? (
+          calls === null ? (
+            <Text style={{ color: c.text3, fontSize: 14, textAlign: 'center', marginTop: 24 }}>{err ?? 'Loading…'}</Text>
+          ) : calls.length === 0 ? (
+            <Text style={{ color: c.text3, fontSize: 14, textAlign: 'center', marginTop: 24 }}>No calls yet.</Text>
+          ) : (
+            calls.map((k) => {
+              const missed = !k.outgoing && (k.status === 'missed' || k.status === 'declined');
+              return (
+                <Pressable key={k.id} onPress={() => call(k.peer, k.video)} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 9, paddingLeft: 18, borderRadius: 12, backgroundColor: pressed ? c.rowPress : 'transparent' })}>
+                  <BeamAvatar name={k.peer} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: missed ? c.red : c.text, fontSize: 15, fontWeight: '600' }}>{k.peer}</Text>
+                    <Text style={{ color: c.text2, fontSize: 13, marginTop: 2 }}>{`${k.video ? 'Video' : 'Audio'} · ${k.outgoing ? 'Outgoing' : missed ? 'Missed' : 'Incoming'}${k.seconds ? ` · ${dur(k.seconds)}` : ''}`}</Text>
+                  </View>
+                  <Text style={{ color: c.text3, fontSize: 12 }}>{when(k.at)}</Text>
+                  {k.video ? <Glyph.Video color={c.blue} size={20} /> : <Glyph.Phone color={c.blue} size={18} />}
+                </Pressable>
+              );
+            })
+          )
+        ) : threads === null ? (
+          <Text style={{ color: c.text3, fontSize: 14, textAlign: 'center', marginTop: 24 }}>{err ?? 'Loading…'}</Text>
+        ) : list.length === 0 ? (
+          <Text style={{ color: c.text3, fontSize: 14, textAlign: 'center', marginTop: 24 }}>{tab === 'unread' ? 'No unread messages.' : 'No messages yet. Search for someone above.'}</Text>
+        ) : (
+          list.map((t) => {
+            const unread = t.unread > 0;
+            return (
+              <Pressable key={t.id} onPress={() => router.push({ pathname: '/chat', params: { u: t.username } })} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', paddingVertical: 9, paddingRight: 10, paddingLeft: 4, borderRadius: 12, backgroundColor: pressed ? c.rowPress : 'transparent' })}>
+                <View style={{ width: 14, alignItems: 'center' }}>
+                  <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: c.blue, opacity: unread ? 1 : 0 }} />
+                </View>
+                <View style={{ marginHorizontal: 10 }}>
+                  <BeamAvatar name={t.username} />
+                </View>
+                <View style={{ flex: 1, minWidth: 0 }}>
+                  <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 8 }}>
+                    <Text style={{ flex: 1, color: c.text, fontSize: 15, fontWeight: unread ? '700' : '600' }} numberOfLines={1}>
+                      {t.username}
+                    </Text>
+                    <Text style={{ color: unread ? c.blue : c.text3, fontSize: 12, fontWeight: unread ? '600' : '400' }}>{when(t.lastAt)}</Text>
+                    <Glyph.Chevron color={c.text3} />
+                  </View>
+                  <Text style={{ color: unread ? c.text : c.text2, fontSize: 13.5, lineHeight: 18, marginTop: 2 }} numberOfLines={2}>
                     {t.lastBody}
                   </Text>
                 </View>
-                <View style={{ alignItems: 'flex-end', gap: 4 }}>
-                  <Text style={{ ...TYPE.regular, fontSize: sz(12), color: theme.muted }}>{ago(t.lastAt)}</Text>
-                  {t.unread ? (
-                    <View style={{ minWidth: 20, height: 20, borderRadius: 10, paddingHorizontal: 6, backgroundColor: theme.accent, alignItems: 'center', justifyContent: 'center' }}>
-                      <Text style={{ ...TYPE.bold, fontSize: sz(11), color: readableOn(theme.accent) }}>{t.unread}</Text>
-                    </View>
-                  ) : null}
-                </View>
               </Pressable>
-            </View>
-          ))}
-        </Section>
-      ) : (
-        <Section title="Recent calls" footer="Calls go straight between the two devices; Studento never records them. Tap a call to call back.">
-          {calls === null ? <Note>{err ?? 'Loading…'}</Note> : calls.length === 0 ? <Note>No calls yet.</Note> : null}
-          {(calls ?? []).map((c, i) => {
-            const missed = !c.outgoing && (c.status === 'missed' || c.status === 'declined');
-            return (
-              <View key={c.id}>
-                {i ? <Divider inset={64} /> : null}
-                <Pressable onPress={() => call(c.peer, c.video)} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 16, paddingVertical: 11, backgroundColor: pressed ? alpha(theme.ink, 0.08) : 'transparent' })}>
-                  <Avatar name={c.peer} />
-                  <View style={{ flex: 1, gap: 2 }}>
-                    <Text style={{ ...TYPE.semibold, fontSize: sz(16), color: missed ? '#ff453a' : theme.ink }}>{c.peer}</Text>
-                    <Text style={{ ...TYPE.regular, fontSize: sz(13), color: theme.muted }}>
-                      {`${c.outgoing ? '↗' : '↙'} ${c.video ? 'Video' : 'Audio'}${c.seconds ? ` · ${dur(c.seconds)}` : missed ? ' · missed' : c.status === 'declined' ? ' · declined' : ''}`}
-                    </Text>
-                  </View>
-                  <Text style={{ ...TYPE.regular, fontSize: sz(12), color: theme.muted }}>{ago(c.at)}</Text>
-                </Pressable>
-              </View>
             );
-          })}
-        </Section>
-      )}
-      {err && (threads || calls) ? <Note tone="error">{err}</Note> : null}
-    </Screen>
+          })
+        )}
+      </ScrollView>
+    </View>
   );
 }
