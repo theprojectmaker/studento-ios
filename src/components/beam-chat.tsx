@@ -8,12 +8,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Image, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { BeamContact } from '@/components/beam-contact';
 import { ActionSheet, AttachSheet, CountdownSheet, PhotoViewer, PollSheet, StickerSheet, VideoViewer, type AttachKind } from '@/components/beam-sheets';
 import { BeamAvatar, Glyph, Tail, useBeam, type BeamPalette } from '@/components/beam-ui';
 import { tap } from '@/components/ui';
 import { getToken } from '@/lib/account';
 import * as api from '@/lib/api';
-import { newGame, sendTyping, watchChatMeta } from '@/lib/beam-extra';
+import { newGame, sendTyping, setDisappearing, sweepExpired, TTL_OPTIONS, watchChatMeta } from '@/lib/beam-extra';
 import { getPhotos, getVideo } from '@/lib/beam-media';
 import { useBeamSettings } from '@/lib/beam-settings';
 import { encode, fold, MAX_BODY, preview, type Folded, type Rich } from '@/lib/beam-msg';
@@ -59,7 +60,8 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
   const base = useBeam();
   const st = useBeamSettings();
   const c = useMemo(() => ({ ...base, outBubble: st.bubble }), [base, st.bubble]);
-  const [meta, setMeta] = useState({ seen: false, typingAt: 0 });
+  const [meta, setMeta] = useState({ seen: false, typingAt: 0, ttl: 0 });
+  const [contactOpen, setContactOpen] = useState(false);
   const [typing, setTyping] = useState(false);
   const [search, setSearch] = useState<string | null>(null);
   const [timeFor, setTimeFor] = useState<number | null>(null);
@@ -96,6 +98,7 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
   const scroller = useRef<ScrollView>(null);
 
   const msgs = useMemo(() => fold(raw), [raw]);
+  const photos = msgs.filter((m) => !m.deleted && m.rich.k === 'img' && !m.rich.once).flatMap((m) => (m.rich.k === 'img' ? m.rich.d : [])).reverse();
   const byId = useMemo(() => new Map(msgs.map((m) => [m.id, m])), [msgs]);
   const hasCountdown = msgs.some((m) => m.rich.k === 'cd' && !m.deleted && m.rich.at > now);
 
@@ -119,8 +122,17 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
         },
         (e) => setErr(e.message)
       );
-    }, [username])
+    }, [username, setErr])
   );
+
+  // Disappearing messages: delete anything older than the chat's timer, now and every minute.
+  useEffect(() => {
+    if (!meta.ttl || !username) return;
+    const sweep = () => void sweepExpired(username, raw.filter((m) => m.createdAt < Date.now() - meta.ttl).map((m) => m.id)).catch(() => {});
+    sweep();
+    const id = setInterval(sweep, 60_000);
+    return () => clearInterval(id);
+  }, [meta.ttl, raw, username]);
 
   const sendBody = async (body: string) => {
     const t = await getToken();
@@ -271,7 +283,7 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
             </Pressable>
           ) : null}
         </View>
-        <Pressable accessibilityRole="button" accessibilityLabel={`${username}, options`} onPress={toggleBlock} style={{ flex: 1, alignItems: 'center', gap: 3 }}>
+        <Pressable accessibilityRole="button" accessibilityLabel={`${username}, contact info`} onPress={() => setContactOpen(true)} style={{ flex: 1, alignItems: 'center', gap: 3 }}>
           <BeamAvatar name={username} size={38} />
           <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
             <Text style={{ color: c.text, fontSize: 12, fontWeight: '500' }}>{username}</Text>
@@ -295,6 +307,11 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
         </View>
       </View>
 
+      {meta.ttl ? (
+        <Pressable onPress={() => setContactOpen(true)} style={{ alignSelf: 'center', marginTop: 8, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, backgroundColor: c.search }}>
+          <Text style={{ color: c.text2, fontSize: 12 }}>{`Disappearing messages: ${TTL_OPTIONS.find(([, ms]) => ms === meta.ttl)?.[0] ?? 'on'}`}</Text>
+        </Pressable>
+      ) : null}
       {search !== null ? (
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: 12, marginTop: 8, height: 34, borderRadius: 10, backgroundColor: c.search, paddingHorizontal: 9 }}>
           <Glyph.Search color={c.text3} />
@@ -479,6 +496,32 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
       />
       <PhotoViewer uri={photo?.uri ?? null} seconds={photo?.once ? 10 : undefined} onClose={closePhoto} />
       <VideoViewer url={video} onClose={() => setVideo(null)} />
+      <BeamContact
+        c={c}
+        username={username}
+        open={contactOpen}
+        onClose={() => setContactOpen(false)}
+        photos={photos}
+        ttl={meta.ttl}
+        blocked={blocked}
+        onCall={(video) => {
+          setContactOpen(false);
+          void startCall(username, video).catch((e) => setErr(String(e?.message ?? e)));
+        }}
+        onSendPhoto={() => {
+          setContactOpen(false);
+          void attach('photos');
+        }}
+        onTtl={(ms) => void setDisappearing(username, ms).catch((e) => setErr(e instanceof Error ? e.message : "Couldn't change that."))}
+        onPhoto={(uri) => {
+          setContactOpen(false);
+          setTimeout(() => setPhoto({ uri }), 350);
+        }}
+        onBlock={() => {
+          setContactOpen(false);
+          setTimeout(toggleBlock, 350);
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }

@@ -217,7 +217,15 @@ async function chatRef(username: string) {
 }
 
 /** Live: has the other person read everything I sent, and are they typing right now? */
-export function watchChatMeta(username: string, cb: (m: { seen: boolean; typingAt: number }) => void): () => void {
+/** Disappearing messages: 0 = off, else how long a message lasts (ms). */
+export const TTL_OPTIONS: [string, number][] = [
+  ['Off', 0],
+  ['24 hours', 86400_000],
+  ['7 days', 7 * 86400_000],
+  ['90 days', 90 * 86400_000],
+];
+
+export function watchChatMeta(username: string, cb: (m: { seen: boolean; typingAt: number; ttl: number }) => void): () => void {
   let stop = () => {};
   let dead = false;
   void chatRef(username)
@@ -227,7 +235,7 @@ export function watchChatMeta(username: string, cb: (m: { seen: boolean; typingA
         ref,
         (s) => {
           const d = s.data() ?? {};
-          cb({ seen: Number((d.unread as Record<string, number> | undefined)?.[other] ?? 0) === 0, typingAt: Number((d.typing as Record<string, number> | undefined)?.[other] ?? 0) });
+          cb({ seen: Number((d.unread as Record<string, number> | undefined)?.[other] ?? 0) === 0, typingAt: Number((d.typing as Record<string, number> | undefined)?.[other] ?? 0), ttl: Number(d.ttl ?? 0) });
         },
         () => {}
       );
@@ -333,4 +341,17 @@ export function watchNoticesFor(uid: string, cb: (n: Notice[]) => void): () => v
   } catch {
     return () => {};
   }
+}
+
+/** Turn disappearing messages on or off for a chat (both people see the same setting). */
+export async function setDisappearing(username: string, ttl: number): Promise<void> {
+  const { ref } = await chatRef(username);
+  await updateDoc(ref, { ttl });
+}
+
+/** Delete messages older than the chat's timer (members may delete messages in their chat). */
+export async function sweepExpired(username: string, ids: number[]): Promise<void> {
+  if (!ids.length) return;
+  const { ref } = await chatRef(username);
+  await Promise.all(ids.slice(0, 50).map((id) => deleteDoc(doc(ref, 'msgs', String(id))).catch(() => {})));
 }
