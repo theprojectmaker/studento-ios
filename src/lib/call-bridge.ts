@@ -19,6 +19,7 @@ export class CallBridge {
 
   constructor(private callId: number) {
     this.ready = this.start();
+    this.ready.catch(() => {});
   }
 
   private async start() {

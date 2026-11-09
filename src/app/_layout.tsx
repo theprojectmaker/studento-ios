@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import { AppState, Pressable, Text, View } from 'react-native';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
+import { showLastCrash } from '@/lib/crash-report';
 import { registerBackgroundRefresh } from '@/lib/background';
 import { isHeavyWork } from '@/lib/heavy';
 import { useTheme } from '@/lib/hooks';
@@ -51,6 +52,13 @@ export default function RootLayout() {
   }, []);
   const loaded = storeLoaded && (fontsLoaded || !!fontError || !fontWait);
   const theme = useTheme();
+
+  // Show a crash that closed the app last time (see lib/crash-report).
+  useEffect(() => {
+    if (!loaded) return;
+    const t = setTimeout(() => void showLastCrash().catch(() => {}), 1500);
+    return () => clearTimeout(t);
+  }, [loaded]);
 
   useEffect(() => {
     let stopWatch: (() => void) | null = null;
