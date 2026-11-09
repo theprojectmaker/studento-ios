@@ -58,7 +58,7 @@
         {
           "photosPermission": "Studento reads the schedule photo you pick, on this phone, to fill in your classes. The photo is not uploaded.",
           "cameraPermission": "Studento uses the camera to take a photo of your schedule, and for video calls.",
-          "microphonePermission": false
+          "microphonePermission": "Studento uses the microphone for calls, so the other person can hear you."
         }
       ],
       [
