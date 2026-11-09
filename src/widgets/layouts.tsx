@@ -10,8 +10,8 @@
  * `ProgressView(timerInterval:)` count down on the device with no push server
  * and no app running. Times arrive as epoch milliseconds.
  */
-import { HStack, ProgressView, Spacer, Text, VStack } from '@expo/ui/swift-ui';
-import { activityBackgroundTint, background, containerBackground, font, foregroundStyle, frame, kerning, lineLimit, minimumScaleFactor, monospacedDigit, padding, progressViewStyle, shapes, tint, widgetURL } from '@expo/ui/swift-ui/modifiers';
+import { HStack, Image, ProgressView, Spacer, Text, VStack } from '@expo/ui/swift-ui';
+import { activityBackgroundTint, background, containerBackground, font, foregroundStyle, frame, kerning, lineLimit, minimumScaleFactor, monospacedDigit, opacity, padding, progressViewStyle, scaleEffect, shapes, tint, widgetURL } from '@expo/ui/swift-ui/modifiers';
 import type { LiveActivityEnvironment, WidgetEnvironment } from 'expo-widgets';
 
 /** What the app writes for each moment of the day (see src/widgets/index.ts). */
@@ -69,14 +69,13 @@ export function BellWidget(props: BellProps, env: WidgetEnvironment) {
   'widget';
   const timing = props.end > 0 && props.end > env.date.getTime();
   const range = { lower: new Date(props.start || env.date.getTime()), upper: new Date(props.end || env.date.getTime()) };
-  const clockOn = props.clockFrom > 0 && !(props.end > 0 && props.end > env.date.getTime() && true);
+  const clockOn = props.clockFrom > 0 && !timing;
   const clockRange = { lower: new Date(props.clockFrom || env.date.getTime()), upper: new Date((props.clockFrom || env.date.getTime()) + 86400000) };
   const big = env.widgetFamily === 'systemLarge' || env.widgetFamily === 'systemExtraLarge';
   const medium = env.widgetFamily === 'systemMedium';
   const design = (props.design || 'rounded') as 'default' | 'rounded' | 'serif' | 'monospaced';
-  const shell = [containerBackground(props.bg, 'widget'), widgetURL('studento://')];
 
-  // Lock Screen: circle, inline, rectangle.
+  // Lock Screen: circle, inline, rectangle (iOS tints these itself, so they stay simple).
   if (env.widgetFamily === 'accessoryCircular') {
     return (
       <VStack spacing={0} modifiers={[widgetURL('studento://')]}>
@@ -92,8 +91,7 @@ export function BellWidget(props: BellProps, env: WidgetEnvironment) {
     );
   }
   if (env.widgetFamily === 'accessoryInline') {
-    if (false) return <Text timerInterval={clockRange} modifiers={[monospacedDigit()]} />;
-    if (timing && !false) {
+    if (timing) {
       return (
         <Text timerInterval={range} countsDown modifiers={[monospacedDigit()]}>
           {props.title}
@@ -118,34 +116,44 @@ export function BellWidget(props: BellProps, env: WidgetEnvironment) {
     );
   }
 
-  // Direction B: class + quiet line, one big number, one thin accent bar, and a NOW chip
-  // (medium/large). Nothing else.
-  const size = big ? 84 : medium ? 58 : 44;
-  const digitMods = [font({ size, weight: 'heavy', design }), monospacedDigit(), foregroundStyle(props.ink), minimumScaleFactor(0.5), lineLimit(1)];
-  const chip = (label: string) => (
-    <Text modifiers={[font({ size: 10, weight: 'heavy' }), kerning(0.6), foregroundStyle(props.onAccent), padding({ horizontal: 9, vertical: 4 }), background(props.accent, shapes.capsule()), lineLimit(1)]}>{label}</Text>
+  // Home Screen: a glowing gradient card, a symbol for what's happening, a big gradient number.
+  const symbol = props.mode === 'class' ? 'book.fill' : props.mode === 'passing' ? 'figure.walk' : props.mode === 'before' ? 'sun.max.fill' : 'moon.stars.fill';
+  const cheer = props.mode === 'class' ? 'You got this' : props.mode === 'passing' ? 'Speed walk!' : props.mode === 'before' ? 'Rise and shine' : 'Freedom!';
+  const shell = [
+    containerBackground({ type: 'linearGradient', colors: [props.bg, props.bg2, props.accent], startPoint: { x: 0, y: 0 }, endPoint: { x: 1.2, y: 1.4 } }, 'widget'),
+    widgetURL('studento://'),
+  ];
+  const glow = { type: 'linearGradient' as const, colors: [props.ink, props.accent], startPoint: { x: 0, y: 0 }, endPoint: { x: 1, y: 1 } };
+  const size = big ? 88 : medium ? 60 : 44;
+  const digitMods = [font({ size, weight: 'black', design }), monospacedDigit(), foregroundStyle(glow), minimumScaleFactor(0.5), lineLimit(1)];
+  const badge = (
+    <Image systemName={symbol as never} size={big ? 22 : 16} color={props.onAccent} modifiers={[frame({ width: big ? 44 : 32, height: big ? 44 : 32 }), background(props.accent, shapes.circle())]} />
   );
-  const bar = timing ? <ProgressView timerInterval={range} countsDown modifiers={[tint(props.accent), progressViewStyle('linear')]} /> : null;
+  const bar = timing ? <ProgressView timerInterval={range} countsDown modifiers={[tint(props.accent), progressViewStyle('linear'), scaleEffect({ x: 1, y: 2.2 })]} /> : null;
   const hero = timing ? (
     <Text timerInterval={range} countsDown modifiers={digitMods} />
   ) : clockOn ? (
     <Text timerInterval={clockRange} modifiers={digitMods} />
   ) : (
-    <Text modifiers={[font({ size: 24, weight: 'bold', design }), foregroundStyle(props.ink)]}>{props.title}</Text>
+    <Text modifiers={[font({ size: 26, weight: 'heavy', design }), foregroundStyle(glow), lineLimit(2), minimumScaleFactor(0.6)]}>{props.title}</Text>
   );
-  const heading = timing ? props.title : props.title;
   const sub = timing ? props.label : clockOn ? `${props.ampm ? props.ampm + ' · ' : ''}${props.day}` : props.day;
   const top = (
-    <VStack alignment="leading" spacing={2}>
-      <Text modifiers={[font({ size: big ? 20 : 15, weight: 'semibold', design }), foregroundStyle(props.ink), lineLimit(1), minimumScaleFactor(0.7)]}>{heading}</Text>
-      <Text modifiers={[font({ size: 11, weight: 'medium' }), foregroundStyle(props.muted), lineLimit(1)]}>{sub}</Text>
-    </VStack>
+    <HStack spacing={8}>
+      {badge}
+      <VStack alignment="leading" spacing={1}>
+        <Text modifiers={[font({ size: big ? 20 : 15, weight: 'heavy', design }), foregroundStyle(props.ink), lineLimit(1), minimumScaleFactor(0.6)]}>{props.title}</Text>
+        <Text modifiers={[font({ size: 11, weight: 'semibold' }), foregroundStyle(props.muted), lineLimit(1)]}>{sub}</Text>
+      </VStack>
+    </HStack>
   );
-  const stateChip = timing ? chip(props.mode === 'class' ? 'NOW' : 'NEXT') : clockOn ? chip(props.mode === 'off' ? 'DONE' : 'SOON') : null;
+  const cheerPill = (
+    <Text modifiers={[font({ size: 11, weight: 'heavy', design }), foregroundStyle(props.onAccent), padding({ horizontal: 10, vertical: 5 }), background(props.accent, shapes.capsule()), lineLimit(1)]}>{cheer}</Text>
+  );
   const nextCol = props.next ? (
     <VStack alignment="trailing" spacing={1}>
-      <Text modifiers={[font({ size: 11, weight: 'medium' }), foregroundStyle(props.muted)]}>Next</Text>
-      <Text modifiers={[font({ size: 13, weight: 'semibold', design }), foregroundStyle(props.ink), lineLimit(1)]}>{props.next.replace(/^Next: /, '')}</Text>
+      <Text modifiers={[font({ size: 10, weight: 'heavy' }), kerning(0.8), foregroundStyle(props.muted)]}>UP NEXT</Text>
+      <Text modifiers={[font({ size: 13, weight: 'bold', design }), foregroundStyle(props.ink), lineLimit(1)]}>{props.next.replace(/^Next: /, '')}</Text>
     </VStack>
   ) : null;
 
@@ -155,7 +163,7 @@ export function BellWidget(props: BellProps, env: WidgetEnvironment) {
         <HStack spacing={8}>
           {top}
           <Spacer />
-          {stateChip}
+          {cheerPill}
         </HStack>
         <Spacer />
         <HStack spacing={8}>
@@ -178,193 +186,196 @@ export function BellWidget(props: BellProps, env: WidgetEnvironment) {
         <HStack spacing={8}>
           {top}
           <Spacer />
-          {stateChip}
+          {cheerPill}
         </HStack>
         <Spacer />
         {hero}
         {bar}
         <Spacer />
-        {shown.map((r) => (
-          <Text
-            key={r.idx}
-            modifiers={[font({ size: 15, weight: r.idx === props.cur ? 'bold' : 'medium', design }), foregroundStyle(r.idx === props.cur ? props.accent : r.idx < doneBefore ? props.muted : props.ink), lineLimit(1)]}
-          >
-            {r.row}
-          </Text>
-        ))}
+        {shown.map((r) =>
+          r.idx === props.cur ? (
+            <Text key={r.idx} modifiers={[font({ size: 15, weight: 'heavy', design }), foregroundStyle(props.onAccent), padding({ horizontal: 10, vertical: 4 }), background(props.accent, shapes.capsule()), lineLimit(1)]}>
+              {r.row}
+            </Text>
+          ) : (
+            <Text key={r.idx} modifiers={[font({ size: 15, weight: 'semibold', design }), foregroundStyle(r.idx < doneBefore ? props.muted : props.ink), opacity(r.idx < doneBefore ? 0.6 : 1), padding({ horizontal: 10 }), lineLimit(1)]}>
+              {r.row}
+            </Text>
+          )
+        )}
       </VStack>
     );
   }
   return (
     <VStack alignment="leading" spacing={4} modifiers={shell}>
-      {clockOn && !timing ? stateChip : top}
+      <HStack spacing={6}>
+        {badge}
+        <Spacer />
+        <Text modifiers={[font({ size: 10, weight: 'heavy' }), kerning(0.6), foregroundStyle(props.muted), lineLimit(1)]}>{timing ? (props.mode === 'class' ? 'NOW' : 'NEXT') : clockOn ? (props.mode === 'off' ? 'DONE' : 'SOON') : ''}</Text>
+      </HStack>
       <Spacer />
+      <Text modifiers={[font({ size: 13, weight: 'heavy', design }), foregroundStyle(props.ink), lineLimit(1), minimumScaleFactor(0.6)]}>{props.title}</Text>
       {hero}
-      {clockOn && !timing ? <Text modifiers={[font({ size: 11, weight: 'medium' }), foregroundStyle(props.muted), lineLimit(1)]}>{sub}</Text> : bar}
+      {bar}
     </VStack>
   );
 }
 
-/** A plain, always-on clock with seconds, in the theme's colors. */
+/** An always-on clock with seconds, big and glowing in the theme's colors. */
 export function ClockWidget(props: BellProps, env: WidgetEnvironment) {
   'widget';
-  const timing = props.end > 0 && props.end > env.date.getTime();
-  const range = { lower: new Date(props.start || env.date.getTime()), upper: new Date(props.end || env.date.getTime()) };
-  const clockOn = props.clockFrom > 0 && !(props.end > 0 && props.end > env.date.getTime() && false);
+  const clockOn = props.clockFrom > 0;
   const clockRange = { lower: new Date(props.clockFrom || env.date.getTime()), upper: new Date((props.clockFrom || env.date.getTime()) + 86400000) };
   const big = env.widgetFamily === 'systemLarge' || env.widgetFamily === 'systemExtraLarge';
   const medium = env.widgetFamily === 'systemMedium';
   const design = (props.design || 'rounded') as 'default' | 'rounded' | 'serif' | 'monospaced';
-  const shell = [containerBackground(props.bg, 'widget'), widgetURL('studento://')];
 
-  // Lock Screen: circle, inline, rectangle.
   if (env.widgetFamily === 'accessoryCircular') {
     return (
       <VStack spacing={0} modifiers={[widgetURL('studento://')]}>
         <Text modifiers={[font({ size: 11, weight: 'bold' }), lineLimit(1)]}>{props.ampm || 'NOW'}</Text>
-        {clockOn ? (
-          <Text timerInterval={clockRange} modifiers={[font({ size: 13, weight: 'bold' }), monospacedDigit(), lineLimit(1), minimumScaleFactor(0.4)]} />
-        ) : clockOn ? (
-          <Text timerInterval={clockRange} modifiers={[font({ size: 13, weight: 'bold' }), monospacedDigit(), lineLimit(1), minimumScaleFactor(0.4)]} />
-        ) : (
-          <Text modifiers={[font({ size: 12, weight: 'bold' })]}>–</Text>
-        )}
+        {clockOn ? <Text timerInterval={clockRange} modifiers={[font({ size: 13, weight: 'bold' }), monospacedDigit(), lineLimit(1), minimumScaleFactor(0.4)]} /> : <Text modifiers={[font({ size: 12, weight: 'bold' })]}>–</Text>}
       </VStack>
     );
   }
   if (env.widgetFamily === 'accessoryInline') {
-    if (clockOn) return <Text timerInterval={clockRange} modifiers={[monospacedDigit()]} />;
-    if (timing && !true) {
-      return (
-        <Text timerInterval={range} countsDown modifiers={[monospacedDigit()]}>
-          {props.title}
-        </Text>
-      );
-    }
     return clockOn ? <Text timerInterval={clockRange} modifiers={[monospacedDigit()]} /> : <Text>{props.title}</Text>;
   }
   if (env.widgetFamily === 'accessoryRectangular') {
     return (
       <VStack alignment="leading" spacing={1} modifiers={[widgetURL('studento://')]}>
-        <Text modifiers={[font({ size: 13, weight: 'semibold' }), lineLimit(1)]}>{props.title}</Text>
-        {false ? (
-          <Text timerInterval={range} countsDown modifiers={[font({ size: 20, weight: 'bold' }), monospacedDigit()]} />
-        ) : clockOn ? (
-          <Text timerInterval={clockRange} modifiers={[font({ size: 20, weight: 'bold' }), monospacedDigit()]} />
-        ) : (
-          <Text modifiers={[font({ size: 13 })]}>{props.label}</Text>
-        )}
-        {props.next ? <Text modifiers={[font({ size: 11 }), lineLimit(1)]}>{props.next}</Text> : null}
+        <Text modifiers={[font({ size: 13, weight: 'semibold' }), lineLimit(1)]}>{props.date}</Text>
+        {clockOn ? <Text timerInterval={clockRange} modifiers={[font({ size: 22, weight: 'bold' }), monospacedDigit()]} /> : <Text modifiers={[font({ size: 13 })]}>{props.title}</Text>}
       </VStack>
     );
   }
 
-  const size = big ? 92 : medium ? 66 : 42;
-  const clock =
-    props.clockFrom > 0 ? (
-      <Text timerInterval={clockRange} modifiers={[font({ size, weight: 'heavy', design }), monospacedDigit(), foregroundStyle(props.accent), minimumScaleFactor(0.5), lineLimit(1)]} />
-    ) : (
-      <Text modifiers={[font({ size: 24, weight: 'bold', design }), foregroundStyle(props.ink)]}>{props.title}</Text>
-    );
+  const shell = [
+    containerBackground({ type: 'radialGradient', colors: [props.bg2, props.bg], center: { x: 0.3, y: 0.2 }, startRadius: 0, endRadius: big ? 320 : 200 }, 'widget'),
+    widgetURL('studento://'),
+  ];
+  const size = big ? 96 : medium ? 68 : 44;
+  const glow = { type: 'linearGradient' as const, colors: [props.ink, props.accent], startPoint: { x: 0, y: 0 }, endPoint: { x: 1, y: 1 } };
   return (
     <VStack alignment="leading" spacing={4} modifiers={shell}>
+      <HStack spacing={6}>
+        <Image systemName={'clock.fill' as never} size={14} color={props.accent} />
+        <Text modifiers={[font({ size: 12, weight: 'heavy', design }), foregroundStyle(props.muted), lineLimit(1)]}>{props.date}</Text>
+      </HStack>
       <Spacer />
-      {clock}
-      <Text modifiers={[font({ size: big ? 18 : 13, weight: 'medium', design }), foregroundStyle(props.muted), lineLimit(1)]}>{`${props.ampm ? props.ampm + ' · ' : ''}${props.date}`}</Text>
+      {clockOn ? (
+        <Text timerInterval={clockRange} modifiers={[font({ size, weight: 'black', design }), monospacedDigit(), foregroundStyle(glow), minimumScaleFactor(0.5), lineLimit(1)]} />
+      ) : (
+        <Text modifiers={[font({ size: 24, weight: 'heavy', design }), foregroundStyle(glow)]}>{props.title}</Text>
+      )}
+      {props.ampm ? <Text modifiers={[font({ size: big ? 18 : 13, weight: 'heavy', design }), foregroundStyle(props.accent)]}>{props.ampm}</Text> : null}
     </VStack>
   );
 }
 
-/** Today's classes as a quiet list: now in the accent color, later in ink, done in grey. */
+/** Today's classes: the one happening now in a bright pill, done classes faded, later ones solid. */
 export function DayWidget(props: BellProps, env: WidgetEnvironment) {
   'widget';
   const big = env.widgetFamily === 'systemLarge' || env.widgetFamily === 'systemExtraLarge';
   const design = (props.design || 'rounded') as 'default' | 'rounded' | 'serif' | 'monospaced';
-  const shell = [containerBackground(props.bg, 'widget'), widgetURL('studento://')];
-  const max = big ? 9 : 5;
+  const shell = [
+    containerBackground({ type: 'linearGradient', colors: [props.bg, props.bg2], startPoint: { x: 0, y: 0 }, endPoint: { x: 1, y: 1 } }, 'widget'),
+    widgetURL('studento://'),
+  ];
+  const max = big ? 8 : 4;
   const focus = props.cur >= 0 ? props.cur : props.nxt >= 0 ? props.nxt : 0;
   const start = Math.max(0, Math.min(focus - 1, props.rows.length - max));
   const doneBefore = props.cur >= 0 ? props.cur : props.nxt >= 0 ? props.nxt : props.rows.length;
   const shown = props.rows.slice(start, start + max).map((row, i) => ({ row, idx: start + i }));
   return (
-    <VStack alignment="leading" spacing={big ? 9 : 5} modifiers={shell}>
-      <Text modifiers={[font({ size: 12, weight: 'semibold' }), foregroundStyle(props.muted)]}>{props.date}</Text>
-      {shown.length === 0 ? <Text modifiers={[font({ size: 17, weight: 'semibold', design }), foregroundStyle(props.ink)]}>No school today</Text> : null}
-      {shown.map((r) => (
-        <Text
-          key={r.idx}
-          modifiers={[
-            font({ size: big ? 17 : 14, weight: r.idx === props.cur ? 'bold' : 'medium', design }),
-            foregroundStyle(r.idx === props.cur ? props.accent : r.idx < doneBefore ? props.muted : props.ink),
-            lineLimit(1),
-          ]}
-        >
-          {r.row}
-        </Text>
-      ))}
+    <VStack alignment="leading" spacing={big ? 7 : 4} modifiers={shell}>
+      <HStack spacing={6}>
+        <Image systemName={'calendar' as never} size={14} color={props.accent} />
+        <Text modifiers={[font({ size: 13, weight: 'heavy', design }), foregroundStyle(props.ink)]}>{props.date}</Text>
+      </HStack>
+      {shown.length === 0 ? <Text modifiers={[font({ size: 18, weight: 'heavy', design }), foregroundStyle(props.ink)]}>No school today 🎉</Text> : null}
+      {shown.map((r) =>
+        r.idx === props.cur ? (
+          <Text key={r.idx} modifiers={[font({ size: big ? 16 : 14, weight: 'heavy', design }), foregroundStyle(props.onAccent), padding({ horizontal: 10, vertical: 4 }), background(props.accent, shapes.capsule()), lineLimit(1)]}>
+            {r.row}
+          </Text>
+        ) : (
+          <Text key={r.idx} modifiers={[font({ size: big ? 16 : 14, weight: 'semibold', design }), foregroundStyle(r.idx < doneBefore ? props.muted : props.ink), opacity(r.idx < doneBefore ? 0.55 : 1), padding({ horizontal: 10 }), lineLimit(1)]}>
+            {r.row}
+          </Text>
+        )
+      )}
       <Spacer />
     </VStack>
   );
 }
 
 /**
- * Lock Screen banner + Dynamic Island, direction B: one accent chip, one big countdown, one
- * thin accent bar. The banner is tinted with the theme background; the island is always
- * black, so it uses the light "island" colors.
+ * Lock Screen banner + Dynamic Island: a bright gradient card with a symbol for what's
+ * happening, a giant gradient countdown, a chunky bar and a cheer. The island is always black,
+ * so it uses the light "island" colors with the accent for the fun bits.
  */
 export function BellActivity(props: BellProps, env: LiveActivityEnvironment) {
   'widget';
   const range = { lower: new Date(props.start), upper: new Date(props.end) };
   const design = (props.design || 'rounded') as 'default' | 'rounded' | 'serif' | 'monospaced';
   const stale = env.isStale === true;
-  const digits = (size: number, color: string) => (
-    <Text timerInterval={range} countsDown modifiers={[font({ size, weight: 'heavy', design }), monospacedDigit(), foregroundStyle(color), lineLimit(1), minimumScaleFactor(0.6)]} />
+  const symbol = props.mode === 'class' ? 'book.fill' : props.mode === 'passing' ? 'figure.walk' : props.mode === 'before' ? 'sun.max.fill' : 'moon.stars.fill';
+  const cheer = stale ? 'Bell rang!' : props.mode === 'class' ? 'Almost there!' : props.mode === 'passing' ? 'Speed walk!' : 'Get ready!';
+  const glow = { type: 'linearGradient' as const, colors: [props.ink, props.accent], startPoint: { x: 0, y: 0 }, endPoint: { x: 1, y: 1 } };
+  const islandGlow = { type: 'linearGradient' as const, colors: [props.islandInk, props.accent], startPoint: { x: 0, y: 0 }, endPoint: { x: 1, y: 1 } };
+  const digits = (size: number, style: typeof glow) => (
+    <Text timerInterval={range} countsDown modifiers={[font({ size, weight: 'black', design }), monospacedDigit(), foregroundStyle(style), lineLimit(1), minimumScaleFactor(0.6)]} />
   );
-  const chip = (
-    <Text modifiers={[font({ size: 10, weight: 'heavy' }), kerning(0.6), foregroundStyle(props.onAccent), padding({ horizontal: 9, vertical: 4 }), background(props.accent, shapes.capsule()), lineLimit(1)]}>
-      {(props.mode === 'class' ? props.label.split(' · ')[0] : 'NEXT').toUpperCase()}
-    </Text>
-  );
-  const bar = stale ? null : <ProgressView timerInterval={range} countsDown modifiers={[tint(props.accent), progressViewStyle('linear')]} />;
-  const nextLine = (color: string) => (
-    <Text modifiers={[font({ size: 13, weight: 'medium' }), foregroundStyle(color), lineLimit(1)]}>{stale ? 'Open Studento for the next class' : props.next || props.ends}</Text>
-  );
+  const badge = (s: number) => <Image systemName={symbol as never} size={s * 0.5} color={props.onAccent} modifiers={[frame({ width: s, height: s }), background(props.accent, shapes.circle())]} />;
+  const bar = stale ? null : <ProgressView timerInterval={range} countsDown modifiers={[tint(props.accent), progressViewStyle('linear'), scaleEffect({ x: 1, y: 2.4 })]} />;
 
   return {
-    // Banner: chip + class on the left, countdown on the right; bar; next line.
     banner: (
-      <VStack alignment="leading" spacing={10} modifiers={[padding({ horizontal: 18, vertical: 16 }), activityBackgroundTint(props.bg)]}>
+      <VStack
+        alignment="leading"
+        spacing={10}
+        modifiers={[
+          padding({ horizontal: 18, vertical: 16 }),
+          background({ type: 'linearGradient', colors: [props.bg, props.bg2, props.accent], startPoint: { x: 0, y: 0 }, endPoint: { x: 1.3, y: 1.6 } }),
+          activityBackgroundTint(props.bg),
+        ]}>
         <HStack spacing={12}>
-          <VStack alignment="leading" spacing={6}>
-            {chip}
-            <Text modifiers={[font({ size: 22, weight: 'bold', design }), foregroundStyle(props.ink), lineLimit(1), minimumScaleFactor(0.6)]}>{props.title}</Text>
+          {badge(44)}
+          <VStack alignment="leading" spacing={2}>
+            <Text modifiers={[font({ size: 20, weight: 'heavy', design }), foregroundStyle(props.ink), lineLimit(1), minimumScaleFactor(0.6)]}>{props.title}</Text>
+            <Text modifiers={[font({ size: 12, weight: 'heavy', design }), foregroundStyle(props.onAccent), padding({ horizontal: 8, vertical: 3 }), background(props.accent, shapes.capsule()), lineLimit(1)]}>{cheer}</Text>
           </VStack>
           <Spacer />
-          {stale ? <Text modifiers={[font({ size: 15, weight: 'semibold' }), foregroundStyle(props.muted)]}>Bell rang</Text> : digits(42, props.ink)}
+          {stale ? <Image systemName={'bell.fill' as never} size={30} color={props.accent} /> : digits(46, glow)}
         </HStack>
         {bar}
-        {nextLine(props.muted)}
+        <Text modifiers={[font({ size: 13, weight: 'bold', design }), foregroundStyle(props.muted), lineLimit(1)]}>{stale ? 'Open Studento for the next class' : props.next || props.ends}</Text>
       </VStack>
     ),
-    // Dynamic Island, "just the countdown": initials + timer when compact; class + timer with
-    // one quiet line when expanded. No ring, chip or bar.
-    compactLeading: <Text modifiers={[font({ size: 13, weight: 'heavy', design }), kerning(0.5), foregroundStyle(props.accent), lineLimit(1), frame({ maxWidth: 44 })]}>{props.short}</Text>,
+    compactLeading: <Image systemName={symbol as never} size={14} color={props.accent} />,
     compactTrailing: stale ? (
-      <Text modifiers={[font({ size: 13, weight: 'semibold' }), foregroundStyle(props.islandMuted)]}>Bell</Text>
+      <Image systemName={'bell.fill' as never} size={14} color={props.accent} />
     ) : (
-      <Text timerInterval={range} countsDown modifiers={[font({ size: 15, weight: 'bold', design }), monospacedDigit(), foregroundStyle(props.islandInk), lineLimit(1), minimumScaleFactor(0.6), frame({ maxWidth: 58 })]} />
+      <Text timerInterval={range} countsDown modifiers={[font({ size: 15, weight: 'heavy', design }), monospacedDigit(), foregroundStyle(props.islandInk), lineLimit(1), minimumScaleFactor(0.6), frame({ maxWidth: 58 })]} />
     ),
     minimal: stale ? (
-      <Text modifiers={[foregroundStyle(props.accent)]}>✓</Text>
+      <Image systemName={'bell.fill' as never} size={12} color={props.accent} />
     ) : (
-      <Text timerInterval={range} countsDown modifiers={[font({ size: 11, weight: 'bold', design }), monospacedDigit(), foregroundStyle(props.accent), lineLimit(1), minimumScaleFactor(0.5)]} />
+      <Text timerInterval={range} countsDown modifiers={[font({ size: 11, weight: 'heavy', design }), monospacedDigit(), foregroundStyle(props.accent), lineLimit(1), minimumScaleFactor(0.5)]} />
     ),
-    expandedLeading: <Text modifiers={[font({ size: 22, weight: 'bold', design }), foregroundStyle(props.islandInk), lineLimit(1), minimumScaleFactor(0.6)]}>{props.title}</Text>,
-    expandedTrailing: stale ? <Text modifiers={[font({ size: 15, weight: 'semibold' }), foregroundStyle(props.islandMuted)]}>Bell rang</Text> : digits(40, props.islandInk),
+    expandedLeading: (
+      <HStack spacing={8}>
+        {badge(34)}
+        <Text modifiers={[font({ size: 18, weight: 'heavy', design }), foregroundStyle(props.islandInk), lineLimit(1), minimumScaleFactor(0.6)]}>{props.title}</Text>
+      </HStack>
+    ),
+    expandedTrailing: stale ? <Image systemName={'bell.fill' as never} size={24} color={props.accent} /> : digits(40, islandGlow),
     expandedBottom: (
-      <Text modifiers={[font({ size: 13, weight: 'medium' }), foregroundStyle(props.islandMuted), lineLimit(1)]}>
-        {stale ? 'Open Studento for the next class' : props.ends ? `${props.label} · ${props.ends.replace('Ends', 'ends')}` : props.label}
-      </Text>
+      <VStack alignment="leading" spacing={6}>
+        {bar}
+        <Text modifiers={[font({ size: 13, weight: 'bold', design }), foregroundStyle(props.islandMuted), lineLimit(1)]}>{stale ? 'Open Studento for the next class' : `${cheer} ${props.next || props.ends}`}</Text>
+      </VStack>
     ),
   };
 }
