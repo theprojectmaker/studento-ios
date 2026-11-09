@@ -11,7 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BeamContact } from '@/components/beam-contact';
 import { ChatBackground, isDarkBg } from '@/components/chat-background';
 import { ActionSheet, AttachSheet, CountdownSheet, PhotoViewer, PollSheet, StickerSheet, VideoViewer, type AttachKind } from '@/components/beam-sheets';
-import { BeamAvatar, Glyph, Tail, useBeam, type BeamPalette } from '@/components/beam-ui';
+import { BeamAvatar, Glyph, useBeam, type BeamPalette } from '@/components/beam-ui';
 import { tap } from '@/components/ui';
 import { getToken } from '@/lib/account';
 import * as api from '@/lib/api';
@@ -327,7 +327,13 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
       <ChatBackground value={chatBg} />
       <ScrollView ref={scroller} style={{ flex: 1 }} onLayout={() => search === null && scroller.current?.scrollToEnd({ animated: false })} keyboardDismissMode="interactive" keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 12 }} onContentSizeChange={() => search === null && scroller.current?.scrollToEnd({ animated: false })}>
         {search ? <Text style={{ textAlign: 'center', color: c.text3, fontSize: 12, marginBottom: 6 }}>{`${msgs.filter((x) => !x.deleted && plain(x).toLowerCase().includes(search.toLowerCase())).length} found`}</Text> : null}
-        {msgs.length === 0 && !err ? <Text style={{ textAlign: 'center', color: c.text3, fontSize: 12, marginTop: 20 }}>{`Say hi to ${username}.`}</Text> : null}
+        {msgs.length === 0 && !err ? (
+          <View style={{ alignItems: 'center', gap: 8, marginTop: 48 }}>
+            <BeamAvatar name={username} size={76} />
+            <Text style={{ color: c.text, fontSize: 20, fontWeight: '700' }}>{username}</Text>
+            <Text style={{ color: c.text3, fontSize: 14 }}>No messages yet. Say hi.</Text>
+          </View>
+        ) : null}
         {msgs.map((m, i) => {
           const prev = msgs[i - 1];
           const next = msgs[i + 1];
@@ -339,7 +345,7 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
           return (
             <View key={m.id}>
               {newTime ? <Text style={{ textAlign: 'center', fontSize: 11, color: isDarkBg(chatBg) ? 'rgba(255,255,255,0.85)' : c.text3, marginTop: 16, marginBottom: 8, fontWeight: '500' }}>{stamp(m.createdAt)}</Text> : null}
-              <View style={{ alignItems: m.mine ? 'flex-end' : 'flex-start', marginTop: runStart && !newTime ? 8 : 2 }}>
+              <View style={{ alignItems: m.mine ? 'flex-end' : 'flex-start', marginTop: runStart && !newTime ? 10 : 3 }}>
                 {quoted ? (
                   <View style={{ maxWidth: '70%', borderLeftWidth: 3, borderLeftColor: c.text3, paddingLeft: 8, marginBottom: 3, marginHorizontal: 6 }}>
                     <Text style={{ color: c.text3, fontSize: 12.5 }} numberOfLines={2}>
@@ -366,8 +372,8 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
                     setAct(m);
                   }}
                   delayLongPress={300}
-                  style={{ maxWidth: '76%' }}>
-                  <Body c={c} m={m} runEnd={runEnd} now={now} onVote={(o) => vote(m, o)} onPhoto={(uri) => setPhoto({ uri })} onOnce={() => openOnce(m)} onVideo={setVideo} />
+                  style={{ maxWidth: '78%' }}>
+                  <Body c={c} m={m} runStart={runStart} runEnd={runEnd} now={now} onVote={(o) => vote(m, o)} onPhoto={(uri) => setPhoto({ uri })} onOnce={() => openOnce(m)} onVideo={setVideo} />
                   {m.reactions.length ? (
                     <View style={{ position: 'absolute', top: -12, [m.mine ? 'left' : 'right']: -10, flexDirection: 'row', backgroundColor: c.card, borderRadius: 12, paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1.5, borderColor: c.chatBg }}>
                       {m.reactions.map((r) => (
@@ -541,6 +547,7 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
 function Body({
   c,
   m,
+  runStart,
   runEnd,
   now,
   onVote,
@@ -550,6 +557,7 @@ function Body({
 }: {
   c: BeamPalette;
   m: Folded;
+  runStart: boolean;
   runEnd: boolean;
   now: number;
   onVote: (i: number) => void;
@@ -560,10 +568,28 @@ function Body({
   const st = useBeamSettings();
   const bg = m.mine ? c.outBubble : c.inBubble;
   const fg = m.mine ? c.outText : c.inText;
+  // Grouped corners: messages in a run share tight inner corners on the sender's side, and the
+  // last one keeps a small corner there as the "tail". Big radius everywhere else.
+  const BIG = 20;
+  const SMALL = 6;
+  const near = (joined: boolean) => (joined ? SMALL : BIG);
+  const corners = m.mine
+    ? { borderTopLeftRadius: BIG, borderBottomLeftRadius: BIG, borderTopRightRadius: near(!runStart), borderBottomRightRadius: runEnd ? SMALL : near(true) }
+    : { borderTopRightRadius: BIG, borderBottomRightRadius: BIG, borderTopLeftRadius: near(!runStart), borderBottomLeftRadius: runEnd ? SMALL : near(true) };
   const bubble = (child: React.ReactNode, pad = true) => (
-    <View>
-      <View style={{ backgroundColor: bg, borderRadius: 18, overflow: 'hidden', ...(pad ? { paddingHorizontal: 12, paddingTop: 7, paddingBottom: 8 } : null) }}>{child}</View>
-      {runEnd && pad ? <Tail color={bg} side={m.mine ? 'right' : 'left'} bg={c.chatBg} /> : null}
+    <View
+      style={{
+        backgroundColor: bg,
+        ...corners,
+        overflow: 'hidden',
+        ...(pad ? { paddingHorizontal: 14, paddingTop: 8, paddingBottom: 9 } : null),
+        ...(m.mine ? null : { borderWidth: c.dark ? 0 : 0.5, borderColor: 'rgba(0,0,0,0.06)' }),
+        shadowColor: '#000',
+        shadowOpacity: c.dark ? 0 : 0.06,
+        shadowRadius: 2,
+        shadowOffset: { width: 0, height: 1 },
+      }}>
+      {child}
     </View>
   );
   if (m.deleted)
@@ -578,7 +604,7 @@ function Body({
       // a message that is only one or two emoji shows big, like iMessage
       if (st.bigEmoji && /^\p{Extended_Pictographic}(‍?\p{Extended_Pictographic}|️){0,6}$/u.test(r.t.trim())) return <Text style={{ fontSize: 44 }}>{r.t.trim()}</Text>;
       return bubble(
-        <Text style={{ color: fg, fontSize: st.textSize, lineHeight: st.textSize * 1.32 }}>
+        <Text style={{ color: fg, fontSize: st.textSize, lineHeight: st.textSize * 1.3, letterSpacing: -0.1 }}>
           {r.t.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
             /^https?:\/\//.test(part) ? (
               <Text key={i} style={{ textDecorationLine: 'underline' }} onPress={() => void Linking.openURL(part).catch(() => {})}>
