@@ -108,7 +108,12 @@ export default function RootLayout() {
         void syncLiveActivity();
       }
     });
+    // While the app is open, redraw the Live Activity every minute so its "time left" message keeps up.
+    const liveTick = setInterval(() => {
+      if (AppState.currentState === 'active') void syncLiveActivity();
+    }, 60_000);
     return () => {
+      clearInterval(liveTick);
       sub.remove();
       stopWatch?.();
       stopSync?.();
