@@ -11,7 +11,7 @@
  * and no app running. Times arrive as epoch milliseconds.
  */
 import { HStack, Image, ProgressView, Spacer, Text, VStack } from '@expo/ui/swift-ui';
-import { activityBackgroundTint, background, containerBackground, font, foregroundStyle, frame, kerning, lineLimit, minimumScaleFactor, monospacedDigit, opacity, padding, progressViewStyle, scaleEffect, shapes, tint, widgetURL } from '@expo/ui/swift-ui/modifiers';
+import { activityBackgroundTint, background, containerBackground, font, foregroundStyle, frame, kerning, lineLimit, minimumScaleFactor, clipShape, monospacedDigit, opacity, padding, progressViewStyle, shapes, tint, widgetURL } from '@expo/ui/swift-ui/modifiers';
 import type { LiveActivityEnvironment, WidgetEnvironment } from 'expo-widgets';
 
 /** What the app writes for each moment of the day (see src/widgets/index.ts). */
@@ -125,11 +125,11 @@ export function BellWidget(props: BellProps, env: WidgetEnvironment) {
   ];
   const glow = { type: 'linearGradient' as const, colors: [props.ink, props.accent], startPoint: { x: 0, y: 0 }, endPoint: { x: 1, y: 1 } };
   const size = big ? 88 : medium ? 60 : 44;
-  const digitMods = [font({ size, weight: 'black', design }), monospacedDigit(), foregroundStyle(glow), minimumScaleFactor(0.5), lineLimit(1)];
+  const digitMods = [font({ size, weight: 'black', design }), monospacedDigit(), foregroundStyle(props.ink), minimumScaleFactor(0.5), lineLimit(1)];
   const badge = (
     <Image systemName={symbol as never} size={big ? 22 : 16} color={props.onAccent} modifiers={[frame({ width: big ? 44 : 32, height: big ? 44 : 32 }), background(props.accent, shapes.circle())]} />
   );
-  const bar = timing ? <ProgressView timerInterval={range} countsDown modifiers={[tint(props.accent), progressViewStyle('linear'), scaleEffect({ x: 1, y: 2.2 })]} /> : null;
+  const bar = timing ? <ProgressView timerInterval={range} countsDown modifiers={[tint(props.accent), progressViewStyle('linear'), frame({ height: 6 }), clipShape('capsule')]} /> : null;
   const hero = timing ? (
     <Text timerInterval={range} countsDown modifiers={digitMods} />
   ) : clockOn ? (
@@ -264,7 +264,7 @@ export function ClockWidget(props: BellProps, env: WidgetEnvironment) {
       </HStack>
       <Spacer />
       {clockOn ? (
-        <Text timerInterval={clockRange} modifiers={[font({ size, weight: 'black', design }), monospacedDigit(), foregroundStyle(glow), minimumScaleFactor(0.5), lineLimit(1)]} />
+        <Text timerInterval={clockRange} modifiers={[font({ size, weight: 'black', design }), monospacedDigit(), foregroundStyle(props.accent), minimumScaleFactor(0.5), lineLimit(1)]} />
       ) : (
         <Text modifiers={[font({ size: 24, weight: 'heavy', design }), foregroundStyle(glow)]}>{props.title}</Text>
       )}
@@ -325,10 +325,10 @@ export function BellActivity(props: BellProps, env: LiveActivityEnvironment) {
   const glow = { type: 'linearGradient' as const, colors: [props.ink, props.accent], startPoint: { x: 0, y: 0 }, endPoint: { x: 1, y: 1 } };
   const islandGlow = { type: 'linearGradient' as const, colors: [props.islandInk, props.accent], startPoint: { x: 0, y: 0 }, endPoint: { x: 1, y: 1 } };
   const digits = (size: number, style: typeof glow) => (
-    <Text timerInterval={range} countsDown modifiers={[font({ size, weight: 'black', design }), monospacedDigit(), foregroundStyle(style), lineLimit(1), minimumScaleFactor(0.6)]} />
+    <Text timerInterval={range} countsDown modifiers={[font({ size, weight: 'black', design }), monospacedDigit(), foregroundStyle(style === islandGlow ? props.islandInk : props.ink), lineLimit(1), minimumScaleFactor(0.6)]} />
   );
   const badge = (s: number) => <Image systemName={symbol as never} size={s * 0.5} color={props.onAccent} modifiers={[frame({ width: s, height: s }), background(props.accent, shapes.circle())]} />;
-  const bar = stale ? null : <ProgressView timerInterval={range} countsDown modifiers={[tint(props.accent), progressViewStyle('linear'), scaleEffect({ x: 1, y: 2.4 })]} />;
+  const bar = stale ? null : <ProgressView timerInterval={range} countsDown modifiers={[tint(props.accent), progressViewStyle('linear'), frame({ height: 6 }), clipShape('capsule')]} />;
 
   // After the bell (no push server to move it on), the banner never freezes: it becomes a
   // live clock with seconds, counting up from midnight, so it keeps ticking on its own.
@@ -337,7 +337,7 @@ export function BellActivity(props: BellProps, env: LiveActivityEnvironment) {
   const dayRange = { lower: midnight, upper: new Date(midnight.getTime() + 86400000) };
   const big = (size: number, style: typeof glow) =>
     stale ? (
-      <Text timerInterval={dayRange} modifiers={[font({ size, weight: 'black', design }), monospacedDigit(), foregroundStyle(style), lineLimit(1), minimumScaleFactor(0.5)]} />
+      <Text timerInterval={dayRange} modifiers={[font({ size, weight: 'black', design }), monospacedDigit(), foregroundStyle(style === islandGlow ? props.islandInk : props.ink), lineLimit(1), minimumScaleFactor(0.5)]} />
     ) : (
       digits(size, style)
     );
