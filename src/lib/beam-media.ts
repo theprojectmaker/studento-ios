@@ -64,3 +64,26 @@ export async function getVideo(camera: boolean, onStage?: (s: string) => void): 
   if (blob.size > MAX_VIDEO_BYTES) throw new Error('That video is too long to send. Trim it to a few seconds.');
   return { url: await toDataUri(blob), seconds: Math.round((a.duration ?? 0) / 1000) };
 }
+
+/** One photo for a chat background (long side 1400 px). */
+export async function getBackgroundPhoto(): Promise<string | null> {
+  const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+  if (!perm.granted) throw new Error('Photo access is off. Turn it on in Settings.');
+  const res = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ['images'], quality: 1, exif: false });
+  const a = res.canceled ? null : res.assets?.[0];
+  if (!a) return null;
+  const ctx = ImageManipulator.manipulate(a.uri);
+  try {
+    const long = Math.max(a.width || 1400, a.height || 1400);
+    if (long > 1400) ctx.resize(a.width >= a.height ? { width: 1400 } : { height: 1400 });
+    const img = await ctx.renderAsync();
+    try {
+      const out = await img.saveAsync({ format: SaveFormat.JPEG, compress: 0.6, base64: true });
+      return `data:image/jpeg;base64,${out.base64}`;
+    } finally {
+      img.release();
+    }
+  } finally {
+    ctx.release();
+  }
+}

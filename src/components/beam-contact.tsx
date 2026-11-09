@@ -3,6 +3,7 @@ import { Image, Modal, Pressable, ScrollView, Text, useWindowDimensions, View } 
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BeamAvatar, Glyph, type BeamPalette } from '@/components/beam-ui';
+import { ChatBackground, CHAT_BGS, Swatch } from '@/components/chat-background';
 import { TTL_OPTIONS } from '@/lib/beam-extra';
 
 export function BeamContact({
@@ -18,6 +19,9 @@ export function BeamContact({
   onTtl,
   onPhoto,
   onBlock,
+  bg,
+  onBg,
+  onBgPhoto,
 }: {
   c: BeamPalette;
   username: string;
@@ -32,6 +36,10 @@ export function BeamContact({
   onTtl: (ms: number) => void;
   onPhoto: (uri: string) => void;
   onBlock: () => void;
+  /** this chat's background ("" = none) */
+  bg: string;
+  onBg: (v: string) => void;
+  onBgPhoto: () => void;
 }) {
   const insets = useSafeAreaInsets();
   const { width } = useWindowDimensions();
@@ -81,6 +89,29 @@ export function BeamContact({
             <Text style={{ color: c.text3, fontSize: 12.5, paddingHorizontal: 4, marginTop: 6, lineHeight: 17 }}>
               {ttl ? 'New and old messages in this chat disappear after the time you picked. Both of you see this setting.' : 'Messages stay until someone unsends them.'}
             </Text>
+          </View>
+
+          <View>
+            {label('Chat background')}
+            <View style={{ backgroundColor: c.card, borderRadius: 14, padding: 14, gap: 12 }}>
+              <View style={{ height: 90, borderRadius: 12, overflow: 'hidden', backgroundColor: c.chatBg, borderWidth: 0.5, borderColor: c.hairline }}>
+                <ChatBackground value={bg} />
+              </View>
+              <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
+                <Pressable accessibilityLabel="No background" onPress={() => onBg('')} style={{ width: 40, height: 40, borderRadius: 20, borderWidth: bg ? 1 : 3, borderColor: bg ? c.hairline : c.text, alignItems: 'center', justifyContent: 'center' }}>
+                  <Text style={{ color: c.text3, fontSize: 10, fontWeight: '700' }}>NONE</Text>
+                </Pressable>
+                {CHAT_BGS.map((b) => (
+                  <Pressable key={b.id} accessibilityLabel={`${b.label} background`} onPress={() => onBg(b.id)} style={{ borderRadius: 22, borderWidth: bg === b.id ? 3 : 0, borderColor: c.text, padding: bg === b.id ? 1 : 0 }}>
+                    <Swatch id={b.id} size={bg === b.id ? 34 : 40} />
+                  </Pressable>
+                ))}
+              </View>
+              <Pressable onPress={onBgPhoto} style={({ pressed }) => ({ paddingVertical: 10, borderRadius: 10, alignItems: 'center', backgroundColor: c.search, opacity: pressed ? 0.6 : 1 })}>
+                <Text style={{ color: c.blue, fontSize: 15, fontWeight: '600' }}>{bg.startsWith('data:') ? 'Choose a different photo' : 'Use a photo'}</Text>
+              </Pressable>
+            </View>
+            <Text style={{ color: c.text3, fontSize: 12.5, paddingHorizontal: 4, marginTop: 6 }}>Only you see this background.</Text>
           </View>
 
           <View>

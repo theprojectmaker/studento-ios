@@ -17,7 +17,7 @@
 <body>
 <main>
   <h1>Studento Privacy Policy</h1>
-  <div class="date">Last updated: November 9, 2026</div>
+  <div class="date">Last updated: November 9, 2026 (messaging section expanded)</div>
 
   <p>Studento is a school clock app. It works without an account, and almost everything happens on your device. This page explains the little that doesn't.</p>
 
@@ -43,14 +43,24 @@
   <h2>Schedule share codes</h2>
   <p>If you tap &ldquo;Make a share code&rdquo;, a copy of your schedule and class names is stored on our server under a 6-character code for 30 days, so another device can load it. It carries no account or personal details, and it is deleted when it expires.</p>
 
+  <h2>Where your data is stored</h2>
+  <p>Accounts, saved schedules, share codes, messages and call setup are stored with Google Firebase (Firebase Authentication and Cloud Firestore), which hosts Studento's data. Google processes it only to run the service for Studento.</p>
+
   <h2>Messages and calls (invite only)</h2>
-  <p>Messages and calls are a test feature that only appears after entering an invite code, and only for signed-in users. Messages you send are stored on our server so the other person can read them, along with who sent them and when. You can block anyone and report any message; reports go to the Studento admin, who can delete messages. Deleting your account deletes every message you sent or received. The admin can switch messaging off for everyone.</p>
-  <p>Calls connect the two devices directly. Our server only passes the short connection-setup messages between them and keeps a call log (who called whom, when, how long) that you see under Calls. Audio and video are never sent to or recorded by Studento. Blocking someone also stops their calls.</p>
+  <p>Messages and calls are a feature that only appears after entering an invite code, and only for signed-in users. Messages you send, including photos and short videos you attach, are stored so the other person can read them, along with who sent them and when. Polls, reactions, read receipts and the &ldquo;typing&rdquo; indicator are stored the same way.</p>
+  <p>You can turn on disappearing messages for a chat (24 hours, 7 days or 90 days); messages older than that are deleted. You can unsend your own messages, block anyone, and report any message. Backgrounds and colors you pick for a chat stay on your device.</p>
+  <p><strong>Moderation:</strong> the Studento admin can read messages in order to review reports and keep messaging safe, can delete messages, can turn off messaging or calling for an account, can block an account from the app, and can switch messaging off for everyone. If a waiting list is on, the admin sees your username when you ask to join. Admin accounts cannot be blocked.</p>
+  <p><strong>Friends:</strong> when you add a friend, your username and theirs are stored with the request until one of you removes it. Friend suggestions show other usernames only.</p>
+  <p>Calls connect the two devices directly. Studento only passes the short connection-setup messages between them and keeps a call log (who called whom, when, how long) that you see under Calls. Audio and video are never stored or recorded by Studento. If a direct connection isn't possible, the call is relayed through Cloudflare's TURN service, which forwards the encrypted audio and video without storing it.</p>
+  <p>Deleting your account deletes every message you sent or received.</p>
+
+  <h2>Face ID, Touch ID and passcode</h2>
+  <p>Opening messages can ask for Face ID, Touch ID or your account password. Face ID and Touch ID are checked by your device; Studento never receives your face or fingerprint data.</p>
 
   <h2>What we don't do</h2>
   <ul>
     <li>No analytics, no advertising, no tracking, no selling of data.</li>
-    <li>No sharing with third parties, except that the schedule reader sends the photo or text to the AI provider used to read it (Groq, Google Gemini or Cloudflare Workers AI, tried in that order), only for that request.</li>
+    <li>No sharing with third parties, except the services that run Studento: Google Firebase (storage, as described above), Cloudflare (call relay), and the AI provider the schedule reader sends a photo or text to (Groq, Google Gemini or Cloudflare Workers AI, tried in that order), only for that request.</li>
   </ul>
 
   <h2>Children</h2>

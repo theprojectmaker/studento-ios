@@ -9,14 +9,15 @@ import { Alert, Image, KeyboardAvoidingView, Linking, Platform, Pressable, Scrol
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BeamContact } from '@/components/beam-contact';
+import { ChatBackground, isDarkBg } from '@/components/chat-background';
 import { ActionSheet, AttachSheet, CountdownSheet, PhotoViewer, PollSheet, StickerSheet, VideoViewer, type AttachKind } from '@/components/beam-sheets';
 import { BeamAvatar, Glyph, Tail, useBeam, type BeamPalette } from '@/components/beam-ui';
 import { tap } from '@/components/ui';
 import { getToken } from '@/lib/account';
 import * as api from '@/lib/api';
 import { newGame, sendTyping, setDisappearing, sweepExpired, TTL_OPTIONS, watchChatMeta } from '@/lib/beam-extra';
-import { getPhotos, getVideo } from '@/lib/beam-media';
-import { useBeamSettings } from '@/lib/beam-settings';
+import { getBackgroundPhoto, getPhotos, getVideo } from '@/lib/beam-media';
+import { setChatBg, useBeamSettings } from '@/lib/beam-settings';
 import { encode, fold, MAX_BODY, preview, type Folded, type Rich } from '@/lib/beam-msg';
 import { startCall } from '@/lib/calls';
 
@@ -62,6 +63,7 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
   const c = useMemo(() => ({ ...base, outBubble: st.bubble }), [base, st.bubble]);
   const [meta, setMeta] = useState({ seen: false, typingAt: 0, ttl: 0 });
   const [contactOpen, setContactOpen] = useState(false);
+  const chatBg = st.chatBgs[username] ?? '';
   const [typing, setTyping] = useState(false);
   const [search, setSearch] = useState<string | null>(null);
   const [timeFor, setTimeFor] = useState<number | null>(null);
@@ -321,6 +323,8 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
           </Pressable>
         </View>
       ) : null}
+      <View style={{ flex: 1 }}>
+      <ChatBackground value={chatBg} />
       <ScrollView ref={scroller} style={{ flex: 1 }} onLayout={() => search === null && scroller.current?.scrollToEnd({ animated: false })} keyboardDismissMode="interactive" keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 12 }} onContentSizeChange={() => search === null && scroller.current?.scrollToEnd({ animated: false })}>
         {search ? <Text style={{ textAlign: 'center', color: c.text3, fontSize: 12, marginBottom: 6 }}>{`${msgs.filter((x) => !x.deleted && plain(x).toLowerCase().includes(search.toLowerCase())).length} found`}</Text> : null}
         {msgs.length === 0 && !err ? <Text style={{ textAlign: 'center', color: c.text3, fontSize: 12, marginTop: 20 }}>{`Say hi to ${username}.`}</Text> : null}
@@ -334,7 +338,7 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
           if (search && (m.deleted || !plain(m).toLowerCase().includes(search.toLowerCase()))) return null;
           return (
             <View key={m.id}>
-              {newTime ? <Text style={{ textAlign: 'center', fontSize: 11, color: c.text3, marginTop: 16, marginBottom: 8, fontWeight: '500' }}>{stamp(m.createdAt)}</Text> : null}
+              {newTime ? <Text style={{ textAlign: 'center', fontSize: 11, color: isDarkBg(chatBg) ? 'rgba(255,255,255,0.85)' : c.text3, marginTop: 16, marginBottom: 8, fontWeight: '500' }}>{stamp(m.createdAt)}</Text> : null}
               <View style={{ alignItems: m.mine ? 'flex-end' : 'flex-start', marginTop: runStart && !newTime ? 8 : 2 }}>
                 {quoted ? (
                   <View style={{ maxWidth: '70%', borderLeftWidth: 3, borderLeftColor: c.text3, paddingLeft: 8, marginBottom: 3, marginHorizontal: 6 }}>
@@ -390,6 +394,7 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
         ) : null}
         {err ? <Text style={{ textAlign: 'center', color: c.red, fontSize: 12, marginTop: 10 }}>{err}</Text> : null}
       </ScrollView>
+      </View>
 
       <View style={{ paddingHorizontal: 12, paddingTop: 6, paddingBottom: (onBack ? Math.max(insets.bottom - 8, 0) : 0) + 10 }}>
         {busy ? <Text style={{ alignSelf: 'center', color: c.text2, fontSize: 12, marginBottom: 6, backgroundColor: c.glass, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, overflow: 'hidden' }}>{busy}</Text> : null}
@@ -521,6 +526,13 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
           setContactOpen(false);
           setTimeout(toggleBlock, 350);
         }}
+        bg={chatBg}
+        onBg={(v) => setChatBg(username, v)}
+        onBgPhoto={() =>
+          void getBackgroundPhoto()
+            .then((d) => d && setChatBg(username, d))
+            .catch((e) => setErr(e instanceof Error ? e.message : "Couldn't use that photo."))
+        }
       />
     </KeyboardAvoidingView>
   );
