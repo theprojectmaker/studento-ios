@@ -321,7 +321,7 @@ export function BellActivity(props: BellProps, env: LiveActivityEnvironment) {
   const design = (props.design || 'rounded') as 'default' | 'rounded' | 'serif' | 'monospaced';
   const stale = env.isStale === true;
   const symbol = props.mode === 'class' ? 'book.fill' : props.mode === 'passing' ? 'figure.walk' : props.mode === 'before' ? 'sun.max.fill' : 'moon.stars.fill';
-  const cheer = stale ? 'Bell rang!' : props.mode === 'class' ? 'Almost there!' : props.mode === 'passing' ? 'Speed walk!' : 'Get ready!';
+  const cheer = stale ? 'Open me!' : props.mode === 'class' ? 'Almost there!' : props.mode === 'passing' ? 'Speed walk!' : 'Get ready!';
   const glow = { type: 'linearGradient' as const, colors: [props.ink, props.accent], startPoint: { x: 0, y: 0 }, endPoint: { x: 1, y: 1 } };
   const islandGlow = { type: 'linearGradient' as const, colors: [props.islandInk, props.accent], startPoint: { x: 0, y: 0 }, endPoint: { x: 1, y: 1 } };
   const digits = (size: number, style: typeof glow) => (
@@ -330,27 +330,48 @@ export function BellActivity(props: BellProps, env: LiveActivityEnvironment) {
   const badge = (s: number) => <Image systemName={symbol as never} size={s * 0.5} color={props.onAccent} modifiers={[frame({ width: s, height: s }), background(props.accent, shapes.circle())]} />;
   const bar = stale ? null : <ProgressView timerInterval={range} countsDown modifiers={[tint(props.accent), progressViewStyle('linear'), scaleEffect({ x: 1, y: 2.4 })]} />;
 
+  // After the bell (no push server to move it on), the banner never freezes: it becomes a
+  // live clock with seconds, counting up from midnight, so it keeps ticking on its own.
+  const midnight = new Date(props.start || props.end || 0);
+  midnight.setHours(0, 0, 0, 0);
+  const dayRange = { lower: midnight, upper: new Date(midnight.getTime() + 86400000) };
+  const big = (size: number, style: typeof glow) =>
+    stale ? (
+      <Text timerInterval={dayRange} modifiers={[font({ size, weight: 'black', design }), monospacedDigit(), foregroundStyle(style), lineLimit(1), minimumScaleFactor(0.5)]} />
+    ) : (
+      digits(size, style)
+    );
+  const sideLabel = stale ? 'UP NEXT' : props.mode === 'class' ? 'THEN' : 'NEXT UP';
+  const sideValue = (props.next || props.ends || props.day).replace(/^Next: /, '');
+
   return {
     banner: (
       <VStack
         alignment="leading"
-        spacing={10}
+        spacing={14}
         modifiers={[
-          padding({ horizontal: 18, vertical: 16 }),
+          padding({ horizontal: 20, vertical: 20 }),
           background({ type: 'linearGradient', colors: [props.bg, props.bg2, props.accent], startPoint: { x: 0, y: 0 }, endPoint: { x: 1.3, y: 1.6 } }),
           activityBackgroundTint(props.bg),
         ]}>
         <HStack spacing={12}>
-          {badge(44)}
-          <VStack alignment="leading" spacing={2}>
-            <Text modifiers={[font({ size: 20, weight: 'heavy', design }), foregroundStyle(props.ink), lineLimit(1), minimumScaleFactor(0.6)]}>{props.title}</Text>
-            <Text modifiers={[font({ size: 12, weight: 'heavy', design }), foregroundStyle(props.onAccent), padding({ horizontal: 8, vertical: 3 }), background(props.accent, shapes.capsule()), lineLimit(1)]}>{cheer}</Text>
+          {badge(50)}
+          <VStack alignment="leading" spacing={3}>
+            <Text modifiers={[font({ size: 22, weight: 'heavy', design }), foregroundStyle(props.ink), lineLimit(1), minimumScaleFactor(0.6)]}>{stale ? 'Bell rang!' : props.title}</Text>
+            <Text modifiers={[font({ size: 13, weight: 'semibold', design }), foregroundStyle(props.muted), lineLimit(1)]}>{stale ? props.day : props.label}</Text>
           </VStack>
           <Spacer />
-          {stale ? <Image systemName={'bell.fill' as never} size={30} color={props.accent} /> : digits(46, glow)}
+          <Text modifiers={[font({ size: 12, weight: 'heavy', design }), foregroundStyle(props.onAccent), padding({ horizontal: 10, vertical: 5 }), background(props.accent, shapes.capsule()), lineLimit(1)]}>{cheer}</Text>
+        </HStack>
+        <HStack spacing={12}>
+          {big(62, glow)}
+          <Spacer />
+          <VStack alignment="trailing" spacing={2}>
+            <Text modifiers={[font({ size: 11, weight: 'heavy' }), kerning(0.8), foregroundStyle(props.muted)]}>{sideLabel}</Text>
+            <Text modifiers={[font({ size: 15, weight: 'bold', design }), foregroundStyle(props.ink), lineLimit(2), minimumScaleFactor(0.7)]}>{sideValue}</Text>
+          </VStack>
         </HStack>
         {bar}
-        <Text modifiers={[font({ size: 13, weight: 'bold', design }), foregroundStyle(props.muted), lineLimit(1)]}>{stale ? 'Open Studento for the next class' : props.next || props.ends}</Text>
       </VStack>
     ),
     compactLeading: <Image systemName={symbol as never} size={14} color={props.accent} />,
@@ -370,7 +391,7 @@ export function BellActivity(props: BellProps, env: LiveActivityEnvironment) {
         <Text modifiers={[font({ size: 18, weight: 'heavy', design }), foregroundStyle(props.islandInk), lineLimit(1), minimumScaleFactor(0.6)]}>{props.title}</Text>
       </HStack>
     ),
-    expandedTrailing: stale ? <Image systemName={'bell.fill' as never} size={24} color={props.accent} /> : digits(40, islandGlow),
+    expandedTrailing: big(40, islandGlow),
     expandedBottom: (
       <VStack alignment="leading" spacing={6}>
         {bar}
