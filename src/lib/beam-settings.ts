@@ -10,7 +10,7 @@ export interface BeamSettings {
   enterSends: boolean;
   bigEmoji: boolean;
 }
-export const BUBBLES = ['#0b84fe', '#34c759', '#af52de', '#ff2d55', '#ff9500', '#5e5ce6', '#30b0c7', '#1c1c1e'];
+export const BUBBLES = ['#0b84fe', '#34c759', '#af52de', '#ff2d55', '#ff9500', '#5e5ce6', '#30b0c7', '#1c1c1e', '#ff6482', '#64d2ff', '#bf5af2', '#a2845e'];
 const DEFAULTS: BeamSettings = { bubble: BUBBLES[0], textSize: 16, alerts: true, haptics: true, enterSends: false, bigEmoji: true };
 const KEY = 'beam.settings';
 
@@ -35,3 +35,4 @@ const sub = (f: () => void) => {
   return () => subs.delete(f);
 };
 export const useBeamSettings = () => useSyncExternalStore(sub, getBeamSettings, getBeamSettings);
+

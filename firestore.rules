@@ -73,8 +73,12 @@ service cloud.firestore {
         && request.resource.data.expiresAt <= request.time.toMillis() + 31 * 86400000;
     }
 
+    // Blocks: admins (config/admins) can't be blocked.
     match /blocks/{uid} {
-      allow read, write: if signedIn() && me() == uid;
+      allow read, delete: if signedIn() && me() == uid;
+      allow write: if signedIn() && me() == uid
+        && (!exists(/databases/$(database)/documents/config/admins)
+          || !request.resource.data.get('ids', []).hasAny(get(/databases/$(database)/documents/config/admins).data.get('uids', [])));
     }
 
     match /chats/{key} {
@@ -154,6 +158,22 @@ service cloud.firestore {
     match /notices/{id} {
       allow read: if signedIn() && (resource.data.to == me() || isAdmin());
       allow write: if isAdmin();
+    }
+
+    // Public list of admin accounts (so they can be shown and never blocked).
+    match /config/admins {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
+    // Friend requests: one doc per pair, id from_to. The receiver accepts; either side can delete.
+    match /friendreqs/{id} {
+      allow read: if signedIn() && (resource.data.from == me() || resource.data.to == me());
+      allow create: if signedIn() && request.resource.data.from == me() && request.resource.data.status == 'pending'
+        && id == request.resource.data.from + '_' + request.resource.data.to
+        && request.resource.data.keys().hasOnly(['from', 'to', 'fromName', 'toName', 'status', 'at']);
+      allow update: if signedIn() && resource.data.to == me() && onlyChanges(['status']) && request.resource.data.status == 'accepted';
+      allow delete: if signedIn() && (resource.data.from == me() || resource.data.to == me());
     }
 
     // Chess games between two people.

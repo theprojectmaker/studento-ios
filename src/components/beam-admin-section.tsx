@@ -5,6 +5,7 @@ import { View } from 'react-native';
 import { Button, Divider, Field, Note, Row, Section, ToggleRow } from '@/components/ui';
 import { decide, postAnnouncement, setFlag, takeDown, totals, watchAccessList, watchAnnouncements, watchMessageCount, type AccessRequest, type Announcement } from '@/lib/beam-extra';
 import { useBeamFlags } from '@/lib/beam-on';
+import { registerAdmin } from '@/lib/beam-social';
 
 export function BeamAdminSection() {
   const [live, setLive] = useState<number | null>(null);
@@ -18,6 +19,10 @@ export function BeamAdminSection() {
   const [requests, setRequests] = useState<AccessRequest[]>([]);
   useEffect(() => watchAccessList(setRequests), []);
 
+  // Put this admin on the public list so nobody can block them.
+  useEffect(() => {
+    void registerAdmin().catch(() => {});
+  }, []);
   useEffect(() => watchMessageCount(setLive), []);
   useEffect(() => watchAnnouncements(setList), []);
   useEffect(() => {

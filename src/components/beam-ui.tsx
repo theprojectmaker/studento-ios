@@ -3,7 +3,10 @@
  * iMessage-faithful bubbles, gradient letter avatars, a grey search pill and a floating
  * composer. It follows the system light/dark setting, not the Studento theme.
  */
-import { Text, useColorScheme, View } from 'react-native';
+import { GlassView } from 'expo-glass-effect';
+import { Platform, StyleSheet, Text, useColorScheme, View, type StyleProp, type ViewStyle } from 'react-native';
+
+import { hasLiquidGlass } from '@/components/glass';
 import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
 export interface BeamPalette {
@@ -228,6 +231,13 @@ export const Glyph = {
       <Path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
     </Svg>
   ),
+  PersonAdd: ({ color, size = 22 }: G) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <Circle cx={10} cy={8} r={4} />
+      <Path d="M2.5 20c.6-4 3.6-6.4 7.5-6.4 1.6 0 3 .4 4.2 1.1-.4.7-.7 1.6-.7 2.5 0 1 .3 1.9.8 2.8z" />
+      <Path d="M18 13.5a.9.9 0 0 1 .9.9v1.7h1.7a.9.9 0 1 1 0 1.8h-1.7v1.7a.9.9 0 1 1-1.8 0v-1.7h-1.7a.9.9 0 1 1 0-1.8h1.7v-1.7a.9.9 0 0 1 .9-.9z" />
+    </Svg>
+  ),
   Chevron: ({ color, size = 15 }: G) => (
     <Svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round">
       <Path d="M9 5l7 7-7 7" />
@@ -242,6 +252,35 @@ export function Tail({ color, side, bg }: { color: string; side: 'left' | 'right
     <Svg width={14} height={18} viewBox="0 0 14 18" style={{ position: 'absolute', bottom: 0, [flip ? 'left' : 'right']: -5, transform: [{ scaleX: flip ? -1 : 1 }] }}>
       <Path d="M0 0 V18 H14 C8 18 3 14 3 6 V0 Z" fill={color} />
       <Path d="M3 0 C3 14 8 18 14 18 V14 C9 13 7 9 7 0 Z" fill={bg} opacity={0} />
+    </Svg>
+  );
+}
+
+/** Liquid Glass on iOS 26+, a frosted translucent panel everywhere else. */
+export function BeamGlass({ c, style, children, radius = 0 }: { c: BeamPalette; style?: StyleProp<ViewStyle>; children?: React.ReactNode; radius?: number }) {
+  if (hasLiquidGlass()) {
+    return (
+      <GlassView glassEffectStyle="regular" colorScheme={c.dark ? 'dark' : 'light'} style={[{ borderRadius: radius, overflow: 'hidden' }, style]}>
+        {children}
+      </GlassView>
+    );
+  }
+  const web = Platform.OS === 'web' ? ({ backdropFilter: 'blur(24px) saturate(170%)', WebkitBackdropFilter: 'blur(24px) saturate(170%)' } as object) : null;
+  return <View style={[{ borderRadius: radius, overflow: 'hidden', backgroundColor: c.glass, borderWidth: StyleSheet.hairlineWidth, borderColor: c.hairline }, web, style]}>{children}</View>;
+}
+
+/** Soft two-tone fill behind a bubble (top lighter, bottom the color itself). */
+export function BubbleGradient({ color, id }: { color: string; id: string }) {
+  return (
+    <Svg style={StyleSheet.absoluteFill} preserveAspectRatio="none" viewBox="0 0 10 10">
+      <Defs>
+        <LinearGradient id={id} x1="0" y1="0" x2="0.4" y2="1">
+          <Stop offset="0" stopColor="#ffffff" stopOpacity={0.28} />
+          <Stop offset="1" stopColor="#ffffff" stopOpacity={0} />
+        </LinearGradient>
+      </Defs>
+      <Path d="M0 0H10V10H0z" fill={color} />
+      <Path d="M0 0H10V10H0z" fill={`url(#${id})`} />
     </Svg>
   );
 }

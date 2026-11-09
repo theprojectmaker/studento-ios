@@ -15,7 +15,9 @@ import { requestAccess, watchMyAccess, type AccessStatus } from '@/lib/beam-extr
 import { lockBeam, useBeamUnlocked } from '@/lib/beam-lock';
 import { useBeamFlags, useBeamVisible } from '@/lib/beam-on';
 import { BeamLockScreen } from '@/components/beam-lock-screen';
+import { BeamFriends } from '@/components/beam-friends';
 import { BeamSettingsPane } from '@/components/beam-settings-pane';
+import { useFriends } from '@/lib/beam-social';
 import { BeamAvatar, Glyph, useBeam, type BeamPalette } from '@/components/beam-ui';
 import { getToken } from '@/lib/account';
 import * as api from '@/lib/api';
@@ -23,7 +25,7 @@ import { preview } from '@/lib/beam-msg';
 import { startCall } from '@/lib/calls';
 import { useStore } from '@/lib/store';
 
-type Section = 'messages' | 'calls' | 'contacts' | 'settings';
+type Section = 'messages' | 'friends' | 'calls' | 'contacts' | 'settings';
 const K_CONTACTS = 'beam.contacts';
 const K_MARKS = 'beam.marks';
 
@@ -154,6 +156,7 @@ export default function Beam() {
   }, [q, account]);
 
   const call = (peer: string, video: boolean) => void startCall(peer, video).catch((e) => setErr(e instanceof Error ? e.message : "Couldn't start the call."));
+  const friendState = useFriends();
   const openChat = (u: string) => {
     setQ('');
     if (wide) setOpen(u);
@@ -167,6 +170,7 @@ export default function Beam() {
   /* ---------- sidebar ---------- */
   const NAV: { k: Section; label: string; icon: keyof typeof Glyph; badge: number }[] = [
     { k: 'messages', label: 'Messages', icon: 'Bubble', badge: unreadTotal },
+    { k: 'friends', label: 'Friends', icon: 'PersonAdd', badge: friendState.incoming.length },
     { k: 'calls', label: 'Calls', icon: 'Phone', badge: missed },
     { k: 'contacts', label: 'Contacts', icon: 'Person', badge: 0 },
     { k: 'settings', label: 'Settings', icon: 'Gear', badge: 0 },
@@ -486,7 +490,7 @@ export default function Beam() {
     return (
       <View style={{ flex: 1, backgroundColor: c.sidebar }}>
         {topBar}
-        <View style={{ flex: 1 }}>{section === 'settings' ? <BeamSettingsPane c={c} wide={false} topPad={0} /> : listCol}</View>
+        <View style={{ flex: 1 }}>{section === 'settings' ? <BeamSettingsPane c={c} wide={false} topPad={0} /> : section === 'friends' ? <BeamFriends c={c} wide={false} topPad={0} fs={friendState} onOpen={openChat} /> : listCol}</View>
         {tabBar}
       </View>
     );
@@ -495,7 +499,7 @@ export default function Beam() {
   return (
     <View style={{ flex: 1, flexDirection: 'row', backgroundColor: c.sidebar }}>
       {sidebar}
-      {section === 'settings' ? <BeamSettingsPane c={c} wide={wide} /> : listCol}
+      {section === 'settings' ? <BeamSettingsPane c={c} wide={wide} /> : section === 'friends' ? <BeamFriends c={c} wide={wide} fs={friendState} onOpen={openChat} /> : listCol}
       {wide ? (
         <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: c.chatBg }}>
           {open ? (
