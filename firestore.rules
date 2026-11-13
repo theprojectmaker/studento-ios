@@ -40,6 +40,15 @@ service cloud.firestore {
       allow delete: if signedIn() && me() == uid;
     }
 
+    // Who has Beam: usernames only, so suggestions can grey out people without it.
+    match /beamers/{name} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && request.resource.data.keys().hasOnly(['uid'])
+        && request.resource.data.uid == me()
+        && get(/databases/$(database)/documents/usernames/$(name)).data.uid == me();
+      allow delete: if signedIn() && resource.data.uid == me();
+    }
+
     match /usernames/{name} {
       allow read: if signedIn();
       allow create: if signedIn() && request.resource.data.uid == me() && name.matches('^[a-z0-9_.-]{3,24}$');

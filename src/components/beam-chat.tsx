@@ -11,6 +11,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BeamContact } from '@/components/beam-contact';
 import { ChatBackground, isDarkBg } from '@/components/chat-background';
 import { ActionSheet, AttachSheet, CountdownSheet, PhotoViewer, PollSheet, StickerSheet, VideoViewer, type AttachKind } from '@/components/beam-sheets';
+import { Piece } from '@/components/chessbuddy/Piece';
 import { BeamAvatar, Glyph, useBeam, type BeamPalette } from '@/components/beam-ui';
 import { tap } from '@/components/ui';
 import { getToken } from '@/lib/account';
@@ -617,12 +618,21 @@ function Body({
         </Text>
       );
     case 'chess':
+      // Chess Buddy style invite: green board color, the two kings, a big Play button.
       return (
-        <Pressable onPress={() => router.push({ pathname: '/chess', params: { g: r.g } })} style={{ width: 230, borderRadius: 18, padding: 14, backgroundColor: '#3a2f22', gap: 6 }}>
-          <Text style={{ color: 'rgba(255,255,255,0.6)', fontSize: 11.5, fontWeight: '600' }}>CHESS</Text>
-          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>{m.mine ? 'You started a game' : 'Wants to play chess'}</Text>
-          <View style={{ backgroundColor: '#ebecd0', borderRadius: 10, paddingVertical: 8, alignItems: 'center', marginTop: 4 }}>
-            <Text style={{ color: '#3a2f22', fontSize: 15, fontWeight: '700' }}>Open game</Text>
+        <Pressable onPress={() => router.push({ pathname: '/chess', params: { g: r.g } })} style={{ width: 236, borderRadius: 20, padding: 14, backgroundColor: '#58B92E', gap: 10 }}>
+          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+            <View style={{ flexDirection: 'row', backgroundColor: '#EFF3D9', borderRadius: 12, padding: 4 }}>
+              <Piece type="k" color="w" size={30} />
+              <Piece type="k" color="b" size={30} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 11.5, fontWeight: '800', letterSpacing: 0.6 }}>CHESS</Text>
+              <Text style={{ color: '#fff', fontSize: 16, fontWeight: '800' }}>{m.mine ? 'You started a game' : 'Wants to play!'}</Text>
+            </View>
+          </View>
+          <View style={{ backgroundColor: '#fff', borderRadius: 12, paddingVertical: 9, alignItems: 'center', borderBottomWidth: 3, borderBottomColor: '#3F921B' }}>
+            <Text style={{ color: '#3F921B', fontSize: 15, fontWeight: '900' }}>Play</Text>
           </View>
         </Pressable>
       );

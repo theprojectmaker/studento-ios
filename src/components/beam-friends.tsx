@@ -7,7 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BeamAvatar, Glyph, type BeamPalette } from '@/components/beam-ui';
 import { getToken } from '@/lib/account';
 import * as api from '@/lib/api';
-import { acceptFriend, dropFriend, friendSuggestions, sendFriendRequest, type FriendState } from '@/lib/beam-social';
+import { acceptFriend, dropFriend, friendSuggestions, sendFriendRequest, withBeam, type FriendState } from '@/lib/beam-social';
 
 function Pill({ c, label, onPress, kind = 'blue' }: { c: BeamPalette; label: string; onPress: () => void; kind?: 'blue' | 'grey' | 'red' }) {
   return (
@@ -23,13 +23,18 @@ export function BeamFriends({ c, wide, topPad, fs, onOpen }: { c: BeamPalette; w
   const [q, setQ] = useState('');
   const [hits, setHits] = useState<string[]>([]);
   const [sugg, setSugg] = useState<string[]>([]);
+  // Suggested people who haven't put in the Beam code yet show greyed out (null = can't tell).
+  const [hasBeam, setHasBeam] = useState<Set<string> | null>(null);
   const [msg, setMsg] = useState<{ text: string; ok: boolean } | null>(null);
 
   const connected = Object.keys(fs.byName);
   const connectedKey = connected.join(',');
   useEffect(() => {
     void friendSuggestions(connectedKey ? connectedKey.split(',') : [])
-      .then(setSugg)
+      .then(async (list) => {
+        setSugg(list);
+        setHasBeam(await withBeam(list));
+      })
       .catch(() => {});
   }, [connectedKey]);
 
@@ -69,9 +74,11 @@ export function BeamFriends({ c, wide, topPad, fs, onOpen }: { c: BeamPalette; w
     return <Pill c={c} label="Requested" kind="grey" onPress={() => void run(() => dropFriend(r.id), 'Request canceled.')} />;
   };
 
-  const row = (u: string, right: React.ReactNode, sub?: string) => (
+  const row = (u: string, right: React.ReactNode, sub?: string, dim = false) => (
     <Animated.View key={u} entering={FadeIn.duration(180)} exiting={FadeOut.duration(140)} layout={LinearTransition.duration(180)} style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 8, paddingHorizontal: 10 }}>
-      <BeamAvatar name={u} size={44} />
+      <View style={{ opacity: dim ? 0.3 : 1 }}>
+        <BeamAvatar name={u} size={44} gray={dim} />
+      </View>
       <View style={{ flex: 1, minWidth: 0 }}>
         <Text style={{ color: c.text, fontSize: 15.5, fontWeight: '600' }} numberOfLines={1}>
           {show(u)}
@@ -129,7 +136,10 @@ export function BeamFriends({ c, wide, topPad, fs, onOpen }: { c: BeamPalette; w
             {sugg.length ? (
               <>
                 {head('Suggested for you')}
-                {sugg.map((u) => row(u, action(u), 'On Beam'))}
+                {sugg.map((u) => {
+                  const dim = !!hasBeam && !hasBeam.has(u);
+                  return row(u, action(u), dim ? "Hasn't joined Beam yet" : 'On Beam', dim);
+                })}
               </>
             ) : null}
             {fs.outgoing.length ? (

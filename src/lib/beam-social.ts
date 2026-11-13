@@ -4,7 +4,7 @@
  *                           one doc per pair; accepted = friends. Either person can delete it.
  *   config/admins           {uids[], names[]}  admins can't be blocked
  */
-import { collection, deleteDoc, doc, getDoc, getDocs, limit, onSnapshot, query, setDoc, updateDoc, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, documentId, getDoc, getDocs, limit, onSnapshot, query, setDoc, updateDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 
 import { currentUser, fbDb } from './fb';
@@ -137,4 +137,29 @@ export async function registerAdmin(): Promise<void> {
   uids.add(u.uid);
   names.add(name);
   await setDoc(ref, { uids: [...uids], names: [...names] });
+}
+
+/* ---------- who has Beam (beamers/{username} = {uid}) ---------- */
+/** Mark this account as having Beam, so others don't see it greyed out. Safe to call often. */
+export async function markBeamUser(): Promise<void> {
+  const u = await me();
+  const name = await myName(u.uid);
+  if (name) await setDoc(doc(fbDb(), 'beamers', name), { uid: u.uid });
+}
+/**
+ * Which of these usernames have Beam. Returns null when that can't be checked (rule not
+ * published yet, offline), so the caller shows everyone normally instead of greying them out.
+ */
+export async function withBeam(names: string[]): Promise<Set<string> | null> {
+  if (!names.length) return new Set();
+  try {
+    const out = new Set<string>();
+    for (let i = 0; i < names.length; i += 30) {
+      const rows = await getDocs(query(collection(fbDb(), 'beamers'), where(documentId(), 'in', names.slice(i, i + 30))));
+      rows.docs.forEach((d) => out.add(d.id));
+    }
+    return out;
+  } catch {
+    return null;
+  }
 }

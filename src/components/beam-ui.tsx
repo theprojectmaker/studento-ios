@@ -101,9 +101,9 @@ function hash(s: string): number {
   return Math.abs(h);
 }
 
-export function BeamAvatar({ name, size = 46 }: { name: string; size?: number }) {
-  const [a, b] = AV[hash(name) % AV.length];
-  const id = `av${hash(name) % AV.length}`;
+export function BeamAvatar({ name, size = 46, gray = false }: { name: string; size?: number; gray?: boolean }) {
+  const [a, b] = gray ? ['#C7C7CC', '#8E8E93'] : AV[hash(name) % AV.length];
+  const id = gray ? 'avgray' : `av${hash(name) % AV.length}`;
   return (
     <View style={{ width: size, height: size }}>
       <Svg width={size} height={size} style={{ position: 'absolute' }}>
