@@ -19,6 +19,7 @@ import { MsReadout } from '@/components/millis';
 import { Editable } from '@/components/editable';
 import { LiveEffect } from '@/components/effects';
 import { RacewayBackdrop } from '@/components/raceway-bg';
+import { LiquidGlassScene } from '@/components/liquid-glass-bg';
 import { LockButton } from '@/components/lockmode';
 import { Blink, burnInOffset, FlashOverlay, NightDim, useThemeShuffle, useWarning } from '@/components/clock-extras';
 import { Glass, Icon } from '@/components/glass';
@@ -159,8 +160,10 @@ export default function ClockScreen() {
   // First launch: ask whose schedule to run (default, scan, or type it).
   if (!prefs.onboarded) return <Redirect href="/setup" />;
 
-  return (
-    <View style={{ flex: 1, backgroundColor: theme.bg }} onTouchStart={wake}>
+  // Liquid Glass: an interactive wallpaper behind everything, and the clock always on glass cards.
+  const liquid = theme.id === 'liquidglass';
+  const screen = (
+    <View style={{ flex: 1, backgroundColor: liquid ? 'transparent' : theme.bg }} onTouchStart={wake}>
       {theme.engine === 'race' ? <RacewayBackdrop theme={theme} elapsedSec={raceTotal != null ? raceTotal - (copy.countdownSec ?? 0) : null} totalSec={raceTotal} seed={raceSeed} motion={prefs.motion} /> : null}
       <LiveEffect theme={theme} motion={prefs.motion} />
       <NightDim hour={parts.hour} on={rawPrefs.night} />
@@ -177,7 +180,7 @@ export default function ClockScreen() {
       >
         <Animated.View style={[{ flex: 1, maxWidth: sz(900), width: '100%', alignSelf: 'center', transform: [{ translateX: nudge.x }, { translateY: nudge.y }] }, rawPrefs.idleDim ? dimStyle : null]}>
           {rawPrefs.locked ? null : <ClockBanners theme={theme} today={st.date} locked={focusLocked} />}
-          {theme.engine === 'race' ? <RaceLayout v={v} /> : prefs.layout === 'minimal' ? <Minimal v={v} /> : prefs.layout === 'glass' ? <Cards v={v} /> : <Classic v={v} />}
+          {theme.engine === 'race' ? <RaceLayout v={v} /> : prefs.layout === 'minimal' ? <Minimal v={v} /> : prefs.layout === 'glass' || liquid ? <Cards v={v} /> : <Classic v={v} />}
         </Animated.View>
         {askAlerts && !locked ? (
           <View
@@ -281,6 +284,13 @@ export default function ClockScreen() {
         </Animated.View>
       )}
     </View>
+  );
+  return liquid ? (
+    <LiquidGlassScene theme={theme} motion={prefs.motion}>
+      {screen}
+    </LiquidGlassScene>
+  ) : (
+    screen
   );
 }
 
