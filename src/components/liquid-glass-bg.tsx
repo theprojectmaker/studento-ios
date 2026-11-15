@@ -7,7 +7,7 @@
  * Everything runs on the UI thread (Reanimated); the gesture never blocks the clock's buttons
  * (it only starts after the finger moves a few points).
  */
-import { GlassView } from 'expo-glass-effect';
+import { GlassContainer, GlassView } from 'expo-glass-effect';
 import { useEffect, type ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
@@ -82,6 +82,54 @@ function Drop({ i, xs, ys, show, glass }: { i: number; xs: SharedValue<number[]>
   );
 }
 
+/* ---------- real Liquid Glass (iOS 26): shapes in one container melt into each other ---------- */
+const AnimatedGlass = Animated.createAnimatedComponent(GlassView);
+
+function GlassDrop({ i, xs, ys, show }: { i: number; xs: SharedValue<number[]>; ys: SharedValue<number[]>; show: SharedValue<number> }) {
+  const size = 92 - i * 6;
+  const style = useAnimatedStyle(() => ({
+    opacity: show.value,
+    transform: [{ translateX: (xs.value[i] ?? -300) - size / 2 }, { translateY: (ys.value[i] ?? -300) - size / 2 }, { scale: 0.4 + show.value * 0.6 }],
+  }));
+  return <AnimatedGlass glassEffectStyle="clear" style={[{ position: 'absolute', left: 0, top: 0, width: size, height: size, borderRadius: size / 2 }, style]} />;
+}
+
+function GlassOrb({ i, w, h, motion }: { i: number; w: number; h: number; motion: boolean }) {
+  const size = [130, 96, 74][i];
+  const t = useSharedValue(0);
+  useEffect(() => {
+    if (!motion) return;
+    t.set(withRepeat(withTiming(1, { duration: 14000 + i * 5000, easing: Easing.inOut(Easing.sin) }), -1, true));
+  }, [motion, i, t]);
+  const style = useAnimatedStyle(() => {
+    const a = t.value * Math.PI * 2;
+    // Paths cross, so the orbs pass through each other and the glass melts together.
+    const x = w * (0.5 + Math.sin(a + i * 2.1) * 0.32);
+    const y = h * (0.55 + Math.cos(a * (1 + i * 0.3) + i) * 0.28);
+    return { transform: [{ translateX: x - size / 2 }, { translateY: y - size / 2 }] };
+  });
+  return <AnimatedGlass glassEffectStyle="clear" style={[{ position: 'absolute', left: 0, top: 0, width: size, height: size, borderRadius: size / 2 }, style]} />;
+}
+
+function GlassLayer({ w, h, fx, fy, xs, ys, show, motion }: { w: number; h: number; fx: SharedValue<number>; fy: SharedValue<number>; xs: SharedValue<number[]>; ys: SharedValue<number[]>; show: SharedValue<number>; motion: boolean }) {
+  const lens = useAnimatedStyle(() => ({
+    opacity: show.value,
+    transform: [{ translateX: fx.value - 90 }, { translateY: fy.value - 90 }, { scale: 0.5 + show.value * 0.5 }],
+  }));
+  return (
+    <GlassContainer spacing={70} style={StyleSheet.absoluteFill}>
+      {[0, 1, 2].map((i) => (
+        <GlassOrb key={`o${i}`} i={i} w={w} h={h} motion={motion} />
+      ))}
+      <AnimatedGlass glassEffectStyle="clear" style={[{ position: 'absolute', left: 0, top: 0, width: 180, height: 180, borderRadius: 90 }, lens]} />
+      {Array.from({ length: DROPS }, (_, i) => (
+        <GlassDrop key={`d${i}`} i={i} xs={xs} ys={ys} show={show} />
+      ))}
+    </GlassContainer>
+  );
+}
+
+
 export function LiquidGlassScene({ theme, motion, children }: { theme: Theme; motion: boolean; children: ReactNode }) {
   const { width: w, height: h } = useWindowDimensions();
   const glass = hasLiquidGlass();
@@ -102,8 +150,9 @@ export function LiquidGlassScene({ theme, motion, children }: { theme: Theme; mo
     for (let k = 0; k < DROPS; k++) {
       const tx = k === 0 ? fx.value : nx[k - 1];
       const ty = k === 0 ? fy.value : ny[k - 1];
-      nx[k] += (tx - nx[k]) * 0.32;
-      ny[k] += (ty - ny[k]) * 0.32;
+      // Slower follow = the trail stretches into one long, smooth blob of glass.
+      nx[k] += (tx - nx[k]) * 0.24;
+      ny[k] += (ty - ny[k]) * 0.24;
     }
     xs.set(nx);
     ys.set(ny);
@@ -157,9 +206,11 @@ export function LiquidGlassScene({ theme, motion, children }: { theme: Theme; mo
             <Rect x={0} y={0} width={w} height={h} fill="url(#sheen)" />
           </Svg>
           <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: 120, height: 120, borderRadius: 60, borderWidth: 2, borderColor: 'rgba(255,255,255,0.7)' }, ringStyle]} />
-          {Array.from({ length: DROPS }, (_, i) => (
-            <Drop key={i} i={DROPS - 1 - i} xs={xs} ys={ys} show={show} glass={glass} />
-          ))}
+          {glass ? (
+            <GlassLayer w={w} h={h} fx={fx} fy={fy} xs={xs} ys={ys} show={show} motion={motion} />
+          ) : (
+            Array.from({ length: DROPS }, (_, i) => <Drop key={i} i={DROPS - 1 - i} xs={xs} ys={ys} show={show} glass={false} />)
+          )}
         </View>
         {children}
       </View>
