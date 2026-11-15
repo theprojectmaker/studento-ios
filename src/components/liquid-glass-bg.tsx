@@ -91,7 +91,7 @@ function GlassDrop({ i, xs, ys, show }: { i: number; xs: SharedValue<number[]>; 
     opacity: show.value,
     transform: [{ translateX: (xs.value[i] ?? -300) - size / 2 }, { translateY: (ys.value[i] ?? -300) - size / 2 }, { scale: 0.4 + show.value * 0.6 }],
   }));
-  return <AnimatedGlass glassEffectStyle="clear" style={[{ position: 'absolute', left: 0, top: 0, width: size, height: size, borderRadius: size / 2 }, style]} />;
+  return <AnimatedGlass pointerEvents="none" glassEffectStyle="clear" style={[{ position: 'absolute', left: 0, top: 0, width: size, height: size, borderRadius: size / 2 }, style]} />;
 }
 
 function GlassOrb({ i, w, h, motion }: { i: number; w: number; h: number; motion: boolean }) {
@@ -108,7 +108,7 @@ function GlassOrb({ i, w, h, motion }: { i: number; w: number; h: number; motion
     const y = h * (0.55 + Math.cos(a * (1 + i * 0.3) + i) * 0.28);
     return { transform: [{ translateX: x - size / 2 }, { translateY: y - size / 2 }] };
   });
-  return <AnimatedGlass glassEffectStyle="clear" style={[{ position: 'absolute', left: 0, top: 0, width: size, height: size, borderRadius: size / 2 }, style]} />;
+  return <AnimatedGlass pointerEvents="none" glassEffectStyle="clear" style={[{ position: 'absolute', left: 0, top: 0, width: size, height: size, borderRadius: size / 2 }, style]} />;
 }
 
 function GlassLayer({ w, h, fx, fy, xs, ys, show, motion }: { w: number; h: number; fx: SharedValue<number>; fy: SharedValue<number>; xs: SharedValue<number[]>; ys: SharedValue<number[]>; show: SharedValue<number>; motion: boolean }) {
@@ -117,18 +117,29 @@ function GlassLayer({ w, h, fx, fy, xs, ys, show, motion }: { w: number; h: numb
     transform: [{ translateX: fx.value - 90 }, { translateY: fy.value - 90 }, { scale: 0.5 + show.value * 0.5 }],
   }));
   return (
-    <GlassContainer spacing={70} style={StyleSheet.absoluteFill}>
+    <>
       {[0, 1, 2].map((i) => (
         <GlassOrb key={`o${i}`} i={i} w={w} h={h} motion={motion} />
       ))}
-      <AnimatedGlass glassEffectStyle="clear" style={[{ position: 'absolute', left: 0, top: 0, width: 180, height: 180, borderRadius: 90 }, lens]} />
+      <AnimatedGlass pointerEvents="none" glassEffectStyle="clear" style={[{ position: 'absolute', left: 0, top: 0, width: 180, height: 180, borderRadius: 90 }, lens]} />
       {Array.from({ length: DROPS }, (_, i) => (
         <GlassDrop key={`d${i}`} i={i} xs={xs} ys={ys} show={show} />
       ))}
-    </GlassContainer>
+    </>
   );
 }
 
+
+function GlassWrap({ children }: { children: ReactNode }) {
+  return (
+    <GlassContainer spacing={70} style={{ flex: 1 }}>
+      {children}
+    </GlassContainer>
+  );
+}
+function PlainWrap({ children }: { children: ReactNode }) {
+  return <View style={{ flex: 1 }}>{children}</View>;
+}
 
 export function LiquidGlassScene({ theme, motion, children }: { theme: Theme; motion: boolean; children: ReactNode }) {
   const { width: w, height: h } = useWindowDimensions();
@@ -187,9 +198,12 @@ export function LiquidGlassScene({ theme, motion, children }: { theme: Theme; mo
   }));
 
   const colors = BLOBS.map((b) => (b.c === 'accent' ? theme.accent : b.c));
+  // On iOS 26 one glass container holds the trail, the orbs AND the clock's own glass (timer card,
+  // buttons), so all of it melts together when it touches. Elsewhere a plain view.
+  const Wrap = glass ? GlassWrap : PlainWrap;
   return (
     <GestureDetector gesture={pan}>
-      <View style={{ flex: 1 }}>
+      <Wrap>
         <View style={[StyleSheet.absoluteFill, { overflow: 'hidden', backgroundColor: theme.bg }]} pointerEvents="none">
           {colors.map((c, i) => (
             <Blob key={i} i={i} color={c} w={w} h={h} fx={fx} fy={fy} touch={touch} motion={motion} />
@@ -206,14 +220,11 @@ export function LiquidGlassScene({ theme, motion, children }: { theme: Theme; mo
             <Rect x={0} y={0} width={w} height={h} fill="url(#sheen)" />
           </Svg>
           <Animated.View style={[{ position: 'absolute', left: 0, top: 0, width: 120, height: 120, borderRadius: 60, borderWidth: 2, borderColor: 'rgba(255,255,255,0.7)' }, ringStyle]} />
-          {glass ? (
-            <GlassLayer w={w} h={h} fx={fx} fy={fy} xs={xs} ys={ys} show={show} motion={motion} />
-          ) : (
-            Array.from({ length: DROPS }, (_, i) => <Drop key={i} i={DROPS - 1 - i} xs={xs} ys={ys} show={show} glass={false} />)
-          )}
+          {glass ? null : Array.from({ length: DROPS }, (_, i) => <Drop key={i} i={DROPS - 1 - i} xs={xs} ys={ys} show={show} glass={false} />)}
         </View>
+        {glass ? <GlassLayer w={w} h={h} fx={fx} fy={fy} xs={xs} ys={ys} show={show} motion={motion} /> : null}
         {children}
-      </View>
+      </Wrap>
     </GestureDetector>
   );
 }
