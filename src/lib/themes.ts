@@ -9,11 +9,12 @@
  * and, where it fits the theme, one quiet live effect (snow, petals, embers...).
  */
 import { TABLET } from './scale';
+import { MORE_EFFECTS, MORE_GROUPS, MORE_IDS, MORE_THEMES } from './more-themes';
 import { NEW_EFFECTS, NEW_IDS, NEW_THEMES } from './new-themes';
 import { RAW_THEMES, type RawTheme } from './theme-data';
 import { typeFor, type TypeSpec } from './typefaces';
 
-export type Engine = 'flap' | 'dial' | 'ring' | 'led' | 'lcd' | 'nixie' | 'ink' | 'reel' | 'deco' | 'race' | 'x';
+export type Engine = 'flap' | 'dial' | 'ring' | 'led' | 'lcd' | 'nixie' | 'ink' | 'reel' | 'deco' | 'race' | 'x' | 'y';
 export type HeroFont = 'sans' | 'serif' | 'mono' | 'rounded';
 export type Effect = 'none' | 'stars' | 'snow' | 'petals' | 'embers' | 'fireflies' | 'bubbles' | 'rain' | 'scanlines' | 'dust' | 'glints' | 'bokeh';
 export type Numerals = 'arabic' | 'roman' | 'quarters' | 'none';
@@ -52,6 +53,8 @@ export interface Theme {
   bare: boolean;
   /** New-style clocks (engine "x"): "kind:variant", see components/boards-new.tsx. */
   x?: string;
+  /** More new clocks (engine "y"): "kind:n", see components/boards-more.tsx. */
+  y?: string;
 }
 
 /** Palettes the website keeps in CSS rather than in its theme data. */
@@ -287,6 +290,7 @@ const NUMERALS: Record<DialStyle, Numerals> = {
 function engineOf(style: string): { engine: Engine; dialStyle: DialStyle } {
   if (style.startsWith('dial:')) return { engine: 'dial', dialStyle: style.slice(5) as DialStyle };
   if (style.startsWith('x:')) return { engine: 'x', dialStyle: 'watch' };
+  if (style.startsWith('y:')) return { engine: 'y', dialStyle: 'watch' };
   const map: Record<string, Engine> = { reel: 'reel', reelbare: 'reel', deco: 'deco', flap: 'flap', tape: 'flap', led: 'led', dots: 'led', lcd: 'lcd', seven: 'lcd', nixie: 'nixie', ink: 'ink', word: 'ink', bars: 'ink', ring: 'ring', race: 'race' };
   return { engine: map[style] ?? 'flap', dialStyle: 'watch' };
 }
@@ -308,7 +312,7 @@ function build(r: RawTheme): Theme {
     dialStyle,
     numerals: (x.numerals as Numerals) ?? NUMERALS[dialStyle] ?? 'none',
     font: (x.fonts as HeroFont) ?? (engine === 'ink' ? 'serif' : 'sans'),
-    effect: EFFECTS[x.id] ?? NEW_EFFECTS[x.id] ?? 'none',
+    effect: EFFECTS[x.id] ?? NEW_EFFECTS[x.id] ?? MORE_EFFECTS[x.id] ?? 'none',
     type: typeFor(x.id),
     bg: x.bg,
     ink,
@@ -328,14 +332,15 @@ function build(r: RawTheme): Theme {
     cabinet: css.cabinet ?? mix(x.bg, '#000000', 0.35),
     bare: x.style === 'reelbare',
     x: x.style?.startsWith('x:') ? x.style.slice(2) : undefined,
+    y: x.style?.startsWith('y:') ? x.style.slice(2) : undefined,
   };
 }
 
 // Picker order: Train Station (split-flap) first, then Casino, Gilded, then the rest.
-const FIRST = ['New', 'Split-flap', 'Casino', 'Gilded', 'Fun', 'Quiet'];
+const FIRST = ['New', ...MORE_GROUPS, 'Split-flap', 'Casino', 'Gilded', 'Fun', 'Quiet'];
 const rank = (g: string) => (FIRST.includes(g) ? FIRST.indexOf(g) : FIRST.length);
 /** Every theme ever shipped. Kept so a saved pick from an older build still renders. */
-export const ALL_THEMES: Theme[] = [...NEW_THEMES, ...EXTRA, ...RAW_THEMES].map(build).sort((x, y) => rank(x.group) - rank(y.group));
+export const ALL_THEMES: Theme[] = [...NEW_THEMES, ...MORE_THEMES, ...EXTRA, ...RAW_THEMES].map(build).sort((x, y) => rank(x.group) - rank(y.group));
 
 /**
  * The picker shows only these: one or two per look, no near-duplicates. Order within a
@@ -344,6 +349,8 @@ export const ALL_THEMES: Theme[] = [...NEW_THEMES, ...EXTRA, ...RAW_THEMES].map(
 const CURATED = [
   // 50 brand-new themes to try (src/lib/new-themes.ts)
   ...NEW_IDS,
+  // 150 more: 15 new kinds of clock (src/lib/more-themes.ts)
+  ...MORE_IDS,
   // Split-flap
   'liquidglass', 'departure', 'noirflip', 'slateflip', 'cream', 'navyflap', 'coral', 'pine', 'plum', 'midnight', 'sunset', 'chalkboard', 'paper',
   // Casino

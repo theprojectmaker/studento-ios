@@ -500,7 +500,7 @@ function Radial({ text, theme, width, maxSize, remaining = 1, variant }: BoardPr
     });
   } else if (variant === 'petals') {
     art = Array.from({ length: N }, (_, i) => (
-      <G key={i} rotation={(i / N) * 360} origin={`${c}, ${c}`}>
+      <G key={i} transform={`rotate(${(i / N) * 360} ${c} ${c})`}>
         <Path d={`M${c} ${c}C${c - S * 0.1} ${c - S * 0.18} ${c - S * 0.06} ${c - S * 0.42} ${c} ${c - S * 0.46}C${c + S * 0.06} ${c - S * 0.42} ${c + S * 0.1} ${c - S * 0.18} ${c} ${c}Z`} fill={i < lit ? theme.accent : alpha(theme.ink, 0.07)} />
       </G>
     ));

@@ -14,6 +14,7 @@ import { alpha, mix, type Theme } from '@/lib/themes';
 
 import { Glass } from './glass';
 import { DecoBoard, ReelBoard, SmallLuxeClock } from './luxe-boards';
+import { MoreBoard } from './boards-more';
 import { NewBoard } from './boards-new';
 import { RaceBoard } from './race-board';
 
@@ -145,6 +146,8 @@ export function Board(props: BoardProps) {
       return <RaceBoard {...props} />;
     case 'x':
       return <NewBoard {...props} />;
+    case 'y':
+      return <MoreBoard {...props} />;
     default:
       return <FlapBoard {...props} />;
   }
