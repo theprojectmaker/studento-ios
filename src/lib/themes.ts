@@ -116,7 +116,7 @@ const CSS: Record<string, Partial<RawTheme> & { tile?: string; tileInk?: string;
 
 /** New in the app: casino reels and Art Deco gold (listed first in the picker). */
 const EXTRA: RawTheme[] = [
-  { id: 'liquidglass', name: 'Liquid Glass', group: 'Fun', bg: '#0b1024', accent: '#5ab8ff', ink: '#ffffff', style: 'ink' },
+  { id: 'liquidglass', name: 'Liquid Glass', group: 'Fun', bg: '#050506', accent: '#5ab8ff', ink: '#ffffff', style: 'ink' },
   { id: 'racetrack', name: 'Race Track', group: 'Fun', bg: '#101214', accent: '#ff3b30', style: 'race' },
   { id: 'racetrack-day', name: 'Race Day', group: 'Fun', bg: '#eef0e6', accent: '#1d6fe0', style: 'race' },
   // Split-flap palettes

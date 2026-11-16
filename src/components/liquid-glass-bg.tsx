@@ -1,6 +1,6 @@
 /**
- * "Liquid Glass" theme: real Apple glass (iOS 26) floating over a crisp wallpaper of rings,
- * lines and dots that the glass visibly bends. Big glass bubbles drift and wobble like water and
+ * "Liquid Glass" theme: real Apple glass (iOS 26) floating over a crisp dark wallpaper with a faint
+ * grid that the glass visibly bends. Big glass bubbles drift and wobble like water and
  * melt together; slide a finger and a glass lens plus a pouring glass trail follow it, merging
  * with the bubbles and the clock's own glass (timer card, buttons) in one glass container.
  * Older iOS gets frosted bubbles instead. Runs on the UI thread; never blocks the clock's buttons.
@@ -10,7 +10,7 @@ import { useEffect, type ReactNode } from 'react';
 import { StyleSheet, useWindowDimensions, View } from 'react-native';
 import { Gesture, GestureDetector } from 'react-native-gesture-handler';
 import Animated, { Easing, useAnimatedStyle, useFrameCallback, useSharedValue, withRepeat, withSequence, withTiming, type SharedValue } from 'react-native-reanimated';
-import Svg, { Circle, Defs, Line, LinearGradient, Rect, Stop } from 'react-native-svg';
+import Svg, { Defs, Line, LinearGradient, Rect, Stop } from 'react-native-svg';
 
 import { hasLiquidGlass } from '@/components/glass';
 import type { Theme } from '@/lib/themes';
@@ -67,7 +67,7 @@ function GlassDrop({ i, xs, ys, show }: { i: number; xs: SharedValue<number[]>; 
       ],
     };
   });
-  return <AnimatedGlass pointerEvents="none" glassEffectStyle="regular" style={[{ position: 'absolute', left: 0, top: 0, width: size, height: size, borderRadius: size / 2 }, style]} />;
+  return <AnimatedGlass pointerEvents="none" glassEffectStyle="clear" style={[{ position: 'absolute', left: 0, top: 0, borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', width: size, height: size, borderRadius: size / 2 }, style]} />;
 }
 
 /** A free-floating glass orb that wobbles like a drop of water and drifts on a figure-8. */
@@ -90,7 +90,7 @@ function GlassOrb({ i, w, h, motion }: { i: number; w: number; h: number; motion
       transform: [{ translateX: x - size / 2 }, { translateY: y - size / 2 }, { rotate: `${a * 0.5 + i}rad` }, { scaleX: 1 + squish }, { scaleY: 1 - squish }],
     };
   });
-  return <AnimatedGlass pointerEvents="none" glassEffectStyle="regular" style={[{ position: 'absolute', left: 0, top: 0, width: size, height: size, borderRadius: size / 2 }, style]} />;
+  return <AnimatedGlass pointerEvents="none" glassEffectStyle="clear" style={[{ position: 'absolute', left: 0, top: 0, borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', width: size, height: size, borderRadius: size / 2 }, style]} />;
 }
 
 function GlassLayer({ w, h, fx, fy, xs, ys, show, motion }: { w: number; h: number; fx: SharedValue<number>; fy: SharedValue<number>; xs: SharedValue<number[]>; ys: SharedValue<number[]>; show: SharedValue<number>; motion: boolean }) {
@@ -110,7 +110,7 @@ function GlassLayer({ w, h, fx, fy, xs, ys, show, motion }: { w: number; h: numb
       {[0, 1, 2, 3].map((i) => (
         <GlassOrb key={`o${i}`} i={i} w={w} h={h} motion={motion} />
       ))}
-      <AnimatedGlass pointerEvents="none" glassEffectStyle="regular" style={[{ position: 'absolute', left: 0, top: 0, width: 180, height: 180, borderRadius: 90 }, lens]} />
+      <AnimatedGlass pointerEvents="none" glassEffectStyle="clear" style={[{ position: 'absolute', left: 0, top: 0, borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', width: 180, height: 180, borderRadius: 90 }, lens]} />
       {Array.from({ length: DROPS }, (_, i) => (
         <GlassDrop key={`d${i}`} i={i} xs={xs} ys={ys} show={show} />
       ))}
@@ -125,34 +125,31 @@ function GlassLayer({ w, h, fx, fy, xs, ys, show, motion }: { w: number; h: numb
  * blobs). It slides a little with your finger, so the glass appears to warp it as you drag.
  */
 function Backdrop({ theme, w, h, fx, fy, touch }: { theme: Theme; w: number; h: number; fx: SharedValue<number>; fy: SharedValue<number>; touch: SharedValue<number> }) {
-  const big = Math.max(w, h);
+  // Near-black with a faint grid (like Apple's glass demo, but dark): the glass bends the grid
+  // lines, which is what makes it read as glass. A soft glow of the theme colour sits low down.
   const shift = useAnimatedStyle(() => ({
-    transform: [{ translateX: (fx.value - w / 2) * -0.05 * touch.value }, { translateY: (fy.value - h / 2) * -0.05 * touch.value }, { scale: 1.08 }],
+    transform: [{ translateX: (fx.value - w / 2) * -0.04 * touch.value }, { translateY: (fy.value - h / 2) * -0.04 * touch.value }, { scale: 1.06 }],
   }));
-  const rings = Array.from({ length: 14 }, (_, i) => (i + 1) * (big / 16));
-  const lines = Array.from({ length: 28 }, (_, i) => i * (big / 14) - big);
-  const dots: { x: number; y: number }[] = [];
-  for (let x = 0; x < w; x += 34) for (let y = 0; y < h; y += 34) dots.push({ x, y });
+  const step = 64;
+  const vs = Array.from({ length: Math.ceil(w / step) + 2 }, (_, i) => i * step);
+  const hs = Array.from({ length: Math.ceil(h / step) + 2 }, (_, i) => i * step);
   return (
     <Animated.View style={[StyleSheet.absoluteFill, shift]}>
       <Svg width={w} height={h}>
         <Defs>
-          <LinearGradient id="wall" x1="0" y1="0" x2="1" y2="1">
-            <Stop offset="0" stopColor={theme.bg} />
-            <Stop offset="0.6" stopColor={theme.accent} stopOpacity={0.55} />
-            <Stop offset="1" stopColor="#ffffff" stopOpacity={0.35} />
+          <LinearGradient id="wall" x1="0" y1="0" x2="0" y2="1">
+            <Stop offset="0" stopColor="#050506" />
+            <Stop offset="0.7" stopColor="#0b0c10" />
+            <Stop offset="1" stopColor={theme.accent} stopOpacity={0.22} />
           </LinearGradient>
         </Defs>
-        <Rect x={0} y={0} width={w} height={h} fill={theme.bg} />
+        <Rect x={0} y={0} width={w} height={h} fill="#050506" />
         <Rect x={0} y={0} width={w} height={h} fill="url(#wall)" />
-        {lines.map((o, i) => (
-          <Line key={`l${i}`} x1={o} y1={0} x2={o + h} y2={h} stroke="#ffffff" strokeOpacity={0.07} strokeWidth={1} />
+        {vs.map((x) => (
+          <Line key={`v${x}`} x1={x} y1={0} x2={x} y2={h} stroke="#ffffff" strokeOpacity={0.09} strokeWidth={1} />
         ))}
-        {rings.map((r, i) => (
-          <Circle key={`r${i}`} cx={w * 0.72} cy={h * 0.3} r={r} fill="none" stroke="#ffffff" strokeOpacity={i % 3 === 0 ? 0.22 : 0.09} strokeWidth={i % 3 === 0 ? 2 : 1} />
-        ))}
-        {dots.map((d, i) => (
-          <Circle key={`d${i}`} cx={d.x} cy={d.y} r={1.3} fill="#ffffff" fillOpacity={0.18} />
+        {hs.map((y) => (
+          <Line key={`h${y}`} x1={0} y1={y} x2={w} y2={y} stroke="#ffffff" strokeOpacity={0.09} strokeWidth={1} />
         ))}
       </Svg>
     </Animated.View>
