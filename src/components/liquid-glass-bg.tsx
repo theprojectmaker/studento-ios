@@ -40,34 +40,27 @@ function Drop({ i, xs, ys, show, glass }: { i: number; xs: SharedValue<number[]>
 const AnimatedGlass = Animated.createAnimatedComponent(GlassView);
 
 /**
- * A trail droplet that behaves like water: it stretches along the way it is moving (the gap to
- * the droplet ahead of it) and squashes back round as it slows, so the trail pours rather than
- * looking like a row of circles.
+ * Apple's glass is a live visual-effect view: fading it (opacity) or stretching it with scale /
+ * rotate transforms makes iOS fall back to a flat, washed-out look. So every glass shape here
+ * morphs the way Apple's do: by changing its real frame (left/top/width/height/radius) only.
+ * Shapes appear by growing from nothing and leave by shrinking away, never by fading.
  */
 function GlassDrop({ i, xs, ys, show }: { i: number; xs: SharedValue<number[]>; ys: SharedValue<number[]>; show: SharedValue<number> }) {
-  const size = 92 - i * 6;
+  const base = 92 - i * 6;
   const style = useAnimatedStyle(() => {
     const x = xs.value[i] ?? -300;
     const y = ys.value[i] ?? -300;
     const px = i === 0 ? x : (xs.value[i - 1] ?? x);
     const py = i === 0 ? y : (ys.value[i - 1] ?? y);
-    const dx = px - x;
-    const dy = py - y;
-    const speed = Math.sqrt(dx * dx + dy * dy);
-    const stretch = 1 + Math.min(speed / 45, 0.9);
-    const angle = Math.atan2(dy, dx);
-    return {
-      opacity: show.value,
-      transform: [
-        { translateX: x - size / 2 },
-        { translateY: y - size / 2 },
-        { rotate: `${angle}rad` },
-        { scaleX: (0.4 + show.value * 0.6) * stretch },
-        { scaleY: (0.4 + show.value * 0.6) / Math.sqrt(stretch) },
-      ],
-    };
+    // Water-like stretch toward the drop ahead, done with the real width/height.
+    const sx = 1 + Math.min(Math.abs(px - x) / 50, 0.8);
+    const sy = 1 + Math.min(Math.abs(py - y) / 50, 0.8);
+    const k = show.value;
+    const wd = base * k * sx;
+    const ht = base * k * sy;
+    return { left: x - wd / 2, top: y - ht / 2, width: wd, height: ht, borderRadius: Math.min(wd, ht) / 2 };
   });
-  return <AnimatedGlass pointerEvents="none" glassEffectStyle="clear" style={[{ position: 'absolute', left: 0, top: 0, borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', width: size, height: size, borderRadius: size / 2 }, style]} />;
+  return <AnimatedGlass pointerEvents="none" glassEffectStyle="clear" style={[{ position: 'absolute' }, style]} />;
 }
 
 /** A free-floating glass orb that wobbles like a drop of water and drifts on a figure-8. */
@@ -82,42 +75,38 @@ function GlassOrb({ i, w, h, motion }: { i: number; w: number; h: number; motion
   }, [motion, i, t, wob]);
   const style = useAnimatedStyle(() => {
     const a = t.value * Math.PI * 2;
-    // Figure-8 paths that cross, so orbs keep melting together and pulling apart.
-    const x = w * (0.5 + Math.sin(a + i * 1.3) * 0.36);
-    const y = h * (0.52 + Math.sin(a * 2 + i * 0.9) * 0.3);
-    const squish = Math.sin(wob.value * Math.PI * 2) * 0.14;
-    return {
-      transform: [{ translateX: x - size / 2 }, { translateY: y - size / 2 }, { rotate: `${a * 0.5 + i}rad` }, { scaleX: 1 + squish }, { scaleY: 1 - squish }],
-    };
+    const cx = w * (0.5 + Math.sin(a + i * 1.3) * 0.36);
+    const cy = h * (0.52 + Math.sin(a * 2 + i * 0.9) * 0.3);
+    const squish = Math.sin(wob.value * Math.PI * 2) * 0.12;
+    const wd = size * (1 + squish);
+    const ht = size * (1 - squish);
+    return { left: cx - wd / 2, top: cy - ht / 2, width: wd, height: ht, borderRadius: Math.min(wd, ht) / 2 };
   });
-  return <AnimatedGlass pointerEvents="none" glassEffectStyle="clear" style={[{ position: 'absolute', left: 0, top: 0, borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', width: size, height: size, borderRadius: size / 2 }, style]} />;
+  return <AnimatedGlass pointerEvents="none" glassEffectStyle="clear" style={[{ position: 'absolute' }, style]} />;
 }
 
 function GlassLayer({ w, h, fx, fy, xs, ys, show, motion }: { w: number; h: number; fx: SharedValue<number>; fy: SharedValue<number>; xs: SharedValue<number[]>; ys: SharedValue<number[]>; show: SharedValue<number>; motion: boolean }) {
-  // The lens stretches toward where the finger is heading, like a drop being dragged.
+  // The lens under the finger: grows in, stretches toward where the finger is heading.
   const lens = useAnimatedStyle(() => {
-    const dx = fx.value - (xs.value[0] ?? fx.value);
-    const dy = fy.value - (ys.value[0] ?? fy.value);
-    const stretch = 1 + Math.min(Math.sqrt(dx * dx + dy * dy) / 80, 0.6);
-    const k = 0.5 + show.value * 0.5;
-    return {
-      opacity: show.value,
-      transform: [{ translateX: fx.value - 90 }, { translateY: fy.value - 90 }, { rotate: `${Math.atan2(dy, dx)}rad` }, { scaleX: k * stretch }, { scaleY: k / Math.sqrt(stretch) }],
-    };
+    const dx = Math.abs(fx.value - (xs.value[0] ?? fx.value));
+    const dy = Math.abs(fy.value - (ys.value[0] ?? fy.value));
+    const k = show.value;
+    const wd = 180 * k * (1 + Math.min(dx / 90, 0.5));
+    const ht = 180 * k * (1 + Math.min(dy / 90, 0.5));
+    return { left: fx.value - wd / 2, top: fy.value - ht / 2, width: wd, height: ht, borderRadius: Math.min(wd, ht) / 2 };
   });
   return (
     <>
       {[0, 1, 2, 3].map((i) => (
         <GlassOrb key={`o${i}`} i={i} w={w} h={h} motion={motion} />
       ))}
-      <AnimatedGlass pointerEvents="none" glassEffectStyle="clear" style={[{ position: 'absolute', left: 0, top: 0, borderWidth: 1, borderColor: 'rgba(255,255,255,0.28)', width: 180, height: 180, borderRadius: 90 }, lens]} />
+      <AnimatedGlass pointerEvents="none" glassEffectStyle="clear" style={[{ position: 'absolute' }, lens]} />
       {Array.from({ length: DROPS }, (_, i) => (
         <GlassDrop key={`d${i}`} i={i} xs={xs} ys={ys} show={show} />
       ))}
     </>
   );
 }
-
 
 /**
  * The wallpaper the glass floats on. Real glass only reads as glass when it bends sharp detail
