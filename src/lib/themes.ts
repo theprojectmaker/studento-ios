@@ -337,8 +337,10 @@ function build(r: RawTheme): Theme {
 }
 
 // Picker order: Train Station (split-flap) first, then Casino, Gilded, then the rest.
-const FIRST = ['New', ...MORE_GROUPS, 'Split-flap', 'Casino', 'Gilded', 'Fun', 'Quiet'];
-const rank = (g: string) => (FIRST.includes(g) ? FIRST.indexOf(g) : FIRST.length);
+const FIRST = ['Split-flap', 'Casino', 'Gilded', 'Fun', 'Quiet'];
+// The new themes come after every original group.
+const LAST = ['New', ...MORE_GROUPS];
+const rank = (g: string) => (FIRST.includes(g) ? FIRST.indexOf(g) : LAST.includes(g) ? 100 + LAST.indexOf(g) : FIRST.length);
 /** Every theme ever shipped. Kept so a saved pick from an older build still renders. */
 export const ALL_THEMES: Theme[] = [...NEW_THEMES, ...MORE_THEMES, ...EXTRA, ...RAW_THEMES].map(build).sort((x, y) => rank(x.group) - rank(y.group));
 
@@ -347,10 +349,6 @@ export const ALL_THEMES: Theme[] = [...NEW_THEMES, ...MORE_THEMES, ...EXTRA, ...
  * group is the order here.
  */
 const CURATED = [
-  // 50 brand-new themes to try (src/lib/new-themes.ts)
-  ...NEW_IDS,
-  // 150 more: 15 new kinds of clock (src/lib/more-themes.ts)
-  ...MORE_IDS,
   // Split-flap
   'liquidglass', 'departure', 'noirflip', 'slateflip', 'cream', 'navyflap', 'coral', 'pine', 'plum', 'midnight', 'sunset', 'chalkboard', 'paper',
   // Casino
@@ -367,6 +365,9 @@ const CURATED = [
   'arctic', 'editorial', 'mono', 'graphite', 'rosewater', 'olive', 'bars', 'space',
   // One from each collection
   'city-tokyo', 'city-newyork', 'mat-stainedglass', 'mat-kintsugi', 'nat-aurora', 'ret-phosphor', 'sci-blueprint', 'sci-cassini',
+  // Below the originals: 50 brand-new themes (src/lib/new-themes.ts), then 150 more (src/lib/more-themes.ts)
+  ...NEW_IDS,
+  ...MORE_IDS,
 ];
 export const THEMES: Theme[] = CURATED.map((id) => ALL_THEMES.find((t) => t.id === id)).filter((t): t is Theme => !!t && (TABLET || t.engine !== 'race'));
 export const GROUPS: string[] = [...new Set(THEMES.map((t) => t.group))];
