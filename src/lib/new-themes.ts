@@ -1,7 +1,7 @@
 /**
- * 50 brand-new themes to try out (group "New", shown first in the picker). Each one is its own
- * palette + engine + number font + live effect combination, made for the app, not taken from
- * the website's theme list.
+ * 50 brand-new themes (group "New", first in the picker). Every one is a whole different KIND of
+ * clock, not a recolour: ten new clock styles (components/boards-new.tsx) x five versions each
+ * that are built differently (shapes, materials, layouts). Style is "x:<kind>:<variant>".
  */
 import type { RawTheme } from './theme-data';
 import type { Effect } from './themes';
@@ -9,71 +9,66 @@ import type { Effect } from './themes';
 type T = Omit<RawTheme, 'group'> & { effect?: Effect };
 
 const LIST: T[] = [
-  // Split-flap and tape
-  { id: 'n-matcha', name: 'Matcha Latte', bg: '#e9efe0', accent: '#5f8f3e', style: 'flap', fonts: 'rounded' },
-  { id: 'n-blackcherry', name: 'Black Cherry', bg: '#14070b', accent: '#e0435f', glow: '#ff8fa3', style: 'flap', effect: 'bokeh' },
-  { id: 'n-tangerine', name: 'Tangerine', bg: '#ff8a3d', accent: '#2b1608', style: 'flap', fonts: 'rounded' },
-  { id: 'n-glacier', name: 'Glacier', bg: '#0c1a24', accent: '#9fe7ff', style: 'tape', effect: 'snow' },
-  { id: 'n-mint', name: 'Mint Chip', bg: '#d9f4ea', accent: '#3a2a20', style: 'tape', fonts: 'rounded' },
-  { id: 'n-terminalgold', name: 'Gold Board', bg: '#0b0a07', accent: '#f2c14e', style: 'flap', effect: 'glints' },
-
-  // LED / dots / LCD / seven-segment
-  { id: 'n-synthwave', name: 'Synthwave', bg: '#1a0b2e', accent: '#ff3cac', glow: '#2bd2ff', style: 'led', effect: 'scanlines' },
-  { id: 'n-toxic', name: 'Toxic', bg: '#050a04', accent: '#a6ff00', style: 'dots', effect: 'scanlines' },
-  { id: 'n-ambertube', name: 'Amber Bus', bg: '#0d0802', accent: '#ffb000', style: 'dots' },
-  { id: 'n-icecream', name: 'Ice Cream Truck', bg: '#fff1f6', accent: '#ff5fa2', style: 'led', fonts: 'rounded' },
-  { id: 'n-calculator', name: 'Calculator', bg: '#2e3133', accent: '#9aa58a', style: 'lcd', lcdPanel: '#b7c4a1', lcdInk: '#1d2416', fonts: 'mono' },
-  { id: 'n-pager', name: 'Pager', bg: '#141a1c', accent: '#7ed6c6', style: 'lcd', lcdPanel: '#8fd8c8', lcdInk: '#0f2a26', fonts: 'mono' },
-  { id: 'n-alarm', name: 'Alarm Clock', bg: '#0a0202', accent: '#ff2a1a', style: 'seven', effect: 'scanlines' },
-  { id: 'n-scoreboard', name: 'Scoreboard', bg: '#0f1a12', accent: '#ffe066', style: 'seven' },
-  { id: 'n-cyberlime', name: 'Cyber Lime', bg: '#0b0f14', accent: '#c6ff3d', glow: '#00e5ff', style: 'led' },
-
-  // Nixie tubes
-  { id: 'n-nixieblue', name: 'Blue Tubes', bg: '#04070d', accent: '#4fb3ff', style: 'nixie', effect: 'stars' },
-  { id: 'n-nixierose', name: 'Rose Tubes', bg: '#0e0508', accent: '#ff6f91', style: 'nixie', effect: 'embers' },
-  { id: 'n-steampunk', name: 'Steampunk', bg: '#1c130b', accent: '#ff9a3c', glow: '#ffd27a', style: 'nixie', effect: 'embers' },
-
-  // Big type
-  { id: 'n-newsprint', name: 'Newsprint', bg: '#f1ede4', accent: '#c81d25', style: 'ink', fonts: 'serif' },
-  { id: 'n-brutal', name: 'Brutalist', bg: '#e6e6e1', accent: '#ff3b00', style: 'ink', fonts: 'mono' },
-  { id: 'n-midnightink', name: 'Midnight Ink', bg: '#060814', accent: '#8ea8ff', style: 'ink', fonts: 'serif', effect: 'stars' },
-  { id: 'n-cottoncandy', name: 'Cotton Candy', bg: '#ffe3f1', accent: '#7b5cff', style: 'ink', fonts: 'rounded', effect: 'bubbles' },
-  { id: 'n-solarflare', name: 'Solar Flare', bg: '#1a0600', accent: '#ff6a00', glow: '#ffd000', style: 'ink', fonts: 'sans', effect: 'embers' },
-  { id: 'n-poetry', name: 'Poetry', bg: '#f6f1e7', accent: '#6b4f3a', style: 'word', fonts: 'serif', effect: 'petals' },
-  { id: 'n-graffiti', name: 'Graffiti', bg: '#16161a', accent: '#ffd400', glow: '#ff3cac', style: 'word', fonts: 'rounded' },
-  { id: 'n-equalizer', name: 'Equalizer', bg: '#08080c', accent: '#00ffa3', glow: '#a855f7', style: 'bars' },
-  { id: 'n-sunrisebars', name: 'Sunrise Bars', bg: '#2a1033', accent: '#ffb347', glow: '#ff5e62', style: 'bars' },
-
-  // Rings
-  { id: 'n-orbit', name: 'Orbit', bg: '#05060f', accent: '#7c5cff', glow: '#00d4ff', style: 'ring', effect: 'stars' },
-  { id: 'n-donut', name: 'Donut', bg: '#ffd6e0', accent: '#8a3b12', style: 'ring', fonts: 'rounded' },
-  { id: 'n-radar', name: 'Radar', bg: '#020a05', accent: '#33ff99', style: 'ring', fonts: 'mono', effect: 'scanlines' },
-  { id: 'n-zen', name: 'Zen Garden', bg: '#eae6dc', accent: '#5b6b4f', style: 'ring', fonts: 'serif', effect: 'petals' },
-
-  // Analog dials
-  { id: 'n-pilot', name: 'Pilot Watch', bg: '#0e1013', accent: '#ff8a00', style: 'dial:diver', dialFace: '#15181c' },
-  { id: 'n-dresswatch', name: 'Dress Watch', bg: '#f4efe6', accent: '#1e3a5f', style: 'dial:swiss', dialFace: '#fbf8f2' },
-  { id: 'n-bauhausred', name: 'Bauhaus Red', bg: '#d62828', accent: '#1d1d1d', style: 'dial:bauhaus', dialFace: '#f5efe0' },
-  { id: 'n-oceanwatch', name: 'Ocean Diver', bg: '#06243a', accent: '#29e0c8', style: 'dial:diver', dialFace: '#0a3350', effect: 'bubbles' },
-  { id: 'n-pocketgold', name: 'Gold Pocket', bg: '#1a1208', accent: '#e8b04a', style: 'dial:pocket', dialFace: '#f3e6c8', effect: 'dust' },
-  { id: 'n-grandpa', name: 'Grandfather', bg: '#2a1a10', accent: '#c9a26a', style: 'dial:grandfather', dialFace: '#efe3c8' },
-  { id: 'n-minimalwhite', name: 'Gallery', bg: '#ffffff', accent: '#ff3b30', style: 'dial:minimal' },
-  { id: 'n-sectorlime', name: 'Sector Lime', bg: '#101410', accent: '#c8f560', style: 'dial:sector', dialFace: '#1a201a' },
-  { id: 'n-romanmarble', name: 'Roman Marble', bg: '#ece9e4', accent: '#7a1f2b', style: 'dial:watch', dialFace: '#f7f5f1', numerals: 'roman' },
-
-  // Casino reels and deco
-  { id: 'n-luckyseven', name: 'Lucky Seven', bg: '#0a1f0f', accent: '#ffd23f', style: 'reel', effect: 'glints' },
-  { id: 'n-arcade', name: 'Arcade', bg: '#12002a', accent: '#00f0ff', glow: '#ff00c8', style: 'reel', effect: 'bokeh' },
-  { id: 'n-candyreel', name: 'Candy Reels', bg: '#ffe9f3', accent: '#ff3d7f', style: 'reelbare', fonts: 'rounded' },
-  { id: 'n-artdecoteal', name: 'Deco Teal', bg: '#062a2a', accent: '#d8b45a', style: 'deco', effect: 'glints' },
-  { id: 'n-roaring', name: 'Roaring 20s', bg: '#0b0b0b', accent: '#e6c36a', style: 'deco', effect: 'bubbles' },
-
-  // Nature moods
-  { id: 'n-rainforest', name: 'Rainforest', bg: '#071a10', accent: '#5fd38d', style: 'ink', fonts: 'serif', effect: 'rain' },
-  { id: 'n-autumn', name: 'Autumn', bg: '#2a140a', accent: '#ff8c42', style: 'flap', effect: 'petals' },
-  { id: 'n-blizzard', name: 'Blizzard', bg: '#dfe8ef', accent: '#2b4a6b', style: 'ink', fonts: 'sans', effect: 'snow' },
-  { id: 'n-campfire', name: 'Campfire', bg: '#0f0805', accent: '#ff7b29', glow: '#ffc06b', style: 'nixie', effect: 'embers' },
-  { id: 'n-meadow', name: 'Firefly Meadow', bg: '#0a120a', accent: '#d4ff6b', style: 'word', fonts: 'serif', effect: 'fireflies' },
+  // Binary lights
+  { id: 'x-binary-dots', name: 'Binary', bg: '#0a0f1a', accent: '#5ee1ff', style: 'x:binary:circles' },
+  { id: 'x-binary-blocks', name: 'Binary Blocks', bg: '#f4f1ea', accent: '#e4572e', style: 'x:binary:squares' },
+  { id: 'x-binary-bars', name: 'Bit Bars', bg: '#111111', accent: '#c6ff3d', style: 'x:binary:bars' },
+  { id: 'x-binary-lamps', name: 'Control Panel', bg: '#1c1f22', accent: '#ffb000', style: 'x:binary:lamps', effect: 'scanlines' },
+  { id: 'x-binary-punch', name: 'Punch Card', bg: '#efe6cf', accent: '#2a2a2a', ink: '#2a2a2a', style: 'x:binary:holes' },
+  // Pixel digits
+  { id: 'x-pixel-8bit', name: '8-Bit', bg: '#1d1340', accent: '#ffd23f', ink: '#ffd23f', style: 'x:pixel:blocks' },
+  { id: 'x-pixel-matrix', name: 'Dot Matrix Sign', bg: '#050505', accent: '#ff7a00', style: 'x:pixel:dots' },
+  { id: 'x-pixel-stitch', name: 'Cross-Stitch', bg: '#f6efe4', accent: '#c0392b', style: 'x:pixel:stitch' },
+  { id: 'x-pixel-lego', name: 'Brick Builder', bg: '#2d6a4f', accent: '#ffcd00', style: 'x:pixel:lego' },
+  { id: 'x-pixel-mosaic', name: 'Mosaic', bg: '#f3ead8', accent: '#1d4e89', ink: '#c06014', style: 'x:pixel:mosaic' },
+  // Segment digits
+  { id: 'x-seg-capsule', name: 'Capsules', bg: '#fff6e9', accent: '#ff6b6b', style: 'x:segment:capsule' },
+  { id: 'x-seg-neon', name: 'Neon Outline', bg: '#07000f', accent: '#ff2bd6', style: 'x:segment:neon', effect: 'bokeh' },
+  { id: 'x-seg-match', name: 'Matchsticks', bg: '#3a2617', accent: '#e8c48a', style: 'x:segment:match' },
+  { id: 'x-seg-slant', name: 'Racing Digits', bg: '#0e0e10', accent: '#ff3b30', style: 'x:segment:slant' },
+  { id: 'x-seg-dotted', name: 'Dotted', bg: '#eef3f8', accent: '#3355ff', style: 'x:segment:dotted' },
+  // Fill-up timers
+  { id: 'x-fill-glass', name: 'Water Glass', bg: '#e9f4fb', accent: '#2a9df4', style: 'x:fill:glass', effect: 'bubbles' },
+  { id: 'x-fill-battery', name: 'Battery', bg: '#0b0d0c', accent: '#34c759', style: 'x:fill:battery' },
+  { id: 'x-fill-hourglass', name: 'Hourglass', bg: '#2a1d12', accent: '#e9c46a', style: 'x:fill:hourglass', effect: 'dust' },
+  { id: 'x-fill-pie', name: 'Pie Chart', bg: '#fffaf0', accent: '#f4a261', style: 'x:fill:pie' },
+  { id: 'x-fill-thermo', name: 'Thermometer', bg: '#f7f7f7', accent: '#e63946', style: 'x:fill:thermo' },
+  // Word clocks
+  { id: 'x-word-stack', name: 'Spelled Out', bg: '#111827', accent: '#facc15', style: 'x:word:stack' },
+  { id: 'x-word-sentence', name: 'Storybook', bg: '#fbf6ec', accent: '#9b2c2c', style: 'x:word:sentence', effect: 'petals' },
+  { id: 'x-word-grid', name: 'Letter Grid', bg: '#0c0c0c', accent: '#ffffff', style: 'x:word:grid' },
+  { id: 'x-word-type', name: 'Typewriter', bg: '#ece5d8', accent: '#1f1f1f', ink: '#1f1f1f', style: 'x:word:type' },
+  { id: 'x-word-vertical', name: 'Banner', bg: '#d7263d', accent: '#fff3b0', ink: '#ffffff', style: 'x:word:vertical' },
+  // Dot fields
+  { id: 'x-dots-grid', name: 'Minute Grid', bg: '#f2f2f2', accent: '#111111', style: 'x:dots:grid' },
+  { id: 'x-dots-spiral', name: 'Galaxy Spiral', bg: '#04040d', accent: '#a78bfa', style: 'x:dots:spiral', effect: 'stars' },
+  { id: 'x-dots-ring', name: 'Bead Ring', bg: '#1b2a24', accent: '#7ee8c3', style: 'x:dots:ring' },
+  { id: 'x-dots-abacus', name: 'Abacus', bg: '#f5e6c8', accent: '#b5462f', style: 'x:dots:abacus' },
+  { id: 'x-dots-confetti', name: 'Confetti', bg: '#ffffff', accent: '#ff3d7f', glow: '#2ec4b6', ink: '#3a3a3a', style: 'x:dots:confetti' },
+  // Sculpted digits
+  { id: 'x-sculpt-stack', name: 'Tower', bg: '#000000', accent: '#ff5f1f', style: 'x:sculpt:stack' },
+  { id: 'x-sculpt-outline', name: 'Hollow', bg: '#0f172a', accent: '#38bdf8', style: 'x:sculpt:outline' },
+  { id: 'x-sculpt-cutout', name: 'Cut-Out', bg: '#fdf0d5', accent: '#003049', style: 'x:sculpt:cutout' },
+  { id: 'x-sculpt-extrude', name: '3D Block', bg: '#ffe066', accent: '#ef476f', ink: '#ffffff', style: 'x:sculpt:extrude' },
+  { id: 'x-sculpt-mirror', name: 'Reflection', bg: '#0a0a0a', accent: '#cfcfcf', style: 'x:sculpt:mirror' },
+  // Counting systems
+  { id: 'x-count-tally', name: 'Tally Marks', bg: '#2b3a2e', accent: '#f4d35e', ink: '#f2f2ea', style: 'x:count:tally' },
+  { id: 'x-count-roman', name: 'Roman Time', bg: '#f1ece2', accent: '#7a1f2b', style: 'x:count:roman' },
+  { id: 'x-count-dice', name: 'Dice', bg: '#0b6e4f', accent: '#ffffff', ink: '#ffffff', style: 'x:count:dice' },
+  { id: 'x-count-morse', name: 'Morse Code', bg: '#0d1b2a', accent: '#ffd166', style: 'x:count:morse', effect: 'scanlines' },
+  { id: 'x-count-ruler', name: 'Ruler', bg: '#f6d860', accent: '#1a1a1a', ink: '#1a1a1a', style: 'x:count:ruler' },
+  // Radial countdowns
+  { id: 'x-radial-sun', name: 'Sun Rays', bg: '#ff9f1c', accent: '#fff3c4', ink: '#3d1f00', style: 'x:radial:rays' },
+  { id: 'x-radial-petals', name: 'Flower', bg: '#fdf2f8', accent: '#ec4899', style: 'x:radial:petals', effect: 'petals' },
+  { id: 'x-radial-rings', name: 'Ripples', bg: '#03224c', accent: '#4cc9f0', style: 'x:radial:rings' },
+  { id: 'x-radial-pie', name: 'Pizza', bg: '#1a1a1a', accent: '#ffb703', style: 'x:radial:pie' },
+  { id: 'x-radial-orbit', name: 'Planets', bg: '#05030f', accent: '#ff6b35', style: 'x:radial:orbit', effect: 'stars' },
+  // Tile digits
+  { id: 'x-tiles-sticky', name: 'Sticky Notes', bg: '#e9e4d8', accent: '#ffe066', style: 'x:tiles:sticky' },
+  { id: 'x-tiles-scrabble', name: 'Word Game', bg: '#1f5f3b', accent: '#f1dcae', ink: '#ffffff', style: 'x:tiles:scrabble' },
+  { id: 'x-tiles-keys', name: 'Keyboard', bg: '#1e1e22', accent: '#8a8aff', style: 'x:tiles:keys' },
+  { id: 'x-tiles-cards', name: 'Card Table', bg: '#0b5d3b', accent: '#ffffff', ink: '#ffffff', style: 'x:tiles:cards' },
+  { id: 'x-tiles-domino', name: 'Dominoes', bg: '#c9b79c', accent: '#1b1b1b', style: 'x:tiles:domino' },
 ];
 
 export const NEW_THEMES: RawTheme[] = LIST.map(({ effect: _e, ...t }) => ({ ...t, group: 'New' }));

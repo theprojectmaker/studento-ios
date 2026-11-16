@@ -13,7 +13,7 @@ import { NEW_EFFECTS, NEW_IDS, NEW_THEMES } from './new-themes';
 import { RAW_THEMES, type RawTheme } from './theme-data';
 import { typeFor, type TypeSpec } from './typefaces';
 
-export type Engine = 'flap' | 'dial' | 'ring' | 'led' | 'lcd' | 'nixie' | 'ink' | 'reel' | 'deco' | 'race';
+export type Engine = 'flap' | 'dial' | 'ring' | 'led' | 'lcd' | 'nixie' | 'ink' | 'reel' | 'deco' | 'race' | 'x';
 export type HeroFont = 'sans' | 'serif' | 'mono' | 'rounded';
 export type Effect = 'none' | 'stars' | 'snow' | 'petals' | 'embers' | 'fireflies' | 'bubbles' | 'rain' | 'scanlines' | 'dust' | 'glints' | 'bokeh';
 export type Numerals = 'arabic' | 'roman' | 'quarters' | 'none';
@@ -50,6 +50,8 @@ export interface Theme {
   cabinet: string;
   /** Reel engine with nothing but the rolling digits (no cabinet, bulbs, payline). */
   bare: boolean;
+  /** New-style clocks (engine "x"): "kind:variant", see components/boards-new.tsx. */
+  x?: string;
 }
 
 /** Palettes the website keeps in CSS rather than in its theme data. */
@@ -284,6 +286,7 @@ const NUMERALS: Record<DialStyle, Numerals> = {
 
 function engineOf(style: string): { engine: Engine; dialStyle: DialStyle } {
   if (style.startsWith('dial:')) return { engine: 'dial', dialStyle: style.slice(5) as DialStyle };
+  if (style.startsWith('x:')) return { engine: 'x', dialStyle: 'watch' };
   const map: Record<string, Engine> = { reel: 'reel', reelbare: 'reel', deco: 'deco', flap: 'flap', tape: 'flap', led: 'led', dots: 'led', lcd: 'lcd', seven: 'lcd', nixie: 'nixie', ink: 'ink', word: 'ink', bars: 'ink', ring: 'ring', race: 'race' };
   return { engine: map[style] ?? 'flap', dialStyle: 'watch' };
 }
@@ -324,6 +327,7 @@ function build(r: RawTheme): Theme {
     dialSecond: x.dialSecond ?? x.accent,
     cabinet: css.cabinet ?? mix(x.bg, '#000000', 0.35),
     bare: x.style === 'reelbare',
+    x: x.style?.startsWith('x:') ? x.style.slice(2) : undefined,
   };
 }
 
