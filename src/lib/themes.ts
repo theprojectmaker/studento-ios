@@ -9,6 +9,7 @@
  * and, where it fits the theme, one quiet live effect (snow, petals, embers...).
  */
 import { TABLET } from './scale';
+import { NEW_EFFECTS, NEW_IDS, NEW_THEMES } from './new-themes';
 import { RAW_THEMES, type RawTheme } from './theme-data';
 import { typeFor, type TypeSpec } from './typefaces';
 
@@ -304,7 +305,7 @@ function build(r: RawTheme): Theme {
     dialStyle,
     numerals: (x.numerals as Numerals) ?? NUMERALS[dialStyle] ?? 'none',
     font: (x.fonts as HeroFont) ?? (engine === 'ink' ? 'serif' : 'sans'),
-    effect: EFFECTS[x.id] ?? 'none',
+    effect: EFFECTS[x.id] ?? NEW_EFFECTS[x.id] ?? 'none',
     type: typeFor(x.id),
     bg: x.bg,
     ink,
@@ -327,16 +328,18 @@ function build(r: RawTheme): Theme {
 }
 
 // Picker order: Train Station (split-flap) first, then Casino, Gilded, then the rest.
-const FIRST = ['Split-flap', 'Casino', 'Gilded', 'Fun', 'Quiet'];
+const FIRST = ['New', 'Split-flap', 'Casino', 'Gilded', 'Fun', 'Quiet'];
 const rank = (g: string) => (FIRST.includes(g) ? FIRST.indexOf(g) : FIRST.length);
 /** Every theme ever shipped. Kept so a saved pick from an older build still renders. */
-export const ALL_THEMES: Theme[] = [...EXTRA, ...RAW_THEMES].map(build).sort((x, y) => rank(x.group) - rank(y.group));
+export const ALL_THEMES: Theme[] = [...NEW_THEMES, ...EXTRA, ...RAW_THEMES].map(build).sort((x, y) => rank(x.group) - rank(y.group));
 
 /**
  * The picker shows only these: one or two per look, no near-duplicates. Order within a
  * group is the order here.
  */
 const CURATED = [
+  // 50 brand-new themes to try (src/lib/new-themes.ts)
+  ...NEW_IDS,
   // Split-flap
   'liquidglass', 'departure', 'noirflip', 'slateflip', 'cream', 'navyflap', 'coral', 'pine', 'plum', 'midnight', 'sunset', 'chalkboard', 'paper',
   // Casino
