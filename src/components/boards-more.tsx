@@ -1,9 +1,9 @@
 /**
- * Fifteen more kinds of clock (150 themes, style "y:<kind>:<n>" with n = 0..9). Each n changes
+ * Everyday-object clocks (style "y:<kind>:<n>"). Each n changes
  * how the clock is BUILT (shape, layout, material, count), not just its colour.
  */
 import { Text, View, type TextStyle } from 'react-native';
-import Svg, { Circle, G, Line, Path, Polyline, Rect, Text as SvgText } from 'react-native-svg';
+import Svg, { Circle, Line, Path, Polyline } from 'react-native-svg';
 
 import { alpha, mix, type Theme } from '@/lib/themes';
 
@@ -89,27 +89,6 @@ function Dymo({ text, theme, width, maxSize, n }: P) {
   );
 }
 
-/* 4. receipt printout: header text and paper edge vary */
-function Receipt({ text, theme, width, maxSize, n }: P) {
-  const W = Math.min(width * 0.8, 300);
-  const head = pick(['CLASS RECEIPT', 'TIME LEFT', 'ORDER #42', 'BELL TICKET', 'PERIOD STUB'], n);
-  const torn = n % 2 === 0;
-  return (
-    <View style={{ width: W, alignSelf: 'center', backgroundColor: '#fbfaf6', paddingVertical: 16, paddingHorizontal: 18, borderRadius: torn ? 0 : 6, transform: [{ rotate: `${pick([-1, 1, 0], n)}deg` }] }} accessibilityLabel={text}>
-      <Text style={{ fontFamily: 'Courier', color: '#222', fontSize: 13, textAlign: 'center', letterSpacing: 2 }}>{head}</Text>
-      <Text style={{ fontFamily: 'Courier', color: '#999', fontSize: 12, textAlign: 'center' }}>- - - - - - - - - - - -</Text>
-      <Text style={{ fontFamily: 'Courier', color: '#111', fontSize: Math.min(maxSize, W / 4.2), fontWeight: '800', textAlign: 'center', fontVariant: ['tabular-nums'] }}>{text}</Text>
-      <Text style={{ fontFamily: 'Courier', color: '#999', fontSize: 12, textAlign: 'center' }}>- - - - - - - - - - - -</Text>
-      <Text style={{ fontFamily: 'Courier', color: '#444', fontSize: 11, textAlign: 'center' }}>THANK YOU FOR LEARNING</Text>
-      {torn ? (
-        <Svg width={W} height={10} style={{ position: 'absolute', bottom: -9, left: 0 }}>
-          <Path d={Array.from({ length: Math.ceil(W / 12) + 1 }, (_, i) => `${i ? 'L' : 'M'}${i * 12} ${i % 2 ? 9 : 0}`).join('')} fill="#fbfaf6" />
-        </Svg>
-      ) : null}
-    </View>
-  );
-}
-
 /* 5. licence plate: plate format */
 function Plate({ text, theme, width, maxSize, n }: P) {
   const W = Math.min(width * 0.92, 380);
@@ -127,32 +106,6 @@ function Plate({ text, theme, width, maxSize, n }: P) {
         {kind === 'us' ? <Text style={{ color: '#b2182b', fontSize: W * 0.045, fontWeight: '800', fontStyle: 'italic' }}>Studento</Text> : null}
         <Text style={{ color: ink, fontSize: kind === 'moto' ? W * 0.13 : W * 0.17, fontWeight: '900', letterSpacing: 2, fontVariant: ['tabular-nums'] }}>{text}</Text>
         {kind === 'us' ? <Text style={{ color: '#555', fontSize: W * 0.032, fontWeight: '700' }}>LAND OF LEARNING</Text> : null}
-      </View>
-    </View>
-  );
-}
-
-/* 6. tear-off calendar pad: binding and header style */
-function Calendar({ text, theme, width, maxSize, n }: P) {
-  const W = Math.min(width * 0.7, maxSize * 2.4, 280);
-  const head = pick(['#d62828', '#264653', '#e76f51', '#2a9d8f', '#6d597a', '#111111'], n);
-  const rings = n % 2 === 1;
-  const label = pick(['TIME LEFT', 'TODAY', 'COUNTDOWN', 'THIS PERIOD', 'STUDENTO'], n);
-  return (
-    <View style={{ width: W, alignSelf: 'center', borderRadius: 14, overflow: 'visible', shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 8, shadowOffset: { width: 0, height: 5 } }} accessibilityLabel={text}>
-      <View style={{ backgroundColor: head, borderTopLeftRadius: 14, borderTopRightRadius: 14, paddingVertical: 10, alignItems: 'center' }}>
-        <Text style={{ color: '#fff', fontWeight: '900', letterSpacing: 3, fontSize: W * 0.07 }}>{label}</Text>
-      </View>
-      {rings ? (
-        <View style={{ position: 'absolute', top: -10, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-evenly' }}>
-          {[0, 1, 2].map((k) => (
-            <View key={k} style={{ width: 10, height: 24, borderRadius: 5, backgroundColor: '#9aa0a6', borderWidth: 2, borderColor: '#5f6368' }} />
-          ))}
-        </View>
-      ) : null}
-      <View style={{ backgroundColor: '#ffffff', borderBottomLeftRadius: 14, borderBottomRightRadius: 14, paddingVertical: W * 0.08, alignItems: 'center' }}>
-        <Text style={{ color: '#1a1a1a', fontSize: W * 0.28, fontWeight: '900', fontVariant: ['tabular-nums'] }}>{text}</Text>
-        <View style={{ position: 'absolute', bottom: 6, left: 10, right: 10, height: 1, borderStyle: 'dashed', borderWidth: 1, borderColor: '#ccc' }} />
       </View>
     </View>
   );
@@ -287,36 +240,6 @@ function Stack({ text, theme, width, maxSize, remaining = 1, n }: P) {
   );
 }
 
-/* 12. rubber stamp: round, square or oval, ink colour */
-function Stamp({ text, theme, width, maxSize, n }: P) {
-  const S = Math.min(width * 0.75, maxSize * 2.4, 280);
-  const shape = pick(['round', 'square', 'oval', 'round'], n);
-  const ink = pick(['#c1121f', '#1d3557', '#2b9348', '#6a040f', '#3c096c'], n);
-  const word = pick(['TIME LEFT', 'APPROVED', 'CLASS', 'OFFICIAL', 'PERIOD'], n);
-  const w = shape === 'oval' ? S * 1.25 : S;
-  return (
-    <Svg width={w} height={S} style={{ alignSelf: 'center', transform: [{ rotate: `${pick([-12, 8, -6, 14], n)}deg` }] }} accessibilityLabel={text}>
-      {shape === 'square' ? (
-        <G>
-          <Rect x={6} y={6} width={w - 12} height={S - 12} rx={10} fill="none" stroke={ink} strokeWidth={6} />
-          <Rect x={16} y={16} width={w - 32} height={S - 32} rx={6} fill="none" stroke={ink} strokeWidth={2} />
-        </G>
-      ) : (
-        <G>
-          <Circle cx={w / 2} cy={S / 2} r={S / 2 - 6} fill="none" stroke={ink} strokeWidth={6} transform={shape === 'oval' ? `translate(${w / 2} ${S / 2}) scale(1.25 1) translate(${-w / 2} ${-S / 2})` : undefined} />
-          <Circle cx={w / 2} cy={S / 2} r={S / 2 - 18} fill="none" stroke={ink} strokeWidth={2} transform={shape === 'oval' ? `translate(${w / 2} ${S / 2}) scale(1.25 1) translate(${-w / 2} ${-S / 2})` : undefined} />
-        </G>
-      )}
-      <SvgText x={w / 2} y={S * 0.36} fontSize={S * 0.09} fontWeight="900" fill={ink} textAnchor="middle" letterSpacing={3}>
-        {word}
-      </SvgText>
-      <SvgText x={w / 2} y={S * 0.64} fontSize={S * 0.22} fontWeight="900" fill={ink} textAnchor="middle">
-        {text}
-      </SvgText>
-    </Svg>
-  );
-}
-
 /* 13. photo frames: polaroid, film strip, slide, postage stamp */
 function Frame({ text, theme, width, maxSize, n }: P) {
   const W = Math.min(width * 0.75, maxSize * 2.6, 300);
@@ -383,31 +306,8 @@ function Loading({ text, theme, width, maxSize, remaining = 1, n }: P) {
   );
 }
 
-/* 15. sundial: the shadow sweeps across the dial */
-function Sundial({ text, theme, width, maxSize, remaining = 1, n }: P) {
-  const S = Math.min(width * 0.8, maxSize * 2.6, 300);
-  const c = S / 2;
-  const R = S / 2 - 8;
-  const a = (-90 + (1 - clamp01(remaining)) * 180) * (Math.PI / 180);
-  const stone = pick(['#d8cfc4', '#b8b0a2', '#e9e1d0', '#a3a091', '#cbbfa7'], n);
-  return (
-    <View style={{ alignItems: 'center', gap: 6 }} accessibilityLabel={text}>
-      <Svg width={S} height={S * 0.62}>
-        <Path d={`M${c - R} ${c}A${R} ${R} 0 0 1 ${c + R} ${c}Z`} fill={stone} />
-        {Array.from({ length: 13 }, (_, i) => {
-          const t = (-90 + i * 15) * (Math.PI / 180);
-          return <Line key={i} x1={c + Math.sin(t) * R * 0.75} y1={c - Math.cos(t) * R * 0.75} x2={c + Math.sin(t) * R * 0.95} y2={c - Math.cos(t) * R * 0.95} stroke="#5c5346" strokeWidth={i % 3 === 0 ? 3 : 1.5} />;
-        })}
-        <Path d={`M${c} ${c}L${c + Math.sin(a) * R * 0.9} ${c - Math.cos(a) * R * 0.9}L${c + Math.sin(a + 0.08) * R * 0.6} ${c - Math.cos(a + 0.08) * R * 0.6}Z`} fill={alpha('#000', 0.45)} />
-        <Path d={`M${c} ${c}L${c} ${c - R * 0.55}L${c + 6} ${c}Z`} fill="#3d3529" />
-      </Svg>
-      <Text style={num(theme, 28)}>{text}</Text>
-    </View>
-  );
-}
-
-export type YKind = 'gauge' | 'odometer' | 'dymo' | 'receipt' | 'plate' | 'calendar' | 'candles' | 'moon' | 'signal' | 'heartbeat' | 'stack' | 'stamp' | 'frame' | 'loading' | 'sundial';
-const KINDS: Record<YKind, (p: P) => React.ReactElement> = { gauge: Gauge, odometer: Odometer, dymo: Dymo, receipt: Receipt, plate: Plate, calendar: Calendar, candles: Candles, moon: Moon, signal: Signal, heartbeat: Heartbeat, stack: Stack, stamp: Stamp, frame: Frame, loading: Loading, sundial: Sundial };
+export type YKind = 'gauge' | 'odometer' | 'dymo' | 'plate' | 'candles' | 'moon' | 'signal' | 'heartbeat' | 'stack' | 'frame' | 'loading';
+const KINDS: Record<YKind, (p: P) => React.ReactElement> = { gauge: Gauge, odometer: Odometer, dymo: Dymo, plate: Plate, candles: Candles, moon: Moon, signal: Signal, heartbeat: Heartbeat, stack: Stack, frame: Frame, loading: Loading };
 
 export function MoreBoard(props: BoardProps) {
   const [kind, nStr] = (props.theme.y ?? 'gauge:0').split(':');

@@ -9,8 +9,9 @@
  * and, where it fits the theme, one quiet live effect (snow, petals, embers...).
  */
 import { TABLET } from './scale';
-import { MORE_EFFECTS, MORE_GROUPS, MORE_IDS, MORE_THEMES } from './more-themes';
-import { NEW_EFFECTS, NEW_IDS, NEW_THEMES } from './new-themes';
+import { MORE_EFFECTS, MORE_THEMES } from './more-themes';
+import { NEW_EFFECTS, NEW_THEMES } from './new-themes';
+import { THEME_ALIASES } from './theme-aliases';
 import { RAW_THEMES, type RawTheme } from './theme-data';
 import { typeFor, type TypeSpec } from './typefaces';
 
@@ -60,220 +61,71 @@ export interface Theme {
 /** Palettes the website keeps in CSS rather than in its theme data. */
 const CSS: Record<string, Partial<RawTheme> & { tile?: string; tileInk?: string; cabinet?: string }> = {
   departure: { ink: '#f2e8d5', tileInk: '#f2e8d5' },
-  paper: { ink: '#2a2118' },
   chalkboard: { ink: '#eef2e8', tile: '#22322a' },
-  cassette: { ink: '#f6e7d4' },
   watch: { dialFace: '#1c1f25', dialTick: '#8c96a6' },
   grandfather: { dialFace: '#f1e4c8', dialTick: '#3a2a1a', dialInk: '#2a1d12', dialSecond: '#9c2b1c' },
   swiss: { dialFace: '#ffffff', dialTick: '#111111', dialInk: '#111111', ink: '#111111' },
   diver: { dialFace: '#0b0e12', dialTick: '#e8ffd0' },
-  pocket: { dialFace: '#f4e9d2', dialTick: '#5a4630', dialInk: '#2a1d12' },
   bauhaus: { dialFace: '#ffffff', dialTick: '#111111', dialInk: '#111111', ink: '#111111' },
-  lcd: { lcdPanel: '#b9c6a3', lcdInk: '#1e2618' },
   gameboy: { lcdPanel: '#8bac0f', lcdInk: '#0f380f' },
   editorial: { ink: '#1f1a14' },
-  gold: { ink: '#f3e7c4', fonts: 'serif' },
   sakura: { ink: '#3a1f2b', fonts: 'serif' },
-  arctic: { ink: '#13293d' },
-  sunrise: { ink: '#3a2418', fonts: 'serif' },
   space: { ink: '#e8eeff' },
   // Casino reels: tile = reel face, tileInk = symbols, cabinet = machine body.
   jackpot: { tile: '#f6ecd6', tileInk: '#a3121f', cabinet: '#5a0b12', ink: '#fbeed2' },
   vegas: { tile: '#fff4fa', tileInk: '#1b0730', cabinet: '#2a0a45', ink: '#ffe6f4' },
-  montecarlo: { tile: '#f4efe2', tileInk: '#0b3a28', cabinet: '#0a3b2a', ink: '#f2ead2' },
-  cherry: { tile: '#fffaf0', tileInk: '#c4001f', cabinet: '#1a1a1d', ink: '#fff0ee' },
-  diamond: { tile: '#eef5ff', tileInk: '#0b1a3c', cabinet: '#0f2147', ink: '#e8f2ff' },
-  odometer: { tile: '#151515', tileInk: '#f2eee4', cabinet: '#2a2622', ink: '#efe9dc' },
-  pachinko: { tile: '#ffffff', tileInk: '#5b1fa8', cabinet: '#3b145f', ink: '#fff6d8' },
-  clover: { tile: '#f7fff6', tileInk: '#0b5a2c', cabinet: '#0b3a1d', ink: '#eaffef' },
   // Gilded: ink is a soft champagne so labels sit with the gold digits.
   gatsby: { ink: '#efe2bd' },
-  champagne: { ink: '#f5e9cf' },
-  emerald: { ink: '#efe3bf' },
-  onyxgold: { ink: '#e9dcb4' },
   ivory: { ink: '#3a2c14' },
   rosechampagne: { ink: '#f7dfd5' },
-  sapphire: { ink: '#f1e6c6' },
-  noir: { ink: '#f3e2c2' },
   rollers: { tile: '#f6ecd6', tileInk: '#14110b', ink: '#f6ecd6' },
-  'rollers-ivory': { tile: '#1b1b1b', tileInk: '#f4efe2', ink: '#f4efe2' },
-  highroller: { tile: '#101010', tileInk: '#f4f4f4', cabinet: '#1a1a1a', ink: '#f4f4f4' },
-  baccarat: { tile: '#fff2f3', tileInk: '#7a0f2a', cabinet: '#3a0a18', ink: '#ffe9ec' },
-  roulette: { tile: '#0b0b0b', tileInk: '#ff5252', cabinet: '#0b2a1a', ink: '#eaffef' },
-  goldrush: { tile: '#2a1c04', tileInk: '#ffcf4a', cabinet: '#3d2a05', ink: '#fff0c8' },
-  bluechip: { tile: '#e9f2ff', tileInk: '#0a2a66', cabinet: '#0a2250', ink: '#e8f2ff' },
-  neonslots: { tile: '#0a0a12', tileInk: '#39ff88', cabinet: '#12082a', ink: '#eaffef' },
-  speakeasy: { ink: '#f0dcc0' },
-  orient: { ink: '#eadfbf' },
-  opera: { ink: '#f4dfc4' },
-  platinum: { ink: '#e8edf5' },
-  copperdeco: { ink: '#f2d8c8' },
-  pearl: { ink: '#2f3138' },
-  bubblegum: { ink: '#3a1030', tile: '#5b2a86', tileInk: '#ffe6f4' },
-  lemonade: { ink: '#4a2a10', tile: '#3a2a10', tileInk: '#fff3a3' },
-  mintchip: { ink: '#15302a', tile: '#2d4a3a', tileInk: '#e8fff2' },
-  tangerine: { ink: '#1a1a2e' },
-  skyblue: { ink: '#0b3d91' },
-  linen: { ink: '#3f3428' },
-  sand: { ink: '#3b2a18' },
   noirflip: { ink: '#f4f4f4', tile: '#f4f4f4', tileInk: '#0a0a0a' },
-  slateflip: { ink: '#e6eef7', tile: '#2a3542', tileInk: '#f2f7fc' },
 };
 
-/** New in the app: casino reels and Art Deco gold (listed first in the picker). */
+/** Themes made for the app (not on the website). Picker group and name come from PICKER below. */
 const EXTRA: RawTheme[] = [
   { id: 'liquidglass', name: 'Liquid Glass', group: 'Fun', bg: '#050506', accent: '#5ab8ff', ink: '#ffffff', style: 'ink' },
   { id: 'racetrack', name: 'Race Track', group: 'Fun', bg: '#101214', accent: '#ff3b30', style: 'race' },
   { id: 'racetrack-day', name: 'Race Day', group: 'Fun', bg: '#eef0e6', accent: '#1d6fe0', style: 'race' },
   // Split-flap palettes
   { id: 'cream', name: 'Cream', group: 'Split-flap', bg: '#f3ecdd', accent: '#b5542b', style: 'flap' },
-  { id: 'navyflap', name: 'Navy', group: 'Split-flap', bg: '#0b1f3a', accent: '#ffd166', style: 'flap' },
   { id: 'coral', name: 'Coral', group: 'Split-flap', bg: '#ff6b57', accent: '#1d1b1a', style: 'flap' },
-  { id: 'pine', name: 'Pine', group: 'Split-flap', bg: '#0f2a1e', accent: '#d8c27a', style: 'flap' },
-  { id: 'plum', name: 'Plum', group: 'Split-flap', bg: '#2a0f2e', accent: '#ffb3c6', style: 'flap' },
   // Reels
-  { id: 'ruby', name: 'Ruby', group: 'Casino', bg: '#1a0008', accent: '#ff2d55', style: 'reel' },
-  { id: 'emeraldreel', name: 'Emerald Reel', group: 'Casino', bg: '#021a12', accent: '#2bd889', style: 'reel' },
-  { id: 'silverreel', name: 'Silver Reel', group: 'Casino', bg: '#0c0c0f', accent: '#d9dde3', style: 'reel' },
-  { id: 'rollers-blue', name: 'Rollers Blue', group: 'Casino', bg: '#02060f', accent: '#5fb3ff', style: 'reelbare' },
   // Deco
   { id: 'jade', name: 'Jade', group: 'Gilded', bg: '#062a22', accent: '#bfe9d2', style: 'deco' },
-  { id: 'bordeaux', name: 'Bordeaux', group: 'Gilded', bg: '#2a0710', accent: '#e5c07b', style: 'deco' },
   // LED signs
-  { id: 'cyanled', name: 'Cyan Sign', group: 'LED sign', bg: '#02070d', accent: '#36e5ff', style: 'led' },
-  { id: 'crimsonled', name: 'Crimson Sign', group: 'LED sign', bg: '#0a0000', accent: '#ff3b3b', style: 'led' },
-  { id: 'limeled', name: 'Lime Sign', group: 'LED sign', bg: '#050a02', accent: '#b4ff39', style: 'led' },
   { id: 'dotmatrix', name: 'Dot Matrix', group: 'LED sign', bg: '#0b0b0b', accent: '#ffb000', style: 'dots' },
   // Typographic / ink
-  { id: 'graphite', name: 'Graphite', group: 'Typographic', bg: '#202124', accent: '#e8eaed', style: 'ink' },
-  { id: 'rosewater', name: 'Rosewater', group: 'Typographic', bg: '#f7e4e7', accent: '#8a2f4a', style: 'ink' },
-  { id: 'olive', name: 'Olive', group: 'Typographic', bg: '#2b2f1e', accent: '#d6dca3', style: 'ink' },
   { id: 'bars', name: 'Bars', group: 'Typographic', bg: '#101010', accent: '#ffffff', style: 'bars' },
   // LCD / tubes / dials
   { id: 'casio', name: 'Casio', group: 'LCD', bg: '#c9d6c2', accent: '#1c2a1a', style: 'lcd' },
   { id: 'seven', name: 'Seven Segment', group: 'LCD', bg: '#000000', accent: '#ff5a1f', style: 'seven' },
-  { id: 'brass', name: 'Brass Tubes', group: 'Tubes', bg: '#1a1408', accent: '#ffb347', style: 'nixie' },
   { id: 'sector', name: 'Sector Dial', group: 'Analog', bg: '#f0ede6', accent: '#c0392b', style: 'dial:sector' },
-  { id: 'minimaldial', name: 'Minimal Dial', group: 'Analog', bg: '#111111', accent: '#ffffff', style: 'dial:minimal' },
   { id: 'noirflip', name: 'Noir Flip', group: 'Split-flap', bg: '#000000', accent: '#ffffff', style: 'flap' },
-  { id: 'slateflip', name: 'Slate Flip', group: 'Split-flap', bg: '#1b2430', accent: '#9fd3ff', style: 'flap' },
   { id: 'jackpot', name: 'Jackpot', group: 'Casino', bg: '#14060a', accent: '#f5c542', style: 'reel' },
   { id: 'vegas', name: 'Vegas Strip', group: 'Casino', bg: '#0b0418', accent: '#ff3ea5', style: 'reel' },
-  { id: 'montecarlo', name: 'Monte Carlo', group: 'Casino', bg: '#03241a', accent: '#d9b45a', style: 'reel' },
-  { id: 'cherry', name: 'Cherry Seven', group: 'Casino', bg: '#0e0e10', accent: '#ff2a3d', style: 'reel' },
-  { id: 'diamond', name: 'Diamond Club', group: 'Casino', bg: '#050b1a', accent: '#9fd6ff', style: 'reel' },
-  { id: 'pachinko', name: 'Pachinko', group: 'Casino', bg: '#1b0a2e', accent: '#ffd23f', style: 'reel' },
-  { id: 'clover', name: 'Lucky Clover', group: 'Casino', bg: '#04200f', accent: '#36d17a', style: 'reel' },
-  { id: 'odometer', name: 'Odometer', group: 'Casino', bg: '#0d0c0b', accent: '#c9b98f', style: 'reel' },
   { id: 'gatsby', name: 'Gatsby', group: 'Gilded', bg: '#0a0a0c', accent: '#d4af37', style: 'deco' },
-  { id: 'champagne', name: 'Champagne', group: 'Gilded', bg: '#1a1510', accent: '#f1d9a6', style: 'deco' },
-  { id: 'emerald', name: 'Gilded Emerald', group: 'Gilded', bg: '#03261c', accent: '#d6b25e', style: 'deco' },
-  { id: 'onyxgold', name: 'Onyx & Gold', group: 'Gilded', bg: '#000000', accent: '#c9a227', style: 'deco' },
   { id: 'ivory', name: 'Ivory Ballroom', group: 'Gilded', bg: '#f6efe2', accent: '#a67c2e', style: 'deco' },
   { id: 'rosechampagne', name: 'Rose Champagne', group: 'Gilded', bg: '#2a1418', accent: '#f2b8a2', style: 'deco' },
-  { id: 'sapphire', name: 'Sapphire Deco', group: 'Gilded', bg: '#071433', accent: '#e3c27a', style: 'deco' },
-  { id: 'noir', name: 'Velvet Noir', group: 'Gilded', bg: '#1a0410', accent: '#e6c27a', style: 'deco' },
   { id: 'rollers', name: 'Rollers', group: 'Casino', bg: '#000000', accent: '#f5c542', style: 'reelbare' },
-  { id: 'rollers-ivory', name: 'Rollers Ivory', group: 'Casino', bg: '#101010', accent: '#e8e2d2', style: 'reelbare' },
-  { id: 'highroller', name: 'High Roller', group: 'Casino', bg: '#060606', accent: '#ffffff', style: 'reel' },
-  { id: 'baccarat', name: 'Baccarat', group: 'Casino', bg: '#16050a', accent: '#e8b4b8', style: 'reel' },
-  { id: 'roulette', name: 'Roulette', group: 'Casino', bg: '#04180f', accent: '#ff5252', style: 'reel' },
-  { id: 'goldrush', name: 'Gold Rush', group: 'Casino', bg: '#150f02', accent: '#ffb300', style: 'reel' },
-  { id: 'bluechip', name: 'Blue Chip', group: 'Casino', bg: '#020a1c', accent: '#4aa3ff', style: 'reel' },
-  { id: 'neonslots', name: 'Neon Slots', group: 'Casino', bg: '#07020f', accent: '#39ff88', style: 'reel' },
-  { id: 'speakeasy', name: 'Speakeasy', group: 'Gilded', bg: '#120a06', accent: '#c98b4b', style: 'deco' },
-  { id: 'orient', name: 'Orient Express', group: 'Gilded', bg: '#0b1410', accent: '#d9b96a', style: 'deco' },
-  { id: 'opera', name: 'Opera House', group: 'Gilded', bg: '#240308', accent: '#e7c66a', style: 'deco' },
-  { id: 'platinum', name: 'Platinum', group: 'Gilded', bg: '#0a0b0e', accent: '#cfd6e0', style: 'deco' },
-  { id: 'copperdeco', name: 'Copper Deco', group: 'Gilded', bg: '#120805', accent: '#d9825a', style: 'deco' },
-  { id: 'pearl', name: 'Pearl', group: 'Gilded', bg: '#f4f1ec', accent: '#8a8f99', style: 'deco' },
   // Fun: bright, playful palettes on the split-flap board.
-  { id: 'bubblegum', name: 'Bubblegum', group: 'Fun', bg: '#ff8fc7', accent: '#5b2a86', style: 'flap' },
-  { id: 'lemonade', name: 'Lemonade', group: 'Fun', bg: '#fff3a3', accent: '#d94f30', style: 'flap' },
-  { id: 'mintchip', name: 'Mint Chip', group: 'Fun', bg: '#b9f2d6', accent: '#2d4a3a', style: 'flap' },
-  { id: 'grape', name: 'Grape Soda', group: 'Fun', bg: '#3b1d6e', accent: '#c7f24b', style: 'led' },
-  { id: 'tangerine', name: 'Tangerine', group: 'Fun', bg: '#ff7a1a', accent: '#1a1a2e', style: 'ink' },
-  { id: 'skyblue', name: 'Sky Blue', group: 'Fun', bg: '#9fd8ff', accent: '#0b3d91', style: 'ink' },
   // Quiet: soft, low-contrast palettes for a calm screen.
-  { id: 'fog', name: 'Fog', group: 'Quiet', bg: '#2a2d33', accent: '#b8c0cc', style: 'ink' },
-  { id: 'linen', name: 'Linen', group: 'Quiet', bg: '#f1ebe1', accent: '#7d6b58', style: 'ink' },
-  { id: 'moss', name: 'Moss', group: 'Quiet', bg: '#1f2a22', accent: '#9bb88a', style: 'ink' },
-  { id: 'dusk', name: 'Dusk', group: 'Quiet', bg: '#2b2340', accent: '#d9a7c7', style: 'ink' },
-  { id: 'slate', name: 'Slate', group: 'Quiet', bg: '#1b2430', accent: '#8fb3d9', style: 'lcd' },
-  { id: 'sand', name: 'Sand', group: 'Quiet', bg: '#e8dcc3', accent: '#8a5a2b', style: 'nixie' },
 ];
 
 /** One quiet live effect, only where it fits the theme. */
 const EFFECTS: Record<string, Effect> = {
-  ruby: 'glints',
   jade: 'dust',
-  cyanled: 'scanlines',
-  plum: 'bokeh',
   jackpot: 'glints',
   vegas: 'bokeh',
-  montecarlo: 'glints',
-  diamond: 'glints',
-  pachinko: 'bokeh',
-  clover: 'glints',
   gatsby: 'glints',
-  champagne: 'bubbles',
-  emerald: 'glints',
   ivory: 'dust',
   rosechampagne: 'bubbles',
-  sapphire: 'stars',
-  noir: 'bokeh',
-  highroller: 'glints',
-  baccarat: 'bokeh',
-  roulette: 'glints',
-  goldrush: 'glints',
-  bluechip: 'glints',
-  neonslots: 'bokeh',
-  speakeasy: 'dust',
-  orient: 'glints',
-  opera: 'bokeh',
-  platinum: 'glints',
-  copperdeco: 'embers',
-  pearl: 'bubbles',
-  bubblegum: 'bokeh',
-  mintchip: 'petals',
-  grape: 'glints',
-  skyblue: 'snow',
-  fog: 'dust',
-  moss: 'fireflies',
-  dusk: 'stars',
   midnight: 'stars',
   space: 'stars',
-  observatory: 'stars',
-  moonphase: 'stars',
-  'sci-cassini': 'stars',
-  'nat-aurora': 'stars',
-  'mood-threeam': 'stars',
-  arctic: 'snow',
-  'nat-firstsnow': 'snow',
   sakura: 'petals',
-  rosedial: 'petals',
-  'city-kyoto': 'petals',
-  lava: 'embers',
-  gold: 'embers',
-  luxe: 'embers',
   'mat-kintsugi': 'embers',
-  forest: 'fireflies',
-  field: 'fireflies',
-  'nat-thaw': 'fireflies',
-  ocean: 'bubbles',
   diver: 'bubbles',
-  'city-sydney': 'bubbles',
-  'city-tokyo': 'rain',
-  'nat-thunderhead': 'rain',
   terminal: 'scanlines',
-  amber: 'scanlines',
-  'ret-phosphor': 'scanlines',
-  'ret-tracking': 'scanlines',
-  'sci-scope': 'scanlines',
-  sunrise: 'dust',
-  'mood-goldenhour': 'dust',
-  'nat-highdesert': 'dust',
-  'mood-library': 'dust',
 };
 
 const NUMERALS: Record<DialStyle, Numerals> = {
@@ -336,40 +188,32 @@ function build(r: RawTheme): Theme {
   };
 }
 
-// Picker order: Train Station (split-flap) first, then Casino, Gilded, then the rest.
-const FIRST = ['Split-flap', 'Casino', 'Gilded', 'Fun', 'Quiet'];
-// The new themes come after every original group.
-const LAST = ['New', ...MORE_GROUPS];
-const rank = (g: string) => (FIRST.includes(g) ? FIRST.indexOf(g) : LAST.includes(g) ? 100 + LAST.indexOf(g) : FIRST.length);
-/** Every theme ever shipped. Kept so a saved pick from an older build still renders. */
-export const ALL_THEMES: Theme[] = [...NEW_THEMES, ...MORE_THEMES, ...EXTRA, ...RAW_THEMES].map(build).sort((x, y) => rank(x.group) - rank(y.group));
-
 /**
- * The picker shows only these: one or two per look, no near-duplicates. Order within a
- * group is the order here.
+ * The picker, in order: each group is one kind of board, and no two themes in it are recolours
+ * of each other. Group and name here win over the raw data.
  */
-const CURATED = [
-  // Split-flap
-  'liquidglass', 'departure', 'noirflip', 'slateflip', 'cream', 'navyflap', 'coral', 'pine', 'plum', 'midnight', 'sunset', 'chalkboard', 'paper',
-  // Casino
-  'jackpot', 'ruby', 'emeraldreel', 'silverreel', 'highroller', 'rollers', 'rollers-blue',
-  // Gilded
-  'gatsby', 'jade', 'bordeaux', 'ivory',
-  // Fun / Quiet
-  'bubblegum', 'fog', 'linen',
-  // Analog
-  'watch', 'swiss', 'diver', 'bauhaus', 'sector', 'minimaldial',
-  // LED / LCD / Tubes
-  'motorway', 'neon', 'cyanled', 'crimsonled', 'limeled', 'dotmatrix', 'terminal', 'vapor', 'gameboy', 'casio', 'seven', 'nixie', 'brass',
-  // Typographic
-  'arctic', 'editorial', 'mono', 'graphite', 'rosewater', 'olive', 'bars', 'space',
-  // One from each collection
-  'city-tokyo', 'city-newyork', 'mat-stainedglass', 'mat-kintsugi', 'nat-aurora', 'ret-phosphor', 'sci-blueprint', 'sci-cassini',
-  // Below the originals: 50 brand-new themes (src/lib/new-themes.ts), then 150 more (src/lib/more-themes.ts)
-  ...NEW_IDS,
-  ...MORE_IDS,
+const PICKER: [group: string, themes: [id: string, name?: string][]][] = [
+  ['Featured', [['liquidglass'], ['departure', 'Train Station']]],
+  ['Split-flap', [['midnight', 'Midnight Board'], ['noirflip', 'Noir'], ['cream', 'Cream'], ['coral', 'Coral'], ['chalkboard', 'Chalkboard']]],
+  ['Analog', [['watch', 'Wristwatch'], ['grandfather', 'Grandfather'], ['swiss', 'Swiss Rail'], ['diver', 'Diver'], ['bauhaus', 'Bauhaus'], ['sector', 'Sector']]],
+  ['Signs & Screens', [['motorway', 'Motorway'], ['neon', 'Neon'], ['dotmatrix', 'Dot Matrix'], ['terminal', 'Terminal'], ['gameboy', 'Handheld'], ['casio', 'Calculator'], ['seven', 'Seven Segment'], ['nixie', 'Nixie Tubes']]],
+  ['Typographic', [['editorial', 'Editorial'], ['mono', 'Mono'], ['sakura', 'Sakura'], ['space', 'Deep Space'], ['bars', 'Bars'], ['mat-kintsugi', 'Kintsugi']]],
+  ['Casino', [['jackpot', 'Jackpot'], ['vegas', 'Vegas Strip'], ['rollers', 'Rollers']]],
+  ['Gilded', [['gatsby', 'Gatsby'], ['ivory', 'Ivory Ballroom'], ['jade', 'Jade'], ['rosechampagne', 'Rose Champagne']]],
+  ['Clever Clocks', [['x-binary-lamps'], ['x-pixel-8bit'], ['x-seg-neon'], ['x-fill-hourglass'], ['x-word-sentence'], ['x-dots-spiral'], ['x-sculpt-extrude'], ['x-count-dice'], ['x-count-tally'], ['x-radial-orbit'], ['x-tiles-scrabble']]],
+  ['Objects', MORE_THEMES.map((t): [string] => [t.id])],
 ];
-export const THEMES: Theme[] = CURATED.map((id) => ALL_THEMES.find((t) => t.id === id)).filter((t): t is Theme => !!t && (TABLET || t.engine !== 'race'));
+const PLACE = new Map(PICKER.flatMap(([group, list]) => list.map(([id, name]) => [id, { group, name }] as const)));
+const BETA_IDS = ['racetrack', 'racetrack-day'];
+const KEEP = new Set([...PLACE.keys(), ...BETA_IDS]);
+/** Every theme the app still ships (the picker plus beta themes). */
+export const ALL_THEMES: Theme[] = [...NEW_THEMES, ...MORE_THEMES, ...EXTRA, ...RAW_THEMES]
+  .filter((r) => KEEP.has(r.id))
+  .map((r) => ({ ...r, name: PLACE.get(r.id)?.name ?? r.name, group: PLACE.get(r.id)?.group ?? r.group }))
+  .map(build);
+const byId = new Map(ALL_THEMES.map((t) => [t.id, t]));
+
+export const THEMES: Theme[] = PICKER.flatMap(([, list]) => list.map(([id]) => byId.get(id))).filter((t): t is Theme => !!t && (TABLET || t.engine !== 'race'));
 export const GROUPS: string[] = [...new Set(THEMES.map((t) => t.group))];
 
 /** Beta themes, shown only after their code is redeemed (and Race Track only on iPad). */
@@ -379,18 +223,23 @@ const BETA: { id: string; unlock: string }[] = [
 ];
 export function pickerThemes(unlocks: string[]): Theme[] {
   const beta = BETA.filter((b) => unlocks.includes(b.unlock))
-    .map((b) => ALL_THEMES.find((t) => t.id === b.id))
+    .map((b) => byId.get(b.id))
     .filter((t): t is Theme => !!t && (TABLET || t.engine !== 'race'))
     .map((t) => ({ ...t, group: 'Beta' }));
   return [...beta, ...THEMES];
 }
 export const DEFAULT_THEME = 'departure';
 
-/** Any id ever shipped still resolves; unknown ids fall back to Train Station. */
+/** Theme ids removed since a build shipped them resolve to their closest survivor. */
+export function canonicalThemeId(id: string): string {
+  return byId.has(id) ? id : (THEME_ALIASES[id] ?? DEFAULT_THEME);
+}
+
+/** Any id ever shipped still resolves (removed ones via theme-aliases.ts); unknown ids fall back to Train Station. */
 export function themeById(id: string): Theme {
-  const t = ALL_THEMES.find((x) => x.id === id);
+  const t = byId.get(canonicalThemeId(id));
   if (t && (TABLET || t.engine !== 'race')) return t;
-  return THEMES.find((x) => x.id === DEFAULT_THEME) ?? THEMES[0];
+  return byId.get(DEFAULT_THEME) ?? THEMES[0];
 }
 
 function hex(c: string): [number, number, number] {

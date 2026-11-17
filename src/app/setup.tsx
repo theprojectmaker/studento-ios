@@ -19,7 +19,7 @@ import { useTheme } from '@/lib/hooks';
 import { getPermission, requestPermission, rescheduleAlerts } from '@/lib/notify';
 import { clampStep, nextStep, prevStep, SETUP_STEPS, visibleSteps } from '@/lib/setupFlow';
 import { setPref, useStore } from '@/lib/store';
-import { alpha, readableOn, themeById, type Theme } from '@/lib/themes';
+import { alpha, readableOn, canonicalThemeId, themeById, type Theme } from '@/lib/themes';
 import { fontStyle } from '@/lib/typefaces';
 import { sz } from '@/lib/scale';
 
@@ -105,7 +105,7 @@ export default function Setup() {
 
             {def.id === 'theme' ? (
               <StepText theme={theme} title="Pick a look" sub="Every look lives under Themes. Start with one of these.">
-                <ThemeGrid current={prefs.theme} width={maxW - 40} />
+                <ThemeGrid current={canonicalThemeId(prefs.theme)} width={maxW - 40} />
               </StepText>
             ) : null}
 
