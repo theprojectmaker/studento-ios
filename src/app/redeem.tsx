@@ -3,6 +3,7 @@
  * their schedule (after a preview); a promo code unlocks a beta feature. Below it, make a
  * share code for your own schedule.
  */
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { KeyboardAvoidingView, Platform, Share, Text, View } from 'react-native';
 
@@ -18,6 +19,7 @@ import { looksLikePromo, redeemOneTime } from '@/lib/admin-tools';
 export default function Redeem() {
   const theme = useTheme();
   const unlocks = useStore((s) => s.prefs.unlocks) ?? [];
+  const signedIn = useStore((s) => !!s.account);
   const [code, setCode] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<{ text: string; tone: 'ok' | 'error' } | null>(null);
@@ -27,6 +29,8 @@ export default function Redeem() {
   const redeem = async () => {
     setMsg(null);
     setFound(null);
+    // Promo codes unlock things tied to an account, so signed out they can't be used.
+    if (!signedIn && !isShareCode(code)) return setMsg({ text: 'Sign in to your account first, then enter the code.', tone: 'error' });
     const promo = redeemPromo(code);
     if (promo) {
       setMsg({ text: `Unlocked: ${promo.title}. ${promo.detail}`, tone: 'ok' });
@@ -83,8 +87,9 @@ export default function Redeem() {
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined} keyboardVerticalOffset={90}>
       <Screen>
-        <Section title="Enter a code" footer="A schedule code from another device, or a promo code.">
+        <Section title="Enter a code" footer={signedIn ? 'A schedule code from another device, or a promo code.' : 'A schedule code from another device. Sign in to use any other code.'}>
           <View style={{ padding: 14, gap: 10 }}>
+            {signedIn ? null : <Button title="Sign in" kind="plain" onPress={() => router.push('/account')} />}
             <Field value={code} onChangeText={setCode} placeholder="Code" autoCapitalize="characters" autoCorrect={false} onSubmitEditing={() => void redeem()} accessibilityLabel="Code" style={{ fontSize: sz(20), letterSpacing: 2, textAlign: 'center' }} />
             <Button title={busy ? 'Checking…' : 'Redeem'} onPress={() => void redeem()} disabled={busy || !code.trim()} />
           </View>

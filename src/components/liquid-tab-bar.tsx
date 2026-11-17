@@ -34,7 +34,11 @@ const H = 62;
 const PAD = 4;
 const EASE = Easing.bezier(0.25, 0.9, 0.3, 1);
 
-export function LiquidTabBar({ tabs, bottom, maxWidth = 420 }: { tabs: LiquidTab[]; bottom: number; maxWidth?: number }) {
+/**
+ * `selected` + `onSelect` make it a plain in-screen tab bar (Beam): the bubble rests on the
+ * selected tab and taps switch at once. Without them it is the clock's launcher.
+ */
+export function LiquidTabBar({ tabs, bottom, maxWidth = 420, selected, onSelect }: { tabs: LiquidTab[]; bottom: number; maxWidth?: number; selected?: number; onSelect?: (i: number) => void }) {
   const glass = hasLiquidGlass();
   const [w, setW] = useState(0);
   const [hot, setHot] = useState(0);
@@ -54,14 +58,15 @@ export function LiquidTabBar({ tabs, bottom, maxWidth = 420 }: { tabs: LiquidTab
   useFocusEffect(
     useCallback(() => {
       cancel();
-      if (tabW) moveTo(0, 320);
-    }, [moveTo, tabW])
+      if (tabW) moveTo(selected ?? 0, 320);
+    }, [moveTo, tabW, selected])
   );
 
   const open = (i: number) => {
     tap();
     moveTo(i);
     cancel();
+    if (onSelect) return onSelect(i);
     if (i === 0) return;
     later(() => tabs[i]?.onOpen?.());
   };

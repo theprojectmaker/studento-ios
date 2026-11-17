@@ -1,6 +1,6 @@
 /** Multiplayer chess between two Beam users, on Chess Buddy's board and pieces. The game lives in Firestore (games/{id}) and updates live. */
 import { Chess } from 'chess.js';
-import { useLocalSearchParams } from 'expo-router';
+import { Redirect, useLocalSearchParams } from 'expo-router';
 import { useEffect, useMemo, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, Text, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -14,10 +14,13 @@ import { tap } from '@/components/ui';
 import { playMove, resign, watchGame, type Game } from '@/lib/beam-extra';
 import { useBeamUnlocked } from '@/lib/beam-lock';
 import { goBack } from '@/lib/beam-nav';
-
+import { useBeamRedeemed } from '@/lib/beam-on';
 
 export default function ChessScreen() {
-  return useBeamUnlocked() ? <ChessGame /> : <BeamLockScreen />;
+  const redeemed = useBeamRedeemed();
+  const unlocked = useBeamUnlocked();
+  if (!redeemed) return <Redirect href="/" />;
+  return unlocked ? <ChessGame /> : <BeamLockScreen />;
 }
 
 function ChessGame() {

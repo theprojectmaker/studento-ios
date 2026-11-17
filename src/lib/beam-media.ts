@@ -39,8 +39,8 @@ export async function getPhotos(camera: boolean): Promise<string[]> {
   return out;
 }
 
-/** Biggest video that fits in one message: base64 makes it 4/3 bigger, and a message holds 900 KB. */
-const MAX_VIDEO_BYTES = 640 * 1024;
+/** Biggest video that fits in one message: base64 makes it 4/3 bigger, encryption base64s it again, and a document holds 1 MB. */
+const MAX_VIDEO_BYTES = 480 * 1024;
 
 function toDataUri(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {

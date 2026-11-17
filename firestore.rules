@@ -104,10 +104,23 @@ service cloud.firestore {
         allow create: if signedIn() && flagOn('messaging')
           && key.split('_').hasAny([me()])
           && request.resource.data.from == me() && !banned()
-          && request.resource.data.body is string && request.resource.data.body.size() <= 900000
+          && request.resource.data.body is string && request.resource.data.body.size() <= 1000000
           && !blockedBy(key.split('_')[0] == me() ? key.split('_')[1] : key.split('_')[0]);
         allow delete: if isAdmin() || (signedIn() && key.split('_').hasAny([me()]));
       }
+    }
+
+    // Beam end-to-end encryption: each person's PUBLIC key only (the secret key never leaves
+    // their phone). Anyone signed in may read one key to encrypt to that person; only the
+    // owner may write it. No contacts here, so it says nothing about who talks to whom.
+    match /keys/{uid} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create, update: if signedIn() && me() == uid
+        && request.resource.data.keys().hasOnly(['pub', 'at'])
+        && request.resource.data.pub is string && request.resource.data.pub.size() == 44
+        && request.resource.data.at is number;
+      allow delete: if signedIn() && me() == uid;
     }
 
     match /calls/{callId} {

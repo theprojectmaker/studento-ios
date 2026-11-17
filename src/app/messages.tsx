@@ -4,7 +4,7 @@
  * full screen.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { router, useFocusEffect } from 'expo-router';
+import { Redirect, router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, Text, TextInput, useWindowDimensions, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -13,12 +13,14 @@ import { BeamChat } from '@/components/beam-chat';
 import { goToClock } from '@/lib/beam-nav';
 import { requestAccess, watchMyAccess, type AccessStatus } from '@/lib/beam-extra';
 import { lockBeam, useBeamUnlocked } from '@/lib/beam-lock';
-import { useBeamFlags, useBeamVisible } from '@/lib/beam-on';
+import { useBeamFlags, useBeamRedeemed, useBeamVisible } from '@/lib/beam-on';
+import { BeamIntro } from '@/components/beam-intro';
+import { LiquidTabBar } from '@/components/liquid-tab-bar';
 import { BeamLockScreen } from '@/components/beam-lock-screen';
 import { BeamFriends } from '@/components/beam-friends';
 import { BeamSettingsPane } from '@/components/beam-settings-pane';
 import { useFriends } from '@/lib/beam-social';
-import { BeamAvatar, Glyph, useBeam, type BeamPalette } from '@/components/beam-ui';
+import { BeamAvatar, BeamGlass, GlassButton, Glyph, useBeam, type BeamPalette } from '@/components/beam-ui';
 import { getToken } from '@/lib/account';
 import * as api from '@/lib/api';
 import { preview } from '@/lib/beam-msg';
@@ -56,6 +58,9 @@ export default function Beam() {
   // Leaving Beam locks it again.
   useEffect(() => () => lockBeam(), []);
   const visible = useBeamVisible();
+  const redeemed = useBeamRedeemed();
+  // The "Beam" opening card plays each time Beam opens.
+  const [intro, setIntro] = useState(true);
   const { waitlist } = useBeamFlags();
   const [access, setAccess] = useState<AccessStatus | null>(null);
   const [place, setPlace] = useState<number | undefined>(undefined);
@@ -269,11 +274,32 @@ export default function Beam() {
 
   let body: React.ReactNode;
   if (searching) {
+    // On-device search: messages are decrypted on this phone, so matching happens here too.
+    const needle = q.trim().toLowerCase();
+    const chatHits = section === 'messages' ? (threads ?? []).filter((t) => t.username.includes(needle) || preview(t.lastBody).toLowerCase().includes(needle)) : [];
+    const people = hits.filter((h) => !chatHits.some((t) => t.username === h.username));
     body =
-      hits.length === 0 ? (
-        <Empty c={c} text="No one by that name." />
+      chatHits.length === 0 && people.length === 0 ? (
+        <Empty c={c} text="Nothing matches that." />
       ) : (
-        hits.map((h) =>
+        <>
+        {chatHits.length ? <Text style={{ color: c.text3, fontSize: 12, fontWeight: '700', letterSpacing: 0.4, marginTop: 6, marginBottom: 4, marginLeft: 10 }}>CHATS</Text> : null}
+        {chatHits.map((t) => (
+          <Pressable key={`c-${t.username}`} onPress={() => openChat(t.username)} style={(s) => rowStyle(s, open === t.username)}>
+            <BeamAvatar name={t.username} size={42} />
+            <View style={{ flex: 1, minWidth: 0 }}>
+              <Text style={{ color: c.text, fontSize: 15, fontWeight: '600' }} numberOfLines={1}>
+                {t.username}
+              </Text>
+              <Text style={{ color: c.text2, fontSize: 13 }} numberOfLines={1}>
+                {preview(t.lastBody)}
+              </Text>
+            </View>
+            <Text style={{ color: c.text3, fontSize: 12 }}>{when(t.lastAt)}</Text>
+          </Pressable>
+        ))}
+        {people.length && chatHits.length ? <Text style={{ color: c.text3, fontSize: 12, fontWeight: '700', letterSpacing: 0.4, marginTop: 12, marginBottom: 4, marginLeft: 10 }}>PEOPLE</Text> : null}
+        {people.map((h) =>
           personRow(
             h.username,
             contacts.includes(h.username) ? null : (
@@ -282,7 +308,8 @@ export default function Beam() {
               </Pressable>
             )
           )
-        )
+        )}
+        </>
       );
   } else if (section === 'messages') {
     const list = (threads ?? []).filter((t) => !unreadOnly || t.unread > 0).sort((a, b) => Number(marks.pin.includes(b.username)) - Number(marks.pin.includes(a.username)));
@@ -360,49 +387,57 @@ export default function Beam() {
   }
 
   /* ---------- phone: top bar + bottom tabs ---------- */
+  // Phone: floating Liquid Glass buttons over the list, and a floating glass tab bar.
   const topBar = (
-    <View style={{ paddingTop: insets.top + 2, paddingHorizontal: 8, height: insets.top + 46, flexDirection: 'row', alignItems: 'center', backgroundColor: c.sidebar }}>
-      <Pressable accessibilityRole="button" accessibilityLabel="Back to the clock" onPress={goToClock} hitSlop={12} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', height: 40, paddingRight: 10, borderRadius: 10, opacity: pressed ? 0.5 : 1 })}>
-        <Glyph.Back color={c.blue} size={26} />
-        <Text style={{ color: c.blue, fontSize: 17 }}>Clock</Text>
+    <View pointerEvents="box-none" style={{ position: 'absolute', left: 0, right: 0, top: 0, zIndex: 5, paddingTop: insets.top + 4, paddingHorizontal: 12, flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <Pressable accessibilityRole="button" accessibilityLabel="Back to the clock" onPress={goToClock} hitSlop={6}>
+        <BeamGlass c={c} radius={21} interactive style={{ height: 42, flexDirection: 'row', alignItems: 'center', paddingLeft: 8, paddingRight: 14 }}>
+          <Glyph.Back color={c.text} size={22} />
+          <Text style={{ color: c.text, fontSize: 16, fontWeight: '500' }}>Clock</Text>
+        </BeamGlass>
       </Pressable>
       <View style={{ flex: 1 }} />
+      {section === 'messages' && account ? (
+        <GlassButton c={c} label="New message" size={42} onPress={() => setSection('contacts')}>
+          <Glyph.Compose color={c.text} size={20} />
+        </GlassButton>
+      ) : null}
       {me ? (
-        <Pressable accessibilityLabel="Account" onPress={() => router.push('/account')} hitSlop={8} style={{ paddingHorizontal: 6 }}>
-          <BeamAvatar name={me} size={32} />
-        </Pressable>
+        <GlassButton c={c} label="Account" size={42} onPress={() => router.push('/account')}>
+          <BeamAvatar name={me} size={34} />
+        </GlassButton>
       ) : null}
     </View>
   );
+  const tabIndex = Math.max(0, NAV.findIndex((n) => n.k === section));
   const tabBar = (
-    <View style={{ flexDirection: 'row', borderTopWidth: 0.5, borderTopColor: c.hairline, backgroundColor: c.glass, paddingBottom: Math.max(insets.bottom, 8), paddingTop: 6 }}>
-      {NAV.map((n) => {
-        const on = section === n.k;
+    <LiquidTabBar
+      bottom={Math.max(insets.bottom, 10)}
+      selected={tabIndex}
+      onSelect={(i) => {
+        const n = NAV[i];
+        if (!n) return;
+        setSection(n.k);
+        setQ('');
+      }}
+      tabs={NAV.map((n) => {
         const I = Glyph[n.icon];
-        return (
-          <Pressable
-            key={n.k}
-            accessibilityRole="tab"
-            accessibilityState={{ selected: on }}
-            accessibilityLabel={n.label}
-            onPress={() => {
-              setSection(n.k);
-              setQ('');
-            }}
-            style={{ flex: 1, alignItems: 'center', gap: 3, paddingVertical: 2 }}>
+        return {
+          key: n.k,
+          label: n.label,
+          icon: (color: string, big: boolean) => (
             <View>
-              <I color={on ? c.blue : c.text3} size={25} />
+              <I color={color} size={big ? 23 : 21} />
               {n.badge > 0 ? (
-                <View style={{ position: 'absolute', top: -4, right: -10, minWidth: 18, height: 18, borderRadius: 9, backgroundColor: c.red, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
-                  <Text style={{ color: '#fff', fontSize: 11, fontWeight: '700' }}>{n.badge}</Text>
+                <View style={{ position: 'absolute', top: -4, right: -10, minWidth: 17, height: 17, borderRadius: 9, backgroundColor: c.red, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 4 }}>
+                  <Text style={{ color: '#fff', fontSize: 10.5, fontWeight: '700' }}>{n.badge}</Text>
                 </View>
               ) : null}
             </View>
-            <Text style={{ color: on ? c.blue : c.text3, fontSize: 10.5, fontWeight: '600' }}>{n.label}</Text>
-          </Pressable>
-        );
+          ),
+        };
       })}
-    </View>
+    />
   );
 
   const listCol = (
@@ -410,7 +445,7 @@ export default function Beam() {
       <View style={{ paddingTop: wide ? insets.top + 8 : 0, paddingHorizontal: wide ? 14 : 16, paddingBottom: 8 }}>
         <View style={{ flexDirection: 'row', alignItems: 'center', height: wide ? 34 : 42 }}>
           <Text style={{ flex: 1, color: c.text, fontSize: wide ? 24 : 32, fontWeight: wide ? '700' : '800', letterSpacing: -0.6 }}>{title}</Text>
-          {section === 'messages' ? (
+          {section === 'messages' && wide ? (
             <Pressable accessibilityLabel="New message" onPress={() => setSection('contacts')} hitSlop={10}>
               <Glyph.Compose color={c.blue} />
             </Pressable>
@@ -435,18 +470,21 @@ export default function Beam() {
           </View>
         ) : null}
       </View>
-      <ScrollView contentContainerStyle={{ paddingHorizontal: wide ? 6 : 8, paddingBottom: wide ? insets.bottom + 16 : 16 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
+      <ScrollView contentContainerStyle={{ paddingHorizontal: wide ? 6 : 8, paddingBottom: wide ? insets.bottom + 16 : insets.bottom + 96 }} keyboardShouldPersistTaps="handled" keyboardDismissMode="on-drag">
         {body}
         {section === 'contacts' && !searching && contacts.length ? <Text style={{ color: c.text3, fontSize: 11.5, textAlign: 'center', marginTop: 14 }}>Hold a saved contact to remove it.</Text> : null}
       </ScrollView>
     </View>
   );
 
+  // No code redeemed: Beam doesn't exist, so a stray link just goes to the clock.
+  if (!redeemed) return <Redirect href="/" />;
+
   if (!account) {
     return (
       <View style={{ flex: 1, flexDirection: wide ? 'row' : 'column', backgroundColor: c.sidebar }}>
         {wide ? sidebar : topBar}
-        <View style={{ flex: 1, padding: 24, paddingTop: wide ? insets.top + 60 : 40, gap: 14, alignItems: 'center' }}>
+        <View style={{ flex: 1, padding: 24, paddingTop: wide ? insets.top + 60 : insets.top + 80, gap: 14, alignItems: 'center' }}>
           <Text style={{ color: c.text2, fontSize: 15, textAlign: 'center', lineHeight: 21 }}>Sign in so people know who they are talking to.</Text>
           <Pressable onPress={() => router.push('/account')} style={({ pressed }) => ({ backgroundColor: pressed ? '#0a6fd8' : c.blue, borderRadius: 12, paddingHorizontal: 22, paddingVertical: 12 })}>
             <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Sign in</Text>
@@ -457,11 +495,20 @@ export default function Beam() {
   }
 
   // Switched off by the admin, or still waiting to be let in.
-  const blockedMsg = !visible ? 'Beam is off right now.' : waitlist && !admin && access !== 'approved' ? (access === 'denied' ? "You weren't let in this time." : access === 'waiting' ? `You're ${place ? `#${place} ` : ''}on the waiting list. You'll get a notification when you're let in.` : 'Beam has a waiting list. Ask to join and the admin will let you in.') : null;
+  // The waiting list is worded as early access to a new theme: it never mentions messaging.
+  const blockedMsg = !visible
+    ? 'This is paused right now. Check back soon.'
+    : waitlist && !admin && access !== 'approved'
+      ? access === 'denied'
+        ? "Early access isn't open to you this time."
+        : access === 'waiting'
+          ? `You're ${place ? `#${place} ` : ''}in line for early access to a new theme. You'll get a notification when it's ready for you.`
+          : 'A new theme is coming. Ask for early access and you’ll get a notification when it’s ready for you.'
+      : null;
   if (blockedMsg) {
     return (
       <View style={{ flex: 1, backgroundColor: c.sidebar, alignItems: 'center', justifyContent: 'center', padding: 28, gap: 14 }}>
-        <Text style={{ color: c.text, fontSize: 22, fontWeight: '700' }}>{visible ? 'Waiting list' : 'Beam'}</Text>
+        <Text style={{ color: c.text, fontSize: 22, fontWeight: '700' }}>{visible ? 'Early access' : 'Paused'}</Text>
         <Text style={{ color: c.text2, fontSize: 15, textAlign: 'center', lineHeight: 21 }}>{blockedMsg}</Text>
         {visible && access === 'none' ? (
           <Pressable
@@ -473,7 +520,7 @@ export default function Beam() {
                 .finally(() => setAsking(false));
             }}
             style={({ pressed }) => ({ backgroundColor: pressed ? '#0a6fd8' : c.blue, borderRadius: 12, paddingHorizontal: 22, paddingVertical: 12, opacity: asking ? 0.5 : 1 })}>
-            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Join the waiting list</Text>
+            <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Request early access</Text>
           </Pressable>
         ) : null}
         {err ? <Text style={{ color: c.red, fontSize: 13 }}>{err}</Text> : null}
@@ -486,18 +533,22 @@ export default function Beam() {
 
   if (!unlockedBeam) return <BeamLockScreen />;
 
+  const introCard = intro ? <BeamIntro c={c} onDone={() => setIntro(false)} /> : null;
+
   if (!wide) {
     return (
       <View style={{ flex: 1, backgroundColor: c.sidebar }}>
+        <View style={{ flex: 1, paddingTop: insets.top + 54, paddingBottom: section === 'settings' || section === 'friends' ? insets.bottom + 80 : 0 }}>{section === 'settings' ? <BeamSettingsPane c={c} wide={false} topPad={0} /> : section === 'friends' ? <BeamFriends c={c} wide={false} topPad={0} fs={friendState} onOpen={openChat} /> : listCol}</View>
         {topBar}
-        <View style={{ flex: 1 }}>{section === 'settings' ? <BeamSettingsPane c={c} wide={false} topPad={0} /> : section === 'friends' ? <BeamFriends c={c} wide={false} topPad={0} fs={friendState} onOpen={openChat} /> : listCol}</View>
         {tabBar}
+        {introCard}
       </View>
     );
   }
 
   return (
     <View style={{ flex: 1, flexDirection: 'row', backgroundColor: c.sidebar }}>
+      {introCard}
       {sidebar}
       {section === 'settings' ? <BeamSettingsPane c={c} wide={wide} /> : section === 'friends' ? <BeamFriends c={c} wide={wide} fs={friendState} onOpen={openChat} /> : listCol}
       {wide ? (

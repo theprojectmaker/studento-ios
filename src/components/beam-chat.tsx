@@ -3,6 +3,7 @@
  * one-time photos, videos, polls, countdowns, stickers, replies, reactions, edit, unsend).
  * Used full screen on phones (/chat) and as the right pane of the Beam sidebar layout on iPad.
  */
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Alert, Image, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
@@ -12,7 +13,8 @@ import { BeamContact } from '@/components/beam-contact';
 import { ChatBackground, isDarkBg } from '@/components/chat-background';
 import { ActionSheet, AttachSheet, CountdownSheet, PhotoViewer, PollSheet, StickerSheet, VideoViewer, type AttachKind } from '@/components/beam-sheets';
 import { Piece } from '@/components/chessbuddy/Piece';
-import { BeamAvatar, Glyph, useBeam, type BeamPalette } from '@/components/beam-ui';
+import { BeamAvatar, BeamGlass, GlassButton, Glyph, useBeam, type BeamPalette } from '@/components/beam-ui';
+import { safetyNumber } from '@/lib/beam-crypto';
 import { tap } from '@/components/ui';
 import { getToken } from '@/lib/account';
 import * as api from '@/lib/api';
@@ -100,9 +102,56 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
   const [now, setNow] = useState(() => Date.now());
   const scroller = useRef<ScrollView>(null);
 
+  // End-to-end status and the safety number both people can compare.
+  const [keys, setKeys] = useState<{ mine: string; peer: string | null } | null>(null);
+  const [keysFailed, setKeysFailed] = useState(false);
+  useEffect(() => {
+    if (!username) return;
+    let dead = false;
+    void getToken().then((t) => {
+      if (!t) return setKeysFailed(true);
+      api
+        .chatKeys(username)
+        .then((k) => !dead && setKeys(k))
+        .catch(() => !dead && setKeysFailed(true));
+    });
+    return () => {
+      dead = true;
+    };
+  }, [username]);
+  const showSafety = () => {
+    if (!keys?.peer) {
+      const msg = `${username} hasn't opened the new Beam yet, so messages to them aren't encrypted. They will be as soon as they do.`;
+      if (Platform.OS === 'web') window.alert(msg);
+      else Alert.alert('Not encrypted yet', msg);
+      return;
+    }
+    const msg = `Messages and photos in this chat can only be read on your phone and ${username}'s. Compare this number with theirs in person; if it matches, no one is in between.\n\n${safetyNumber(keys.mine, keys.peer)}`;
+    if (Platform.OS === 'web') window.alert(msg);
+    else Alert.alert('End-to-end encrypted', msg);
+  };
+
+  // Pinned messages live on this device only.
+  const PIN_KEY = `beam.pins.${username}`;
+  const [pins, setPins] = useState<number[]>([]);
+  useEffect(() => {
+    AsyncStorage.getItem(PIN_KEY)
+      .then((s) => setPins(s ? (JSON.parse(s) as number[]) : []))
+      .catch(() => {});
+  }, [PIN_KEY]);
+  const togglePin = (id: number) => {
+    const next = pins.includes(id) ? pins.filter((x) => x !== id) : [id, ...pins].slice(0, 5);
+    setPins(next);
+    void AsyncStorage.setItem(PIN_KEY, JSON.stringify(next)).catch(() => {});
+  };
+  const rowY = useRef(new Map<number, number>());
+  const goToMsg = (id: number) => scroller.current?.scrollTo({ y: Math.max(0, (rowY.current.get(id) ?? 0) - headH), animated: true });
+  const [headH, setHeadH] = useState(96);
+
   const msgs = useMemo(() => fold(raw), [raw]);
   const photos = msgs.filter((m) => !m.deleted && m.rich.k === 'img' && !m.rich.once).flatMap((m) => (m.rich.k === 'img' ? m.rich.d : [])).reverse();
   const byId = useMemo(() => new Map(msgs.map((m) => [m.id, m])), [msgs]);
+  const pinned = pins.map((id) => byId.get(id)).find((x) => x && !x.deleted);
   const hasCountdown = msgs.some((m) => m.rich.k === 'cd' && !m.deleted && m.rich.at > now);
 
   useEffect(() => {
@@ -234,6 +283,7 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
     };
     const a: { label: string; red?: boolean; run: () => void }[] = [];
     if (!m.deleted) a.push({ label: 'Reply', run: close(() => setReply(m)) });
+    if (!m.deleted) a.push({ label: pins.includes(m.id) ? 'Unpin' : 'Pin', run: close(() => togglePin(m.id)) });
     if (m.mine && !m.deleted && m.rich.k === 'txt')
       a.push({
         label: 'Edit',
@@ -250,7 +300,7 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
         run: close(() =>
           ask('Report this message?', 'It goes to the Studento admin.', 'Report', async () => {
             const t = await getToken();
-            if (t) await api.sendReport(t, 'message', m.id, 'Not okay', '').catch((e) => setErr(e instanceof Error ? e.message : "Couldn't report it."));
+            if (t) await api.sendReport(t, 'message', m.id, 'Not okay', '', plain(m)).catch((e) => setErr(e instanceof Error ? e.message : "Couldn't report it."));
           })
         ),
       });
@@ -278,56 +328,20 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
 
   return (
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.chatBg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <View style={{ paddingTop: onBack ? insets.top + 4 : 10, paddingBottom: 8, paddingHorizontal: 10, backgroundColor: c.glass, borderBottomWidth: 0.5, borderBottomColor: c.hairline, flexDirection: 'row', alignItems: 'center' }}>
-        <View style={{ width: 104 }}>
-          {onBack ? (
-            <Pressable accessibilityRole="button" accessibilityLabel="Back" onPress={onBack} hitSlop={10}>
-              <Glyph.Back color={c.blue} size={26} />
-            </Pressable>
-          ) : null}
-        </View>
-        <Pressable accessibilityRole="button" accessibilityLabel={`${username}, contact info`} onPress={() => setContactOpen(true)} style={{ flex: 1, alignItems: 'center', gap: 3 }}>
-          <BeamAvatar name={username} size={38} />
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 2 }}>
-            <Text style={{ color: c.text, fontSize: 12, fontWeight: '500' }}>{username}</Text>
-            <Glyph.Chevron color={c.text3} size={10} />
-          </View>
-        </Pressable>
-        <View style={{ width: 104, flexDirection: 'row', justifyContent: 'flex-end', gap: 14 }}>
-          <Pressable accessibilityRole="button" accessibilityLabel="Search this chat" onPress={() => setSearch(search === null ? '' : null)} hitSlop={8} style={{ justifyContent: 'center' }}>
-            <Glyph.Search color={c.blue} size={19} />
-          </Pressable>
-          {blocked ? null : (
-            <>
-              <Pressable accessibilityRole="button" accessibilityLabel="Video call" onPress={() => void startCall(username, true).catch((e) => setErr(String(e?.message ?? e)))} hitSlop={8}>
-                <Glyph.Video color={c.blue} size={26} />
-              </Pressable>
-              <Pressable accessibilityRole="button" accessibilityLabel="Audio call" onPress={() => void startCall(username, false).catch((e) => setErr(String(e?.message ?? e)))} hitSlop={8}>
-                <Glyph.Phone color={c.blue} size={22} />
-              </Pressable>
-            </>
-          )}
-        </View>
-      </View>
-
-      {meta.ttl ? (
-        <Pressable onPress={() => setContactOpen(true)} style={{ alignSelf: 'center', marginTop: 8, paddingHorizontal: 12, paddingVertical: 4, borderRadius: 12, backgroundColor: c.search }}>
-          <Text style={{ color: c.text2, fontSize: 12 }}>{`Disappearing messages: ${TTL_OPTIONS.find(([, ms]) => ms === meta.ttl)?.[0] ?? 'on'}`}</Text>
-        </Pressable>
-      ) : null}
-      {search !== null ? (
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginHorizontal: 12, marginTop: 8, height: 34, borderRadius: 10, backgroundColor: c.search, paddingHorizontal: 9 }}>
-          <Glyph.Search color={c.text3} />
-          <TextInput value={search} onChangeText={setSearch} autoFocus placeholder="Search this chat" placeholderTextColor={c.text3} style={{ flex: 1, color: c.text, fontSize: 15, height: '100%' }} />
-          <Pressable onPress={() => setSearch(null)} hitSlop={8}>
-            <Text style={{ color: c.blue, fontSize: 15 }}>Done</Text>
-          </Pressable>
-        </View>
-      ) : null}
       <View style={{ flex: 1 }}>
       <ChatBackground value={chatBg} />
-      <ScrollView ref={scroller} style={{ flex: 1 }} onLayout={() => search === null && scroller.current?.scrollToEnd({ animated: false })} keyboardDismissMode="interactive" keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 14, paddingTop: 10, paddingBottom: 12 }} onContentSizeChange={() => search === null && scroller.current?.scrollToEnd({ animated: false })}>
-        {search ? <Text style={{ textAlign: 'center', color: c.text3, fontSize: 12, marginBottom: 6 }}>{`${msgs.filter((x) => !x.deleted && plain(x).toLowerCase().includes(search.toLowerCase())).length} found`}</Text> : null}
+      <ScrollView ref={scroller} style={{ flex: 1 }} onLayout={() => search === null && scroller.current?.scrollToEnd({ animated: false })} keyboardDismissMode="interactive" keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 14, paddingTop: headH + 8, paddingBottom: 12 }} onContentSizeChange={() => search === null && scroller.current?.scrollToEnd({ animated: false })}>
+        {keysFailed ? null : (
+        <Pressable accessibilityRole="button" accessibilityLabel="Encryption details" onPress={showSafety} style={{ alignSelf: 'center', marginBottom: 6 }}>
+          <BeamGlass c={c} radius={14} clear style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, maxWidth: 300 }}>
+            <Glyph.Lock color={keys?.peer ? c.text2 : c.text3} size={12} />
+            <Text style={{ color: c.text2, fontSize: 11.5, textAlign: 'center', flexShrink: 1 }}>
+              {keys === null ? 'Checking encryption…' : keys.peer ? 'Messages and photos are end-to-end encrypted. Tap to verify.' : 'Not encrypted yet. Tap to learn why.'}
+            </Text>
+          </BeamGlass>
+        </Pressable>
+        )}
+        {search ?<Text style={{ textAlign: 'center', color: c.text3, fontSize: 12, marginBottom: 6 }}>{`${msgs.filter((x) => !x.deleted && plain(x).toLowerCase().includes(search.toLowerCase())).length} found`}</Text> : null}
         {msgs.length === 0 && !err ? (
           <View style={{ alignItems: 'center', gap: 8, marginTop: 48 }}>
             <BeamAvatar name={username} size={76} />
@@ -344,7 +358,7 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
           const quoted = 'r' in m.rich && m.rich.r ? byId.get(m.rich.r) : undefined;
           if (search && (m.deleted || !plain(m).toLowerCase().includes(search.toLowerCase()))) return null;
           return (
-            <View key={m.id}>
+            <View key={m.id} onLayout={(e) => rowY.current.set(m.id, e.nativeEvent.layout.y)}>
               {newTime ? <Text style={{ textAlign: 'center', fontSize: 11, color: isDarkBg(chatBg) ? 'rgba(255,255,255,0.85)' : c.text3, marginTop: 16, marginBottom: 8, fontWeight: '500' }}>{stamp(m.createdAt)}</Text> : null}
               <View style={{ alignItems: m.mine ? 'flex-end' : 'flex-start', marginTop: runStart && !newTime ? 10 : 3 }}>
                 {quoted ? (
@@ -376,16 +390,21 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
                   style={{ maxWidth: '78%' }}>
                   <Body c={c} m={m} runStart={runStart} runEnd={runEnd} now={now} onVote={(o) => vote(m, o)} onPhoto={(uri) => setPhoto({ uri })} onOnce={() => openOnce(m)} onVideo={setVideo} />
                   {m.reactions.length ? (
-                    <View style={{ position: 'absolute', top: -12, [m.mine ? 'left' : 'right']: -10, flexDirection: 'row', backgroundColor: c.card, borderRadius: 12, paddingHorizontal: 5, paddingVertical: 1, borderWidth: 1.5, borderColor: c.chatBg }}>
+                    <BeamGlass c={c} radius={13} style={{ position: 'absolute', top: -14, [m.mine ? 'left' : 'right']: -10, flexDirection: 'row', gap: 1, paddingHorizontal: 6, paddingVertical: 2 }}>
                       {m.reactions.map((r) => (
                         <Text key={`${r.mine}`} style={{ fontSize: 13 }}>
                           {r.e}
                         </Text>
                       ))}
-                    </View>
+                    </BeamGlass>
                   ) : null}
                 </Pressable>
-                {m.edited && !m.deleted ? <Text style={{ color: c.text3, fontSize: 10.5, marginTop: 2, marginHorizontal: 6 }}>Edited</Text> : null}
+                {(m.edited && !m.deleted) || pins.includes(m.id) ? (
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2, marginHorizontal: 6 }}>
+                    {pins.includes(m.id) ? <Glyph.Pin color={c.text3} size={11} /> : null}
+                    <Text style={{ color: c.text3, fontSize: 10.5 }}>{[pins.includes(m.id) ? 'Pinned' : '', m.edited && !m.deleted ? 'Edited' : ''].filter(Boolean).join(' · ')}</Text>
+                  </View>
+                ) : null}
               </View>
               {timeFor === m.id ? <Text style={{ textAlign: m.mine ? 'right' : 'left', fontSize: 11, color: c.text3, marginTop: 3, marginHorizontal: 6 }}>{new Date(m.createdAt).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}</Text> : null}
               {m.mine && !next && !search ? <Text style={{ textAlign: 'right', fontSize: 11, color: c.text3, marginTop: 3, marginRight: 4, fontWeight: '500' }}>{meta.seen ? 'Read' : 'Delivered'}</Text> : null}
@@ -401,23 +420,105 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
         ) : null}
         {err ? <Text style={{ textAlign: 'center', color: c.red, fontSize: 12, marginTop: 10 }}>{err}</Text> : null}
       </ScrollView>
+
+      {/* Floating Liquid Glass header: content scrolls under it. */}
+      <View pointerEvents="box-none" onLayout={(e) => setHeadH(e.nativeEvent.layout.height)} style={{ position: 'absolute', left: 0, right: 0, top: 0, paddingTop: onBack ? insets.top + 4 : 10, paddingHorizontal: 10, gap: 8 }}>
+        <View pointerEvents="box-none" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={{ minWidth: 42, flexDirection: 'row' }}>
+            {onBack ? (
+              <GlassButton c={c} label="Back" onPress={onBack} size={42}>
+                <Glyph.Back color={c.text} size={22} />
+              </GlassButton>
+            ) : null}
+          </View>
+          <View style={{ flex: 1, alignItems: 'center' }}>
+            <Pressable accessibilityRole="button" accessibilityLabel={`${username}, contact info`} onPress={() => setContactOpen(true)}>
+              <BeamGlass c={c} radius={22} interactive style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 4, paddingRight: 12, height: 44 }}>
+                <BeamAvatar name={username} size={36} />
+                <View style={{ maxWidth: 140, minWidth: 0, flexShrink: 1 }}>
+                  <Text style={{ color: c.text, fontSize: 15, fontWeight: '600' }} numberOfLines={1}>
+                    {username}
+                  </Text>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 3 }}>
+                    {typing ? null : keys?.peer ? <Glyph.Lock color={c.text3} size={9} /> : null}
+                    <Text style={{ color: c.text3, fontSize: 10.5 }} numberOfLines={1}>
+                      {typing ? 'typing…' : keys?.peer ? 'Encrypted' : 'Contact info'}
+                    </Text>
+                  </View>
+                </View>
+              </BeamGlass>
+            </Pressable>
+          </View>
+          <View style={{ alignItems: 'flex-end' }}>
+            <BeamGlass c={c} radius={22} interactive style={{ flexDirection: 'row', alignItems: 'center', height: 44, paddingHorizontal: 4 }}>
+              <Pressable accessibilityRole="button" accessibilityLabel="Search this chat" onPress={() => setSearch(search === null ? '' : null)} hitSlop={4} style={{ width: 36, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+                <Glyph.Search color={c.text} size={18} />
+              </Pressable>
+              {blocked ? null : (
+                <>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Video call" onPress={() => void startCall(username, true).catch((e) => setErr(String(e?.message ?? e)))} hitSlop={4} style={{ width: 38, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+                    <Glyph.Video color={c.text} size={23} />
+                  </Pressable>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Audio call" onPress={() => void startCall(username, false).catch((e) => setErr(String(e?.message ?? e)))} hitSlop={4} style={{ width: 34, height: 44, alignItems: 'center', justifyContent: 'center' }}>
+                    <Glyph.Phone color={c.text} size={19} />
+                  </Pressable>
+                </>
+              )}
+            </BeamGlass>
+          </View>
+        </View>
+        {search !== null ? (
+          <BeamGlass c={c} radius={19} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 38, paddingHorizontal: 11 }}>
+            <Glyph.Search color={c.text3} />
+            <TextInput value={search} onChangeText={setSearch} autoFocus placeholder="Search this chat" placeholderTextColor={c.text3} style={{ flex: 1, color: c.text, fontSize: 15, height: '100%' }} />
+            <Pressable onPress={() => setSearch(null)} hitSlop={8}>
+              <Text style={{ color: c.blue, fontSize: 15, fontWeight: '600' }}>Done</Text>
+            </Pressable>
+          </BeamGlass>
+        ) : null}
+        {pinned && search === null ? (
+              <Pressable accessibilityRole="button" accessibilityLabel="Go to pinned message" onPress={() => goToMsg(pinned.id)} onLongPress={() => togglePin(pinned.id)}>
+                <BeamGlass c={c} radius={16} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8 }}>
+                  <Glyph.Pin color={c.blue} size={14} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: c.blue, fontSize: 11, fontWeight: '700' }}>{pins.length > 1 ? `PINNED · ${pins.length}` : 'PINNED'}</Text>
+                    <Text style={{ color: c.text, fontSize: 13 }} numberOfLines={1}>
+                      {plain(pinned)}
+                    </Text>
+                  </View>
+                </BeamGlass>
+              </Pressable>
+        ) : null}
+        {meta.ttl ? (
+          <Pressable onPress={() => setContactOpen(true)} style={{ alignSelf: 'center' }}>
+            <BeamGlass c={c} radius={12} clear style={{ paddingHorizontal: 12, paddingVertical: 4 }}>
+              <Text style={{ color: c.text2, fontSize: 12 }}>{`Disappearing messages: ${TTL_OPTIONS.find(([, ms]) => ms === meta.ttl)?.[0] ?? 'on'}`}</Text>
+            </BeamGlass>
+          </Pressable>
+        ) : null}
+      </View>
       </View>
 
-      <View style={{ paddingHorizontal: 12, paddingTop: 6, paddingBottom: (onBack ? Math.max(insets.bottom - 8, 0) : 0) + 10 }}>
-        {busy ? <Text style={{ alignSelf: 'center', color: c.text2, fontSize: 12, marginBottom: 6, backgroundColor: c.glass, paddingHorizontal: 10, paddingVertical: 3, borderRadius: 10, overflow: 'hidden' }}>{busy}</Text> : null}
+      <View style={{ paddingHorizontal: 10, paddingTop: 6, paddingBottom: (onBack ? Math.max(insets.bottom - 8, 0) : 0) + 10, gap: 6 }}>
+        {busy ? (
+          <BeamGlass c={c} radius={11} clear style={{ alignSelf: 'center', paddingHorizontal: 11, paddingVertical: 3 }}>
+            <Text style={{ color: c.text2, fontSize: 12 }}>{busy}</Text>
+          </BeamGlass>
+        ) : null}
         {blocked ? (
-          <View style={{ backgroundColor: c.glass, borderRadius: 24, padding: 12, alignItems: 'center' }}>
+          <BeamGlass c={c} radius={24} style={{ padding: 12, alignItems: 'center' }}>
             <Text style={{ color: c.text2, fontSize: 14 }}>{`You blocked ${username}. Tap their name to unblock.`}</Text>
-          </View>
+          </BeamGlass>
         ) : (
-          <View style={{ borderRadius: 24, backgroundColor: c.glass, padding: 6, shadowColor: '#000', shadowOpacity: c.dark ? 0.45 : 0.1, shadowRadius: 17, shadowOffset: { width: 0, height: 10 } }}>
+          <>
             {reply || editing ? (
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 10, paddingVertical: 6 }}>
+              <BeamGlass c={c} radius={18} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 12, paddingVertical: 8, marginLeft: 48 }}>
                 <Glyph.Reply color={c.blue} />
                 <Text style={{ flex: 1, color: c.text2, fontSize: 13 }} numberOfLines={1}>
                   {editing ? `Editing: ${plain(editing)}` : `Replying to ${reply!.mine ? 'yourself' : username}: ${plain(reply!)}`}
                 </Text>
                 <Pressable
+                  accessibilityLabel="Cancel"
                   hitSlop={8}
                   onPress={() => {
                     if (editing) setText('');
@@ -426,13 +527,13 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
                   }}>
                   <Glyph.Close color={c.text3} size={14} />
                 </Pressable>
-              </View>
+              </BeamGlass>
             ) : null}
             <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 8 }}>
-              <Pressable accessibilityRole="button" accessibilityLabel="Attach" onPress={() => setSheet('attach')} style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: c.search, alignItems: 'center', justifyContent: 'center', marginBottom: 1, marginLeft: 2 }}>
-                <Glyph.Plus color={c.text2} />
-              </Pressable>
-              <View style={{ flex: 1, minHeight: 36, borderRadius: 18, backgroundColor: c.field, borderWidth: 1, borderColor: c.fieldBorder, flexDirection: 'row', alignItems: 'flex-end' }}>
+              <GlassButton c={c} label="Attach" size={42} onPress={() => setSheet('attach')}>
+                <Glyph.Plus color={c.text} />
+              </GlassButton>
+              <BeamGlass c={c} radius={21} interactive style={{ flex: 1, minHeight: 42, flexDirection: 'row', alignItems: 'flex-end' }}>
                 <TextInput
                   value={text}
                   onChangeText={(t) => {
@@ -446,21 +547,21 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
                   returnKeyType={st.enterSends ? 'send' : 'default'}
                   onSubmitEditing={st.enterSends ? () => void sendText() : undefined}
                   maxLength={500}
-                  style={{ flex: 1, color: c.text, fontSize: st.textSize, lineHeight: 20, paddingLeft: 13, paddingRight: 8, paddingTop: 8, paddingBottom: 8, maxHeight: 140 }}
+                  style={{ flex: 1, color: c.text, fontSize: st.textSize, lineHeight: 20, paddingLeft: 15, paddingRight: 8, paddingTop: 11, paddingBottom: 11, maxHeight: 140 }}
                   accessibilityLabel="Message"
                 />
                 {text.trim() ? (
-                  <Pressable accessibilityRole="button" accessibilityLabel="Send" onPress={() => void sendText()} disabled={!!busy} style={({ pressed }) => ({ width: 30, height: 30, borderRadius: 15, margin: 3, backgroundColor: pressed ? '#0a6fd8' : c.blue, alignItems: 'center', justifyContent: 'center' })}>
+                  <Pressable accessibilityRole="button" accessibilityLabel="Send" onPress={() => void sendText()} disabled={!!busy} style={({ pressed }) => ({ width: 32, height: 32, borderRadius: 16, margin: 5, backgroundColor: pressed ? '#0a6fd8' : c.blue, alignItems: 'center', justifyContent: 'center' })}>
                     <Glyph.Up color="#fff" />
                   </Pressable>
                 ) : (
-                  <Pressable accessibilityRole="button" accessibilityLabel="Camera" onPress={() => void attach('camera')} style={{ width: 30, height: 30, margin: 3, alignItems: 'center', justifyContent: 'center' }}>
-                    <Glyph.Camera color={c.text3} size={20} />
+                  <Pressable accessibilityRole="button" accessibilityLabel="Camera" onPress={() => void attach('camera')} style={{ width: 32, height: 32, margin: 5, alignItems: 'center', justifyContent: 'center' }}>
+                    <Glyph.Camera color={c.text2} size={20} />
                   </Pressable>
                 )}
-              </View>
+              </BeamGlass>
             </View>
-          </View>
+          </>
         )}
       </View>
 

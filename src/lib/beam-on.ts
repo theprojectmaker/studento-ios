@@ -19,11 +19,18 @@ export function useBeamFlags(): { messaging: boolean; waitlist: boolean } {
   return { messaging: f.messaging !== false, waitlist: f.waitlist === true };
 }
 
+/** Has this person redeemed the Beam code? Without it Beam doesn't exist anywhere in the app. */
+export function useBeamRedeemed(): boolean {
+  return useStore((s) => (s.prefs.unlocks ?? []).includes('messages'));
+}
+
 export function useBeamVisible(): boolean {
   const unlocked = useStore((s) => (s.prefs.unlocks ?? []).includes('messages'));
   const admin = useStore((s) => !!s.account?.user.admin);
   const { messaging } = useBeamFlags();
   // Any ban (chatting off or full) hides Beam for that person.
   const ban = useMyBan();
-  return unlocked && !ban && (messaging || admin);
+  // The code is tied to an account: signed out, Beam stays hidden too.
+  const signedIn = useStore((s) => !!s.account);
+  return unlocked && signedIn && !ban && (messaging || admin);
 }

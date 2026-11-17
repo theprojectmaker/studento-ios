@@ -4,7 +4,7 @@
  * composer. It follows the system light/dark setting, not the Studento theme.
  */
 import { GlassView } from 'expo-glass-effect';
-import { Platform, StyleSheet, Text, useColorScheme, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Platform, Pressable, StyleSheet, Text, useColorScheme, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { hasLiquidGlass } from '@/components/glass';
 import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg';
@@ -53,7 +53,7 @@ const LIGHT: BeamPalette = {
   inText: '#000000',
   outBubble: '#0b84fe',
   outText: '#ffffff',
-  glass: 'rgba(255,255,255,0.92)',
+  glass: 'rgba(255,255,255,0.74)',
   card: '#ffffff',
 };
 const DARK: BeamPalette = {
@@ -76,7 +76,7 @@ const DARK: BeamPalette = {
   inText: '#ffffff',
   outBubble: '#0a84ff',
   outText: '#ffffff',
-  glass: 'rgba(30,30,34,0.94)',
+  glass: 'rgba(36,36,40,0.72)',
   card: '#2a2a2c',
 };
 
@@ -243,6 +243,16 @@ export const Glyph = {
       <Path d="M9 5l7 7-7 7" />
     </Svg>
   ),
+  Lock: ({ color, size = 14 }: G) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <Path d="M7 10V7a5 5 0 0 1 10 0v3h1a1.5 1.5 0 0 1 1.5 1.5v8A1.5 1.5 0 0 1 18 21H6a1.5 1.5 0 0 1-1.5-1.5v-8A1.5 1.5 0 0 1 6 10zm2 0h6V7a3 3 0 0 0-6 0z" />
+    </Svg>
+  ),
+  Pin: ({ color, size = 16 }: G) => (
+    <Svg width={size} height={size} viewBox="0 0 24 24" fill={color}>
+      <Path d="M15 3l6 6-2 1-3 3 1 5-2 2-4-4-5 5-1-1 5-5-4-4 2-2 5 1 3-3z" />
+    </Svg>
+  ),
 };
 
 /** iMessage bubble tail, drawn under the last bubble of a run. */
@@ -256,17 +266,66 @@ export function Tail({ color, side, bg }: { color: string; side: 'left' | 'right
   );
 }
 
-/** Liquid Glass on iOS 26+, a frosted translucent panel everywhere else. */
-export function BeamGlass({ c, style, children, radius = 0 }: { c: BeamPalette; style?: StyleProp<ViewStyle>; children?: React.ReactNode; radius?: number }) {
+/**
+ * Liquid Glass on iOS 26+, a frosted translucent panel everywhere else. Real glass must never be
+ * faded, scaled or rotated: move it only by changing its frame.
+ */
+export function BeamGlass({
+  c,
+  style,
+  children,
+  radius = 0,
+  interactive,
+  clear,
+  tint,
+}: {
+  c: BeamPalette;
+  style?: StyleProp<ViewStyle>;
+  children?: React.ReactNode;
+  radius?: number;
+  interactive?: boolean;
+  clear?: boolean;
+  tint?: string;
+}) {
   if (hasLiquidGlass()) {
     return (
-      <GlassView glassEffectStyle="regular" colorScheme={c.dark ? 'dark' : 'light'} style={[{ borderRadius: radius, overflow: 'hidden' }, style]}>
+      <GlassView glassEffectStyle={clear ? 'clear' : 'regular'} isInteractive={interactive} tintColor={tint} colorScheme={c.dark ? 'dark' : 'light'} style={[{ borderRadius: radius, overflow: 'hidden' }, style]}>
         {children}
       </GlassView>
     );
   }
-  const web = Platform.OS === 'web' ? ({ backdropFilter: 'blur(24px) saturate(170%)', WebkitBackdropFilter: 'blur(24px) saturate(170%)' } as object) : null;
-  return <View style={[{ borderRadius: radius, overflow: 'hidden', backgroundColor: c.glass, borderWidth: StyleSheet.hairlineWidth, borderColor: c.hairline }, web, style]}>{children}</View>;
+  const web = Platform.OS === 'web' ? ({ backdropFilter: 'blur(24px) saturate(180%)', WebkitBackdropFilter: 'blur(24px) saturate(180%)' } as object) : null;
+  return (
+    <View
+      style={[
+        {
+          borderRadius: radius,
+          overflow: 'hidden',
+          backgroundColor: tint ?? (clear ? (c.dark ? 'rgba(60,60,66,0.35)' : 'rgba(255,255,255,0.4)') : c.glass),
+          borderWidth: StyleSheet.hairlineWidth,
+          borderColor: c.dark ? 'rgba(255,255,255,0.16)' : 'rgba(255,255,255,0.95)',
+          shadowColor: '#000',
+          shadowOpacity: c.dark ? 0.35 : 0.08,
+          shadowRadius: 14,
+          shadowOffset: { width: 0, height: 6 },
+        },
+        web,
+        style,
+      ]}>
+      {children}
+    </View>
+  );
+}
+
+/** A round Liquid Glass button (back, call, attach). */
+export function GlassButton({ c, size = 40, label, onPress, children, tint }: { c: BeamPalette; size?: number; label: string; onPress: () => void; children: React.ReactNode; tint?: string }) {
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={label} onPress={onPress} hitSlop={6}>
+      <BeamGlass c={c} radius={size / 2} interactive tint={tint} style={{ width: size, height: size, alignItems: 'center', justifyContent: 'center' }}>
+        {children}
+      </BeamGlass>
+    </Pressable>
+  );
 }
 
 /** Soft two-tone fill behind a bubble (top lighter, bottom the color itself). */

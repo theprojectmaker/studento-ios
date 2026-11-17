@@ -40,6 +40,7 @@ import {
   writeBatch,
 } from 'firebase/firestore';
 
+import { decryptWith, encryptFor, isEncrypted, LOCKED_TEXT, myKeys, myPublicKey } from './beam-crypto';
 import { preview, RICH } from './beam-msg';
 import { currentUser, emailFor, fbAuth, fbDb, SCRIPT_URL } from './fb';
 import type { Period, SchoolDay } from './schedule';
@@ -239,6 +240,7 @@ export const deleteAccount = (_t: string, password: string) =>
     }
     await deleteDoc(doc(db, 'blocks', u.uid)).catch(() => {});
     await deleteDoc(doc(db, 'usernames', d.username)).catch(() => {});
+    await deleteDoc(doc(db, 'keys', u.uid)).catch(() => {});
     await deleteDoc(doc(db, 'users', u.uid));
     await u.delete();
     return {};
@@ -422,7 +424,7 @@ export interface Report {
 /** Message id -> chat key, filled as chats are opened, so a reported message can be found again. */
 const msgChat = new Map<number, string>();
 
-export const sendReport = (_t: string, kind: 'school' | 'schedule' | 'message', targetId: number, reason: string, note: string) =>
+export const sendReport = (_t: string, kind: 'school' | 'schedule' | 'message', targetId: number, reason: string, note: string, excerpt?: string) =>
   wrap(async () => {
     const u = await me_();
     const db = fbDb();
@@ -437,7 +439,9 @@ export const sendReport = (_t: string, kind: 'school' | 'schedule' | 'message', 
       chat = msgChat.get(targetId) ?? null;
       const m = chat ? (await getDoc(doc(db, 'chats', chat, 'msgs', String(targetId)))).data() : undefined;
       const c = chat ? (await getDoc(doc(db, 'chats', chat))).data() : undefined;
-      if (m && c) targetName = `${(c.names as Record<string, string>)[m.from as string] ?? ''}: "${String(m.body).slice(0, 120)}"`;
+      // Encrypted bodies can't be read on the server, so the reporter attaches what they saw.
+      const shown = excerpt ?? (isEncrypted(String(m?.body ?? '')) ? '(encrypted)' : String(m?.body ?? ''));
+      if (m && c) targetName = `${(c.names as Record<string, string>)[m.from as string] ?? ''}: "${shown.slice(0, 120)}"`;
     }
     if (!targetName) throw new ApiError('That item no longer exists.', 404);
     const id = await nextId('reports');
@@ -510,6 +514,41 @@ interface ChatDoc {
 }
 export const chatKey = (a: string, b: string) => [a, b].sort().join('_');
 
+/* ---- end-to-end keys: keys/{uid} holds only a public key ---- */
+let published: string | null = null;
+async function publishKey(uid: string): Promise<void> {
+  const pub = await myPublicKey();
+  if (published === uid + pub) return;
+  const ref = doc(fbDb(), 'keys', uid);
+  const cur = (await getDoc(ref)).data();
+  if (cur?.pub !== pub) await setDoc(ref, { pub, at: Date.now() });
+  published = uid + pub;
+}
+const peerKeys = new Map<string, { pub: string | null; at: number }>();
+async function peerKey(uid: string): Promise<string | null> {
+  const c = peerKeys.get(uid);
+  if (c && Date.now() - c.at < 60_000) return c.pub;
+  const pub = ((await getDoc(doc(fbDb(), 'keys', uid))).data()?.pub as string | undefined) ?? null;
+  peerKeys.set(uid, { pub, at: Date.now() });
+  return pub;
+}
+/** Both public keys of a conversation; `peer` is null until the other person has Beam with encryption. */
+export const chatKeys = (username: string) =>
+  wrap(async () => {
+    const u = await me_();
+    void publishKey(u.uid).catch(() => {});
+    return { mine: await myPublicKey(), peer: await peerKey((await lookup(username)).uid) };
+  });
+/** Decrypt a list of messages; old plaintext ones pass through. */
+async function openAll<T extends { body: string }>(list: T[]): Promise<T[]> {
+  if (!list.some((m) => isEncrypted(m.body))) return list;
+  let kp: Awaited<ReturnType<typeof myKeys>> | null = null;
+  try {
+    kp = await myKeys();
+  } catch {}
+  return list.map((m) => (isEncrypted(m.body) ? { ...m, body: (kp && decryptWith(kp, m.body)) ?? LOCKED_TEXT } : m));
+}
+
 async function lookup(username: string): Promise<{ uid: string; num: number; username: string }> {
   const name = username.trim().toLowerCase();
   const s = await getDoc(doc(fbDb(), 'usernames', name));
@@ -539,16 +578,18 @@ export const listThreads = (_t: string) =>
     const u = await me_();
     await requireFlag('messaging', 'Messages are paused right now.');
     const [rows, blocked] = await Promise.all([getDocs(query(collection(fbDb(), 'chats'), where('members', 'array-contains', u.uid))), myBlocks(u.uid)]);
-    return rows.docs
+    void publishKey(u.uid).catch(() => {});
+    const list = rows.docs
       .map((r) => r.data() as ChatDoc)
       .sort((x, y) => y.lastAt - x.lastAt)
       .slice(0, 50)
       .map((c) => {
         const other = c.members.find((m) => m !== u.uid) ?? '';
-        return { other, t: { id: c.nums[other] ?? 0, username: c.names[other] ?? '', lastAt: c.lastAt, lastBody: c.lastBody, unread: c.unread?.[u.uid] ?? 0 } as Thread };
+        return { other, t: { id: c.nums[other] ?? 0, username: c.names[other] ?? '', lastAt: c.lastAt, body: c.lastBody, unread: c.unread?.[u.uid] ?? 0 } };
       })
       .filter((x) => !blocked.includes(x.other))
       .map((x) => x.t);
+    return (await openAll(list)).map(({ body, ...t }) => ({ ...t, lastBody: body }) as Thread);
   });
 
 export const getChat = (_t: string, username: string) =>
@@ -560,13 +601,15 @@ export const getChat = (_t: string, username: string) =>
     const db = fbDb();
     const [rows, blocked, chat] = await Promise.all([getDocs(query(collection(db, 'chats', key, 'msgs'), orderBy('createdAt', 'desc'), qLimit(200))), myBlocks(u.uid), getDoc(doc(db, 'chats', key))]);
     if (chat.exists() && ((chat.data() as ChatDoc).unread?.[u.uid] ?? 0) > 0) void updateDoc(chat.ref, { [`unread.${u.uid}`]: 0 }).catch(() => {});
-    const messages: ChatMessage[] = rows.docs
-      .map((r) => r.data())
-      .reverse()
-      .map((m) => {
-        msgChat.set(m.id as number, key);
-        return { id: m.id as number, mine: m.from === u.uid, body: m.body as string, createdAt: m.createdAt as number };
-      });
+    const messages: ChatMessage[] = await openAll(
+      rows.docs
+        .map((r) => r.data())
+        .reverse()
+        .map((m) => {
+          msgChat.set(m.id as number, key);
+          return { id: m.id as number, mine: m.from === u.uid, body: m.body as string, createdAt: m.createdAt as number };
+        })
+    );
     return { user: { id: other.num, username: other.username }, blocked: blocked.includes(other.uid), messages };
   });
 
@@ -585,18 +628,21 @@ export function watchChat(username: string, onChange: (r: { user: { id: number; 
       const key = chatKey(u.uid, other.uid);
       const db = fbDb();
       const blocked = (await myBlocks(u.uid)).includes(other.uid);
+      void publishKey(u.uid).catch(() => {});
       if (dead) return;
       stop = onSnapshot(
         query(collection(db, 'chats', key, 'msgs'), orderBy('createdAt', 'desc'), qLimit(200)),
         (snap) => {
-          const messages = snap.docs
+          const raw = snap.docs
             .map((r) => r.data())
             .reverse()
             .map((m) => {
               msgChat.set(m.id as number, key);
               return { id: m.id as number, mine: m.from === u.uid, body: m.body as string, createdAt: m.createdAt as number };
             });
-          onChange({ user: { id: other.num, username: other.username }, blocked, messages });
+          void openAll(raw).then((messages) => {
+            if (!dead) onChange({ user: { id: other.num, username: other.username }, blocked, messages });
+          });
           // Seen: clear my unread count for this chat.
           if (snap.docs.some((d) => d.data().from !== u.uid)) void updateDoc(doc(db, 'chats', key), { [`unread.${u.uid}`]: 0 }).catch(() => {});
         },
@@ -649,16 +695,23 @@ export const sendMessage = (_t: string, to: string, body: string) =>
     if ((await myBlocks(u.uid)).includes(other.uid)) throw new ApiError("You can't message this person.", 403);
     const mine = await myDoc(u.uid);
     const key = chatKey(u.uid, other.uid);
+    // End-to-end: once the other person has a key, the server stores only ciphertext (the
+    // message and the inbox preview). Someone on an old app with no key still gets plaintext.
+    await publishKey(u.uid).catch(() => {});
+    const peer = await peerKey(other.uid).catch(() => null);
+    const stored = peer ? await encryptFor(peer, text) : text;
+    const storedLast = peer ? await encryptFor(peer, last) : last;
+    if (stored.length > 990_000) throw new ApiError('That is too big to send.', 400);
     const now = Date.now();
     const id = clockId();
     const db = fbDb();
     const b = writeBatch(db);
     b.set(
       doc(db, 'chats', key),
-      { members: [u.uid, other.uid].sort(), names: { [u.uid]: mine.username, [other.uid]: other.username }, nums: { [u.uid]: mine.num, [other.uid]: other.num }, lastAt: now, lastBody: last, unread: { [other.uid]: increment(1) } },
+      { members: [u.uid, other.uid].sort(), names: { [u.uid]: mine.username, [other.uid]: other.username }, nums: { [u.uid]: mine.num, [other.uid]: other.num }, lastAt: now, lastBody: storedLast, unread: { [other.uid]: increment(1) } },
       { merge: true }
     );
-    b.set(doc(db, 'chats', key, 'msgs', String(id)), { id, from: u.uid, body: text, createdAt: now });
+    b.set(doc(db, 'chats', key, 'msgs', String(id)), { id, from: u.uid, body: stored, createdAt: now });
     b.set(doc(db, 'stats', 'global'), { messages: increment(1) }, { merge: true });
     // Blocked by the other person: the rules refuse the message.
     await b.commit().catch((e) => {
