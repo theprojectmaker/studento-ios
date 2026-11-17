@@ -1,19 +1,127 @@
-/** Owner tools: kill switches and moderation of shared schools and schedules. Only for admin accounts. */
+/**
+ * Owner tools, in tabs. Only admin accounts reach it (long-press the version line in Settings),
+ * and it asks for Face ID / Touch ID (or the device passcode) every time it opens.
+ */
+import { requireOptionalNativeModule } from 'expo';
+import * as FA from 'firebase/auth';
 import { useEffect, useState } from 'react';
-import { Alert, Platform, View } from 'react-native';
+import { Alert, Platform, ScrollView, View } from 'react-native';
 
 import { AccountsAdmin } from '@/components/accounts-admin';
-import { AdminControl } from '@/components/admin-control';
-import { BeamAdminSection } from '@/components/beam-admin-section';
-import { Button, Divider, Field, Note, Row, Screen, Section, ToggleRow } from '@/components/ui';
+import { AdminDashboard, AdminSwitches } from '@/components/admin-control';
+import { AppConfigAdmin, AuditLogAdmin, PromoCodesAdmin } from '@/components/admin-more';
+import { AnnouncementsAdmin, WaitlistAdmin } from '@/components/beam-admin-section';
+import { Button, Divider, Field, Note, Row, Screen, Section } from '@/components/ui';
+import { audit } from '@/lib/admin-tools';
+import { currentUser } from '@/lib/fb';
 import { getToken } from '@/lib/account';
 import * as api from '@/lib/api';
 import { useStore } from '@/lib/store';
 
+const hasLA = !!requireOptionalNativeModule('ExpoLocalAuthentication');
+
+/** Face ID / Touch ID, falling back to the device passcode. False = cancelled or failed. */
+async function deviceAuth(): Promise<boolean | 'none'> {
+  if (!hasLA) return 'none';
+  const LA = await import('expo-local-authentication');
+  if ((await LA.getEnrolledLevelAsync()) === LA.SecurityLevel.NONE) return 'none';
+  const r = await LA.authenticateAsync({ promptMessage: 'Open tools', disableDeviceFallback: false });
+  return r.success;
+}
+
+const TABS = [
+  ['dash', 'Dashboard'],
+  ['switches', 'Switches'],
+  ['announce', 'Announce'],
+  ['accounts', 'Accounts'],
+  ['waitlist', 'Waitlist'],
+  ['codes', 'Codes'],
+  ['reports', 'Reports'],
+  ['schools', 'Schools'],
+  ['config', 'Config'],
+  ['log', 'Log'],
+] as const;
+type Tab = (typeof TABS)[number][0];
+
 export default function Admin() {
   const account = useStore((s) => s.account);
-  const unlocked = useStore((s) => (s.prefs.unlocks ?? []).includes('messages'));
-  const [cfg, setCfg] = useState<api.ServerConfig | null>(null);
+  const [ok, setOk] = useState(false);
+  const [mode, setMode] = useState<'checking' | 'failed' | 'password'>('checking');
+  const [pw, setPw] = useState('');
+  const [err, setErr] = useState('');
+  const [tab, setTab] = useState<Tab>('dash');
+
+  const ask = () =>
+    void deviceAuth()
+      .then((r) => (r === 'none' ? setMode('password') : r ? setOk(true) : setMode('failed')))
+      .catch(() => setMode('failed'));
+  const check = () => {
+    setMode('checking');
+    ask();
+  };
+  const isAdmin = !!account?.user.admin;
+  useEffect(() => {
+    if (isAdmin) ask();
+  }, [isAdmin]);
+  useEffect(() => {
+    if (ok) void audit('open', Platform.OS);
+  }, [ok]);
+
+  if (!account?.user.admin) return <Screen><Note>Nothing here.</Note></Screen>;
+  if (!ok) {
+    const withPassword = async () => {
+      setErr('');
+      try {
+        const u = await currentUser();
+        if (!u?.email) throw new Error('Sign in first.');
+        await FA.reauthenticateWithCredential(u, FA.EmailAuthProvider.credential(u.email, pw));
+        setOk(true);
+      } catch {
+        setErr('Wrong password.');
+      }
+    };
+    return (
+      <Screen>
+        <Section title="Locked" footer={mode === 'password' ? 'This device has no Face ID, Touch ID or passcode, so enter your account password.' : 'Confirm it is you to continue.'}>
+          <View style={{ padding: 12, gap: 8 }}>
+            {mode === 'password' ? (
+              <>
+                <Field value={pw} onChangeText={setPw} placeholder="Account password" secureTextEntry autoCapitalize="none" onSubmitEditing={() => void withPassword()} />
+                <Button title="Unlock" disabled={!pw} onPress={() => void withPassword()} />
+              </>
+            ) : (
+              <Button title={mode === 'checking' ? 'Checking…' : 'Try again'} disabled={mode === 'checking'} onPress={check} />
+            )}
+            {err ? <Note tone="error">{err}</Note> : null}
+          </View>
+        </Section>
+      </Screen>
+    );
+  }
+  return (
+    <View style={{ flex: 1 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 6, paddingHorizontal: 12, paddingVertical: 8 }}>
+        {TABS.map(([k, l]) => (
+          <Button key={k} title={l} kind={tab === k ? undefined : 'plain'} onPress={() => setTab(k)} />
+        ))}
+      </ScrollView>
+      <View style={{ flex: 1 }}>
+        {tab === 'dash' ? <Screen><AdminDashboard /></Screen> : null}
+        {tab === 'switches' ? <Screen><AdminSwitches /></Screen> : null}
+        {tab === 'announce' ? <Screen><AnnouncementsAdmin /></Screen> : null}
+        {tab === 'accounts' ? <Screen><AccountsAdmin /></Screen> : null}
+        {tab === 'waitlist' ? <Screen><WaitlistAdmin /></Screen> : null}
+        {tab === 'codes' ? <Screen><PromoCodesAdmin /></Screen> : null}
+        {tab === 'reports' || tab === 'schools' ? <Moderation tab={tab} /> : null}
+        {tab === 'config' ? <Screen><AppConfigAdmin /></Screen> : null}
+        {tab === 'log' ? <Screen><AuditLogAdmin /></Screen> : null}
+      </View>
+    </View>
+  );
+}
+
+/** Reports and shared schools/schedules (the original admin page). */
+function Moderation({ tab }: { tab: 'reports' | 'schools' }) {
   const [schools, setSchools] = useState<api.SchoolHit[]>([]);
   const [open, setOpen] = useState<{ school: { id: number; name: string }; schedules: api.BellSet[] } | null>(null);
   const [rename, setRename] = useState('');
@@ -22,7 +130,6 @@ export default function Admin() {
 
   const refresh = async () => {
     try {
-      setCfg(await api.getConfig());
       setSchools(await api.searchSchools(''));
       const t = await getToken();
       if (t) setReports(await api.listReports(t));
@@ -31,10 +138,6 @@ export default function Admin() {
     }
   };
   useEffect(() => {
-    void api
-      .getConfig()
-      .then(setCfg)
-      .catch((e: unknown) => setMsg({ text: e instanceof Error ? e.message : 'Offline', tone: 'error' }));
     void api
       .searchSchools('')
       .then(setSchools)
@@ -52,6 +155,7 @@ export default function Admin() {
     try {
       await fn(t);
       setMsg({ text: label, tone: 'ok' });
+      void audit('moderate', label);
       await refresh();
       if (open) {
         try {
@@ -73,12 +177,9 @@ export default function Admin() {
     ]);
   };
 
-  if (!account?.user.admin) return <Screen><Note>Admin tools are only for the owner account.</Note></Screen>;
-
   return (
     <Screen>
-      <AdminControl />
-
+      {tab === 'reports' ? (
       <Section title="Reports" footer="What students flagged on shared schools and schedules. Delete removes the flagged item; Dismiss just clears the report.">
         {reports === null ? <Note>Loading…</Note> : reports.length === 0 ? <Note>No reports.</Note> : null}
         {(reports ?? []).map((r, i) => (
@@ -98,28 +199,9 @@ export default function Admin() {
           </View>
         ))}
       </Section>
+      ) : null}
 
-      <AccountsAdmin />
-
-      {unlocked ? <BeamAdminSection /> : null}
-
-      <Section title="Kill switches" footer="Off = that feature pauses for everyone right away. The clock and alerts keep working.">
-        {cfg ? (
-          <>
-            <ToggleRow label="Sign-ups" value={cfg.signup} onChange={(v) => void run(`Sign-ups ${v ? 'on' : 'off'}`, (t) => api.setConfig(t, { signup: v }))} />
-            <Divider />
-            <ToggleRow label="Sharing schools and schedules" value={cfg.sharing} onChange={(v) => void run(`Sharing ${v ? 'on' : 'off'}`, (t) => api.setConfig(t, { sharing: v }))} />
-            <Divider />
-            <ToggleRow label="Schedule reader (AI)" value={cfg.ai} onChange={(v) => void run(`Reader ${v ? 'on' : 'off'}`, (t) => api.setConfig(t, { ai: v }))} />
-            <Divider />
-            <ToggleRow label="Messages (beta)" sub="Off hides the Beam button for everyone but you" value={cfg.messaging} onChange={(v) => void run(`Messages ${v ? 'on' : 'off'}`, (t) => api.setConfig(t, { messaging: v }))} />
-          </>
-        ) : (
-          <Note>Loading…</Note>
-        )}
-      </Section>
-
-      {open ? (
+      {tab !== 'schools' ? null : open ? (
         <>
           <Section title={open.school.name} footer="Rename, or delete schedules that are wrong.">
             <View style={{ padding: 12, gap: 10 }}>

@@ -13,6 +13,7 @@ import { TYPE } from '@/lib/fonts';
 import { useTheme } from '@/lib/hooks';
 import { sz } from '@/lib/scale';
 import { useStore } from '@/lib/store';
+import { looksLikePromo, redeemOneTime } from '@/lib/admin-tools';
 
 export default function Redeem() {
   const theme = useTheme();
@@ -30,6 +31,20 @@ export default function Redeem() {
     if (promo) {
       setMsg({ text: `Unlocked: ${promo.title}. ${promo.detail}`, tone: 'ok' });
       setCode('');
+      return;
+    }
+    if (!isShareCode(code) && looksLikePromo(code)) {
+      setBusy(true);
+      try {
+        const id = await redeemOneTime(code);
+        const u = UNLOCK_INFO[id];
+        setMsg({ text: u ? `Unlocked: ${u.title}. ${u.detail}` : 'Unlocked.', tone: 'ok' });
+        setCode('');
+      } catch (e) {
+        setMsg({ text: e instanceof Error ? e.message : 'That code did not work.', tone: 'error' });
+      } finally {
+        setBusy(false);
+      }
       return;
     }
     if (!isShareCode(code)) return setMsg({ text: 'That code did not work. Schedule codes are 6 letters and numbers.', tone: 'error' });

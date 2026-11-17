@@ -1,7 +1,9 @@
 /** A fully banned account sees only this screen; nothing else in the app works for it. */
 import { useEffect, useState } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { router, usePathname } from 'expo-router';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
+import { areaFlag, areaForPath } from '@/lib/admin-tools';
 import { watchFlags } from '@/lib/beam-extra';
 import { useStore } from '@/lib/store';
 
@@ -34,6 +36,26 @@ export function BanGate() {
       <Text style={{ color: theme.muted, fontSize: 15, textAlign: 'center', lineHeight: 21 }}>This account has been blocked by the admin.</Text>
       {ban.until ? <Text style={{ color: theme.muted, fontSize: 14, textAlign: 'center' }}>Until {new Date(ban.until).toLocaleString()}</Text> : null}
       {ban.reason ? <Text style={{ color: theme.muted, fontSize: 14, textAlign: 'center' }}>{ban.reason}</Text> : null}
+    </View>
+  );
+}
+
+/** An app area the admin switched off (config/flags area_<key> = false): show a notice with a way back. */
+export function AreaGate() {
+  const theme = useTheme();
+  const admin = useStore((s) => !!s.account?.user.admin);
+  const path = usePathname();
+  const [f, setF] = useState<Record<string, unknown>>({});
+  useEffect(() => watchFlags((x) => setF(x)), []);
+  const area = areaForPath(path);
+  if (admin || !area || f[areaFlag(area.key)] !== false) return null;
+  return (
+    <View style={[StyleSheet.absoluteFill, { zIndex: 19000, backgroundColor: theme.bg, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 }]} onStartShouldSetResponder={() => true}>
+      <Text style={{ color: theme.ink, fontSize: 22, fontWeight: '700', textAlign: 'center' }}>{`${area.label} is paused`}</Text>
+      <Text style={{ color: theme.muted, fontSize: 15, textAlign: 'center', lineHeight: 21 }}>This part of Studento is turned off for a bit. The clock and alerts still work.</Text>
+      <Pressable accessibilityRole="button" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} style={{ paddingHorizontal: 22, paddingVertical: 10, borderRadius: 12, backgroundColor: theme.accent }}>
+        <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Go back</Text>
+      </Pressable>
     </View>
   );
 }

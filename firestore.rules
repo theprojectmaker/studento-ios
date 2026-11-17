@@ -197,6 +197,38 @@ service cloud.firestore {
         && onlyChanges(['fen', 'moves', 'status', 'winner', 'updatedAt']);
     }
 
+    // One-time promo codes. The doc id is sha256 of the code, so only someone who knows a code
+    // can read its doc; only the admin can list. Redeeming = one update by a signed-in user
+    // that flips used false -> true and names themselves, and only on an unused, live code.
+    match /promoCodes/{hash} {
+      allow get: if signedIn();
+      allow list, create, delete: if isAdmin();
+      allow update: if isAdmin() || (signedIn() && !banned() && flagOn('promos')
+        && resource.data.used == false && resource.data.get('revoked', false) == false
+        && onlyChanges(['used', 'usedBy', 'usedName', 'usedAt'])
+        && request.resource.data.used == true && request.resource.data.usedBy == me()
+        && request.resource.data.usedName is string && request.resource.data.usedName.size() <= 24
+        && request.resource.data.usedAt is int);
+    }
+
+    // Audit log of admin actions: append-only, admin only.
+    match /auditLog/{id} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && request.resource.data.keys().hasOnly(['at', 'by', 'action', 'detail']);
+      allow update, delete: if false;
+    }
+
+    // Private admin notes about an account.
+    match /adminNotes/{uid} {
+      allow read, write: if isAdmin();
+    }
+
+    // Remote app config values (remote text, default theme, rollout %).
+    match /config/app {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }

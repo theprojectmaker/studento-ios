@@ -5,10 +5,11 @@
 import Constants from 'expo-constants';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Linking, Platform, Text, View } from 'react-native';
+import { Linking, Platform, Pressable, Text, View } from 'react-native';
 
 import { VOICES } from '@/components/clock-extras';
 import { Divider, Note, Row, Screen, Section, Segmented, ToggleRow } from '@/components/ui';
+import { useAppConfig } from '@/lib/admin-tools';
 import { iconsSupported } from '@/lib/appIcon';
 import { TYPE } from '@/lib/fonts';
 import { useTheme } from '@/lib/hooks';
@@ -21,6 +22,7 @@ export default function Settings() {
   const prefs = useStore((s) => s.prefs);
   const personal = useStore((s) => s.personal);
   const account = useStore((s) => s.account);
+  const appCfg = useAppConfig();
   const school = useStore((s) => s.school);
   const bellSet = useStore((s) => s.bellSet);
   const theme = useTheme();
@@ -290,16 +292,10 @@ export default function Settings() {
       <Section title="Account" footer={account ? 'Your classes, school and settings save to this account.' : 'Optional. Saves your schedule across devices and turns on the schedule reader.'}>
         <Row
           label={account ? account.user.username : 'Sign in or create an account'}
-          sub={account ? (account.user.admin ? 'Owner · admin' : 'Signed in') : 'Username and password, nothing else'}
+          sub={account ? 'Signed in' : 'Username and password, nothing else'}
           icon={{ name: 'person.crop.circle.fill', color: '#007aff' }}
           onPress={() => router.push('/account')}
         />
-        {account?.user.admin ? (
-          <>
-            <Divider />
-            <Row label="Admin" sub="Kill switches, shared schools and schedules" icon={{ name: 'wrench.and.screwdriver.fill', color: '#ff9500' }} onPress={() => router.push('/admin')} />
-          </>
-        ) : null}
       </Section>
 
       <Section title="More">
@@ -324,7 +320,10 @@ export default function Settings() {
         <Row label="Help" sub="studentoclockapp@gmail.com" icon={{ name: 'envelope.fill', color: '#007aff' }} onPress={() => void Linking.openURL('mailto:studentoclockapp@gmail.com?subject=Studento')} />
       </Section>
 
-      <Note>Studento {Constants.expoConfig?.version ?? ''}</Note>
+      {appCfg.remoteText ? <Note>{appCfg.remoteText}</Note> : null}
+      <Pressable accessibilityRole="text" delayLongPress={1200} onLongPress={account?.user.admin ? () => router.push('/admin') : undefined}>
+        <Note>Studento {Constants.expoConfig?.version ?? ''}</Note>
+      </Pressable>
     </Screen>
   );
 }

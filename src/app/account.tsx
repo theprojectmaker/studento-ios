@@ -101,7 +101,7 @@ export default function Account() {
           </View>
           <Text style={{ ...TYPE.bold, fontSize: sz(24), letterSpacing: -0.4, color: theme.ink }}>{account.user.username}</Text>
           <Text style={{ ...TYPE.regular, fontSize: sz(14), color: theme.muted }}>
-            {account.user.admin ? 'Owner · admin' : 'Signed in'} · {account.syncedAt ? `saved ${new Date(account.syncedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : 'not saved yet'}
+            Signed in · {account.syncedAt ? `saved ${new Date(account.syncedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })}` : 'not saved yet'}
           </Text>
         </View>
         <Section>

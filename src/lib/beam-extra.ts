@@ -55,11 +55,15 @@ export interface Announcement {
   createdAt: number;
   /** optional: hides itself after this time (ms) */
   until?: number;
+  /** optional: stays hidden until this time (ms) */
+  startAt?: number;
+  /** who sees it: 'beam' (default, people with Beam) or 'all' (every signed-in user) */
+  audience?: 'beam' | 'all';
 }
 export function watchAnnouncements(cb: (a: Announcement[]) => void): () => void {
   try {
     return onSnapshot(
-      query(collection(fbDb(), 'announcements'), orderBy('createdAt', 'desc'), limit(10)),
+      query(collection(fbDb(), 'announcements'), orderBy('createdAt', 'desc'), limit(20)),
       (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Announcement, 'id'>) }))),
       () => cb([])
     );
@@ -67,9 +71,9 @@ export function watchAnnouncements(cb: (a: Announcement[]) => void): () => void 
     return () => {};
   }
 }
-export async function postAnnouncement(title: string, body: string, closable: boolean, until = 0): Promise<void> {
+export async function postAnnouncement(title: string, body: string, closable: boolean, until = 0, opts: { startAt?: number; audience?: 'beam' | 'all' } = {}): Promise<void> {
   await me();
-  await addDoc(collection(fbDb(), 'announcements'), { title: title.trim().slice(0, 80), body: body.trim().slice(0, 600), closable, createdAt: Date.now(), ...(until ? { until } : {}) });
+  await addDoc(collection(fbDb(), 'announcements'), { title: title.trim().slice(0, 80), body: body.trim().slice(0, 600), closable, createdAt: Date.now(), ...(until ? { until } : {}), ...(opts.startAt ? { startAt: opts.startAt } : {}), audience: opts.audience ?? 'beam' });
 }
 export const takeDown = (id: string) => deleteDoc(doc(fbDb(), 'announcements', id));
 

@@ -4,6 +4,7 @@ import { View } from 'react-native';
 
 import { Button, Divider, Field, Note, Row, Section, ToggleRow } from '@/components/ui';
 import { DurationPick } from '@/components/admin-control';
+import { audit, getNote, saveNote } from '@/lib/admin-tools';
 import { banOver, listAccounts, sendNotice, setBan, takeDownNotice, watchBans, watchNoticesFor, type Account, type Ban, type Notice } from '@/lib/beam-extra';
 
 function AccountTools({ a, ban }: { a: Account; ban?: Ban }) {
@@ -14,11 +15,16 @@ function AccountTools({ a, ban }: { a: Account; ban?: Ban }) {
   const [reason, setReason] = useState(ban?.reason ?? '');
   const [banFor, setBanFor] = useState(0);
   const [msg, setMsg] = useState<{ text: string; tone: 'ok' | 'error' } | null>(null);
+  const [noteText, setNoteText] = useState<string | null>(null);
   useEffect(() => watchNoticesFor(a.uid, setNotices), [a.uid]);
+  useEffect(() => {
+    void getNote(a.uid).then(setNoteText).catch(() => setNoteText(''));
+  }, [a.uid]);
 
   const run = async (label: string, fn: () => Promise<unknown>) => {
     try {
       await fn();
+      void audit('account', `${a.username}: ${label}`);
       setMsg({ text: label, tone: 'ok' });
     } catch (e) {
       setMsg({ text: e instanceof Error ? e.message : 'Failed', tone: 'error' });
@@ -27,6 +33,9 @@ function AccountTools({ a, ban }: { a: Account; ban?: Ban }) {
 
   return (
     <View style={{ paddingHorizontal: 12, paddingBottom: 12, gap: 8 }}>
+      <Note>Private note (only admins see it)</Note>
+      <Field value={noteText ?? ''} onChangeText={setNoteText} placeholder={noteText === null ? 'Loading…' : 'Notes about this account'} maxLength={2000} multiline />
+      <Button title="Save note" kind="plain" disabled={noteText === null} onPress={() => void saveNote(a.uid, a.username, noteText ?? '').then(() => setMsg({ text: 'Note saved.', tone: 'ok' })).catch((e: unknown) => setMsg({ text: e instanceof Error ? e.message : 'Failed', tone: 'error' }))} />
       {ban ? <Note>{`${ban.level === 'full' ? 'Banned' : 'Chatting off'} since ${new Date(ban.at).toLocaleString()}${ban.until ? ` · until ${new Date(ban.until).toLocaleString()}` : ' · no end'}${ban.reason ? ` · ${ban.reason}` : ''}`}</Note> : null}
       <Field value={reason} onChangeText={setReason} placeholder="Reason they see (optional)" maxLength={200} />
       <Note>Ban lasts</Note>

@@ -43,12 +43,12 @@ export function Announcements() {
       .catch(() => setClosed([]));
   }, []);
   useEffect(() => {
-    if (!account || !on) return;
+    if (!account) return;
     return watchAnnouncements(setList);
-  }, [account, on]);
+  }, [account]);
 
   if (!account || captured || closed === null) return null;
-  const all = [...mine, ...(on ? list : [])].filter((a) => !a.until || a.until > now);
+  const all = [...mine, ...list.filter((a) => a.audience === 'all' || on)].filter((a) => (!a.until || a.until > now) && (!a.startAt || a.startAt <= now));
   const pinned = all.filter((a) => !a.closable);
   const pop = all.find((a) => a.closable && !closed.includes(a.id));
   const close = (id: string) => {

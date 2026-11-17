@@ -12,7 +12,7 @@ import { isHeavyWork } from '@/lib/heavy';
 import { useTheme } from '@/lib/hooks';
 import { CaptureShield } from '@/components/capture-shield';
 import { Announcements } from '@/components/announcements';
-import { BanGate, MaintenanceGate } from '@/components/ban-gate';
+import { AreaGate, BanGate, MaintenanceGate } from '@/components/ban-gate';
 import { WaitlistWatcher } from '@/components/waitlist-watcher';
 import { IncomingCall } from '@/components/incoming-call';
 import { reconcileSession, watchForSync } from '@/lib/account';
@@ -167,7 +167,7 @@ export default function RootLayout() {
         <Stack.Screen name="school" options={{ title: 'Your School' }} />
         <Stack.Screen name="schedule-publish" options={{ title: 'New Bell Schedule' }} />
         <Stack.Screen name="account" options={{ title: 'Account' }} />
-        <Stack.Screen name="admin" options={{ title: 'Admin' }} />
+        <Stack.Screen name="admin" options={{ title: 'Tools' }} />
         <Stack.Screen name="schedules" options={{ title: 'Schedules' }} />
         <Stack.Screen name="schedule-edit" options={{ title: 'Custom Day' }} />
         <Stack.Screen name="backup" options={{ title: 'Back Up & Restore' }} />
@@ -179,6 +179,7 @@ export default function RootLayout() {
       </Stack>
       <Announcements />
       <MaintenanceGate />
+      <AreaGate />
       <BanGate />
       <WaitlistWatcher />
       <IncomingCall />
