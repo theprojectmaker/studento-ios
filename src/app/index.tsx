@@ -20,7 +20,6 @@ import { Editable } from '@/components/editable';
 import { LiveEffect } from '@/components/effects';
 import { RacewayBackdrop } from '@/components/raceway-bg';
 import { LiquidGlassScene } from '@/components/liquid-glass-bg';
-import { LiquidTabBar } from '@/components/liquid-tab-bar';
 import { LockButton } from '@/components/lockmode';
 import { Blink, Breathe, burnInOffset, FlashOverlay, LastBellConfetti, NightDim, useThemeShuffle, useWarning } from '@/components/clock-extras';
 import { Glass, Icon } from '@/components/glass';
@@ -271,8 +270,6 @@ export default function ClockScreen() {
               <Text style={[styles.testText, { color: theme.accent }]}>TEST · PERIOD 3 · TAP TO END</Text>
             </Pressable>
           ) : null}
-          {liquid ? null : (
-          <>
           <Corner theme={theme} glass={glassy} label={`Themes: ${theme.name}`} style={{ top: insets.top + 8, left: insets.left + 14 }} onPress={() => router.push('/themes')}>
             <Icon name="rectangle.stack" color={theme.ink} size={18} fallback={<ThemesGlyph color={theme.ink} />} />
           </Corner>
@@ -287,22 +284,8 @@ export default function ClockScreen() {
               <Icon name="bubble.left.and.bubble.right" color={theme.ink} size={17} fallback={<ChatGlyph color={theme.ink} />} />
             </Corner>
           ) : null}
-          </>
-          )}
         </Animated.View>
       )}
-      {liquid && !locked && !editing ? (
-        <LiquidTabBar
-          bottom={insets.bottom + 8}
-          tabs={[
-            { key: 'clock', label: 'Clock', icon: (c, big) => <Icon name="clock.fill" color={c} size={big ? 22 : 20} fallback={<View style={{ width: 18, height: 18, borderRadius: 9, borderWidth: 2, borderColor: c }} />} /> },
-            { key: 'hub', label: 'Hub', icon: (c, big) => <Icon name="square.grid.2x2.fill" color={c} size={big ? 22 : 20} fallback={<GridGlyph color={c} />} />, onOpen: () => router.push('/hub') },
-            { key: 'themes', label: 'Themes', icon: (c, big) => <Icon name="rectangle.stack.fill" color={c} size={big ? 22 : 20} fallback={<ThemesGlyph color={c} />} />, onOpen: () => router.push('/themes') },
-            ...(beamOn ? [{ key: 'beam', label: 'Beam', icon: (c: string, big: boolean) => <Icon name="bubble.left.and.bubble.right.fill" color={c} size={big ? 21 : 19} fallback={<ChatGlyph color={c} />} />, onOpen: () => router.push('/messages') }] : []),
-            { key: 'settings', label: 'Settings', icon: (c, big) => <Icon name="gearshape.fill" color={c} size={big ? 22 : 20} fallback={<GearIcon color={c} />} />, onOpen: () => router.push('/settings') },
-          ]}
-        />
-      ) : null}
     </View>
   );
   return liquid ? (
