@@ -2,6 +2,7 @@
 import { router } from 'expo-router';
 
 import { getToken } from './account';
+import { requireFeature } from './admin-switches';
 import * as api from './api';
 
 let inCall = false;
@@ -13,6 +14,7 @@ export function isInCall(): boolean {
 }
 
 export async function startCall(username: string, video: boolean): Promise<void> {
+  await requireFeature('calls');
   const t = await getToken();
   if (!t) throw new Error('Sign in first.');
   const c = await api.startCall(t, username, video);

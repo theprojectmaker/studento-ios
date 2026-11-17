@@ -25,6 +25,12 @@ export function Announcements() {
   const [list, setList] = useState<Announcement[]>([]);
   const [closed, setClosed] = useState<string[] | null>(null);
   // Pop-ups the admin sent to me alone; these show even without Beam.
+  // Re-check every minute so timed announcements take themselves down.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, []);
   const [mine, setMine] = useState<Announcement[]>([]);
   useEffect(() => {
     if (!account) return;
@@ -42,7 +48,7 @@ export function Announcements() {
   }, [account, on]);
 
   if (!account || captured || closed === null) return null;
-  const all = [...mine, ...(on ? list : [])];
+  const all = [...mine, ...(on ? list : [])].filter((a) => !a.until || a.until > now);
   const pinned = all.filter((a) => !a.closable);
   const pop = all.find((a) => a.closable && !closed.includes(a.id));
   const close = (id: string) => {

@@ -1,19 +1,20 @@
-/** Admin screen part for Beam: totals (counts only) and pop-up announcements. */
+/** Admin screen part for Beam: waiting list and pop-up announcements. */
 import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 
+import { DurationPick } from '@/components/admin-control';
 import { Button, Divider, Field, Note, Row, Section, ToggleRow } from '@/components/ui';
-import { decide, postAnnouncement, setFlag, takeDown, totals, watchAccessList, watchAnnouncements, watchMessageCount, type AccessRequest, type Announcement } from '@/lib/beam-extra';
+import { decide, decideAll, postAnnouncement, setFlag, takeDown, watchAccessList, watchAnnouncements, type AccessRequest, type Announcement } from '@/lib/beam-extra';
 import { useBeamFlags } from '@/lib/beam-on';
 import { registerAdmin } from '@/lib/beam-social';
 
 export function BeamAdminSection() {
-  const [live, setLive] = useState<number | null>(null);
-  const [accounts, setAccounts] = useState<number | null>(null);
   const [list, setList] = useState<Announcement[]>([]);
   const [title, setTitle] = useState('');
   const [body, setBody] = useState('');
   const [closable, setClosable] = useState(true);
+  const [lasts, setLasts] = useState(0);
+  const [now] = useState(() => Date.now());
   const [msg, setMsg] = useState<{ text: string; tone: 'ok' | 'error' } | null>(null);
   const { waitlist } = useBeamFlags();
   const [requests, setRequests] = useState<AccessRequest[]>([]);
@@ -23,17 +24,11 @@ export function BeamAdminSection() {
   useEffect(() => {
     void registerAdmin().catch(() => {});
   }, []);
-  useEffect(() => watchMessageCount(setLive), []);
   useEffect(() => watchAnnouncements(setList), []);
-  useEffect(() => {
-    void totals()
-      .then((t) => setAccounts(t.accounts))
-      .catch(() => {});
-  }, []);
 
   const post = async () => {
     try {
-      await postAnnouncement(title, body, closable);
+      await postAnnouncement(title, body, closable, lasts ? Date.now() + lasts : 0);
       setTitle('');
       setBody('');
       setMsg({ text: 'Posted. Everyone sees it now.', tone: 'ok' });
@@ -44,15 +39,19 @@ export function BeamAdminSection() {
 
   return (
     <>
-      <Section title="Beam totals" footer="Counts only. Messages updates live.">
-        <Row label="Messages sent" value={live === null ? '…' : live.toLocaleString()} />
-        <Divider />
-        <Row label="Accounts" value={accounts === null ? '…' : accounts.toLocaleString()} />
-      </Section>
-
       <Section title="Waiting list" footer="On = everyone you have not let in yet must ask to join Beam and wait for you. Turn it on, then let in the people already using Beam.">
         <ToggleRow label="Waiting list" value={waitlist} onChange={(v) => void setFlag('waitlist', v).catch(() => {})} />
         {requests.length === 0 ? <Note>No one has asked yet.</Note> : null}
+        {requests.some((r) => r.status === 'waiting') ? (
+          <View style={{ padding: 12, flexDirection: 'row', gap: 8 }}>
+            <View style={{ flex: 1 }}>
+              <Button title="Let everyone in" onPress={() => void decideAll(requests, 'approved').then((n) => setMsg({ text: `Let in ${n}.`, tone: 'ok' })).catch(() => {})} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Button title="Deny everyone" kind="danger" onPress={() => void decideAll(requests, 'denied').then((n) => setMsg({ text: `Denied ${n}.`, tone: 'ok' })).catch(() => {})} />
+            </View>
+          </View>
+        ) : null}
         {requests.map((r) => (
           <View key={r.uid}>
             <Divider />
@@ -76,6 +75,10 @@ export function BeamAdminSection() {
           <Field value={body} onChangeText={setBody} placeholder="Message" maxLength={600} multiline />
         </View>
         <ToggleRow label="People can close it" sub={closable ? 'Closable' : 'Permanent until you take it down'} value={closable} onChange={setClosable} />
+        <View style={{ paddingHorizontal: 12, gap: 6 }}>
+          <Note>Takes itself down after</Note>
+          <DurationPick value={lasts} onChange={setLasts} />
+        </View>
         <View style={{ padding: 12 }}>
           <Button title="Post announcement" disabled={!title.trim()} onPress={() => void post()} />
         </View>
@@ -83,7 +86,7 @@ export function BeamAdminSection() {
         {list.map((a) => (
           <View key={a.id}>
             <Divider />
-            <Row label={a.title} sub={`${a.closable ? 'Closable' : 'Permanent'} · ${new Date(a.createdAt).toLocaleString()}`} right={<Button title="Take down" kind="danger" onPress={() => void takeDown(a.id).catch(() => {})} />} />
+            <Row label={a.title} sub={`${a.closable ? 'Closable' : 'Permanent'} · ${new Date(a.createdAt).toLocaleString()}${a.until ? (a.until > now ? ` · ends ${new Date(a.until).toLocaleString()}` : ' · ended') : ''}`} right={<Button title="Take down" kind="danger" onPress={() => void takeDown(a.id).catch(() => {})} />} />
           </View>
         ))}
       </Section>

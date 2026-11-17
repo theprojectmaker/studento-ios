@@ -7,6 +7,7 @@
 import { Chess } from 'chess.js';
 import { addDoc, collection, deleteDoc, doc, getDoc, getDocs, limit, onSnapshot, orderBy, query, runTransaction, setDoc, updateDoc, where } from 'firebase/firestore';
 
+import { requireFeature } from './admin-switches';
 import { currentUser, fbDb } from './fb';
 
 async function me() {
@@ -52,6 +53,8 @@ export interface Announcement {
   /** false = stays on screen until the admin takes it down */
   closable: boolean;
   createdAt: number;
+  /** optional: hides itself after this time (ms) */
+  until?: number;
 }
 export function watchAnnouncements(cb: (a: Announcement[]) => void): () => void {
   try {
@@ -64,9 +67,9 @@ export function watchAnnouncements(cb: (a: Announcement[]) => void): () => void 
     return () => {};
   }
 }
-export async function postAnnouncement(title: string, body: string, closable: boolean): Promise<void> {
+export async function postAnnouncement(title: string, body: string, closable: boolean, until = 0): Promise<void> {
   await me();
-  await addDoc(collection(fbDb(), 'announcements'), { title: title.trim().slice(0, 80), body: body.trim().slice(0, 600), closable, createdAt: Date.now() });
+  await addDoc(collection(fbDb(), 'announcements'), { title: title.trim().slice(0, 80), body: body.trim().slice(0, 600), closable, createdAt: Date.now(), ...(until ? { until } : {}) });
 }
 export const takeDown = (id: string) => deleteDoc(doc(fbDb(), 'announcements', id));
 
@@ -86,6 +89,7 @@ export interface Game {
 
 /** Start a game against `username`; the inviter plays white. Returns the game id. */
 export async function newGame(username: string): Promise<string> {
+  await requireFeature('chess');
   const u = await me();
   const other = await uidOf(username);
   const g = { members: [u.uid, other].sort(), white: u.uid, black: other, names: { [u.uid]: await nameOf(u.uid), [other]: username.trim().toLowerCase() }, fen: new Chess().fen(), moves: [], status: 'playing', updatedAt: Date.now() };
@@ -205,6 +209,12 @@ export function watchAccessList(cb: (l: AccessRequest[]) => void): () => void {
     return () => {};
   }
 }
+/** Admin: answer everyone waiting at once. */
+export async function decideAll(list: AccessRequest[], status: 'approved' | 'denied'): Promise<number> {
+  const w = list.filter((r) => r.status === 'waiting');
+  await Promise.all(w.map((r) => decide(r.uid, status)));
+  return w.length;
+}
 export const decide = (uid: string, status: 'approved' | 'denied') => updateDoc(doc(fbDb(), 'access', uid), { status, at: Date.now() });
 /** Admin: switch a flag (e.g. waitlist) on or off for everyone. */
 export const setFlag = (k: string, v: boolean) => setDoc(doc(fbDb(), 'config', 'flags'), { [k]: v }, { merge: true });
@@ -276,6 +286,8 @@ export interface Ban {
   level: BanLevel;
   reason: string;
   at: number;
+  /** optional end time (ms); missing = forever */
+  until?: number;
 }
 export function watchBans(cb: (b: Record<string, Ban>) => void): () => void {
   try {
@@ -288,8 +300,10 @@ export function watchBans(cb: (b: Record<string, Ban>) => void): () => void {
     return () => {};
   }
 }
-export const setBan = (uid: string, level: BanLevel | null, reason = '') =>
-  level ? setDoc(doc(fbDb(), 'bans', uid), { level, reason: reason.slice(0, 200), at: Date.now() }) : deleteDoc(doc(fbDb(), 'bans', uid));
+export const setBan = (uid: string, level: BanLevel | null, reason = '', until = 0) =>
+  level ? setDoc(doc(fbDb(), 'bans', uid), { level, reason: reason.slice(0, 200), at: Date.now(), ...(until ? { until } : {}) }) : deleteDoc(doc(fbDb(), 'bans', uid));
+/** A timed ban whose time is up. */
+export const banOver = (b: Ban | null | undefined) => !!b?.until && b.until <= Date.now();
 
 export function watchMyBan(cb: (b: Ban | null) => void): () => void {
   let stop = () => {};
@@ -311,8 +325,8 @@ export function watchMyBan(cb: (b: Ban | null) => void): () => void {
 export interface Notice extends Announcement {
   to: string;
 }
-export const sendNotice = (to: string, title: string, body: string, closable: boolean) =>
-  addDoc(collection(fbDb(), 'notices'), { to, title: title.trim().slice(0, 80), body: body.trim().slice(0, 600), closable, createdAt: Date.now() });
+export const sendNotice = (to: string, title: string, body: string, closable: boolean, until = 0) =>
+  addDoc(collection(fbDb(), 'notices'), { to, title: title.trim().slice(0, 80), body: body.trim().slice(0, 600), closable, createdAt: Date.now(), ...(until ? { until } : {}) });
 export const takeDownNotice = (id: string) => deleteDoc(doc(fbDb(), 'notices', id));
 export function watchMyNotices(cb: (n: Notice[]) => void): () => void {
   let stop = () => {};

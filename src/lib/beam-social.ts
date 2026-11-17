@@ -7,6 +7,7 @@
 import { collection, deleteDoc, doc, documentId, getDoc, getDocs, limit, onSnapshot, query, setDoc, updateDoc, where } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
 
+import { requireFeature } from './admin-switches';
 import { currentUser, fbDb } from './fb';
 
 async function me() {
@@ -77,6 +78,7 @@ export function useFriends(): FriendState {
 }
 
 export async function sendFriendRequest(username: string): Promise<void> {
+  await requireFeature('friends');
   const u = await me();
   const to = await uidOf(username);
   if (to === u.uid) throw new Error("That's you.");

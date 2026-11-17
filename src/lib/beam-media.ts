@@ -6,6 +6,8 @@
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 
+import { requireFeature } from './admin-switches';
+
 async function shrink(a: ImagePicker.ImagePickerAsset): Promise<string> {
   const ctx = ImageManipulator.manipulate(a.uri);
   try {
@@ -25,6 +27,7 @@ async function shrink(a: ImagePicker.ImagePickerAsset): Promise<string> {
 
 /** Pick or take photos. Returns data URIs (at most 4), or [] if cancelled. */
 export async function getPhotos(camera: boolean): Promise<string[]> {
+  await requireFeature('media');
   const perm = camera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!perm.granted) throw new Error(camera ? 'Camera access is off. Turn it on in Settings.' : 'Photo access is off. Turn it on in Settings.');
   const res = camera
@@ -53,6 +56,7 @@ function toDataUri(blob: Blob): Promise<string> {
  * message itself (no Storage bucket). Long clips don't fit, so recording stops at 15 seconds.
  */
 export async function getVideo(camera: boolean, onStage?: (s: string) => void): Promise<{ url: string; seconds: number } | null> {
+  await requireFeature('media');
   const perm = camera ? await ImagePicker.requestCameraPermissionsAsync() : await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!perm.granted) throw new Error(camera ? 'Camera access is off. Turn it on in Settings.' : 'Photo access is off. Turn it on in Settings.');
   const opts: ImagePicker.ImagePickerOptions = { mediaTypes: ['videos'], videoMaxDuration: 15, videoQuality: ImagePicker.UIImagePickerControllerQualityType.Low, allowsEditing: true };

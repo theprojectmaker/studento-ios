@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react';
 import { Alert, Platform, View } from 'react-native';
 
 import { AccountsAdmin } from '@/components/accounts-admin';
+import { AdminControl } from '@/components/admin-control';
 import { BeamAdminSection } from '@/components/beam-admin-section';
 import { Button, Divider, Field, Note, Row, Screen, Section, ToggleRow } from '@/components/ui';
 import { getToken } from '@/lib/account';
@@ -76,6 +77,8 @@ export default function Admin() {
 
   return (
     <Screen>
+      <AdminControl />
+
       <Section title="Reports" footer="What students flagged on shared schools and schedules. Delete removes the flagged item; Dismiss just clears the report.">
         {reports === null ? <Note>Loading…</Note> : reports.length === 0 ? <Note>No reports.</Note> : null}
         {(reports ?? []).map((r, i) => (

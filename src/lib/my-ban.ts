@@ -1,7 +1,7 @@
 /** This account's ban, live (one listener for the whole app). */
 import { useEffect, useSyncExternalStore } from 'react';
 
-import { watchMyBan, type Ban } from './beam-extra';
+import { banOver, watchMyBan, type Ban } from './beam-extra';
 import { useStore } from './store';
 
 let ban: Ban | null = null;
@@ -26,7 +26,7 @@ export function useMyBan(): Ban | null {
     emit();
     if (user)
       stop = watchMyBan((b) => {
-        ban = b;
+        ban = banOver(b) ? null : b;
         emit();
       });
   }, [user]);
