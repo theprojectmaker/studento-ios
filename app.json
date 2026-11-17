@@ -13,7 +13,6 @@
       "supportsTablet": true,
       "requireFullScreen": false,
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false,
         "NSMicrophoneUsageDescription": "Studento uses the microphone for calls, so the other person can hear you."
       }
     },
