@@ -45,27 +45,19 @@ export default function ClockOptions() {
           />
         </View>
         <Divider />
-        <ToggleRow label="Show seconds" icon={{ name: 'stopwatch.fill', color: '#8e8e93' }} value={prefs.seconds} onChange={(v) => setPref('seconds', v)} />
-        <Divider />
         <ToggleRow label="Show the period number" sub="Now · Period 3" icon={{ name: 'number', color: '#007aff' }} value={prefs.periodNum} onChange={(v) => setPref('periodNum', v)} />
         <Divider />
         <ToggleRow label="Show when it ends" sub="left · ends 1:52 PM" icon={{ name: 'clock.badge.checkmark', color: '#34c759' }} value={prefs.endTime} onChange={(v) => setPref('endTime', v)} />
         <Divider />
         <ToggleRow label="Show today's date" icon={{ name: 'calendar', color: '#ff9500' }} value={prefs.showDate} onChange={(v) => setPref('showDate', v)} />
-        <Divider />
-        <ToggleRow label="24-hour time" icon={{ name: 'clock.fill', color: '#8e8e93' }} value={prefs.h24} onChange={(v) => setPref('h24', v)} />
       </Section>
 
       <Section title="Screen">
-        <ToggleRow label="Keep screen on" sub="While the clock is open" icon={{ name: 'sun.max.fill', color: '#ffcc00' }} value={prefs.keepAwake} onChange={(v) => setPref('keepAwake', v)} />
-        <Divider />
-        <ToggleRow label="Dim at night" sub="9 PM to 6 AM" icon={{ name: 'moon.fill', color: '#5856d6' }} value={prefs.night} onChange={(v) => setPref('night', v)} />
-        <Divider />
         <ToggleRow label="Animations" sub="Flips, rolls and the live effects some themes have" icon={{ name: 'sparkles', color: '#ff2d55' }} value={prefs.motion} onChange={(v) => setPref('motion', v)} />
       </Section>
 
       <Section footer={more ? 'These are rarely needed. Each one is off unless you turned it on.' : undefined}>
-        <Row label={more ? 'Hide more options' : 'More options'} sub={more ? undefined : 'Focus view, dimming, burn-in, haptics, theme shuffle'} icon={{ name: 'ellipsis.circle.fill', color: '#8e8e93' }} onPress={() => setMore((m) => !m)} />
+        <Row label={more ? 'Hide more options' : 'More options'} sub={more ? undefined : 'Focus view, idle dimming, burn-in, corner buttons'} icon={{ name: 'ellipsis.circle.fill', color: '#8e8e93' }} onPress={() => setMore((m) => !m)} />
         {more ? (
           <>
             <Divider />
@@ -78,10 +70,6 @@ export default function ClockOptions() {
             <ToggleRow label="Dim when idle" sub="After 15 seconds without a touch" icon={{ name: 'circle.lefthalf.filled', color: '#8e8e93' }} value={prefs.idleDim} onChange={(v) => setPref('idleDim', v)} />
             <Divider />
             <ToggleRow label="Burn-in protection" sub="Nudges the clock a few pixels every minute" icon={{ name: 'rectangle.dashed', color: '#8e8e93' }} value={prefs.burnin} onChange={(v) => setPref('burnin', v)} />
-            <Divider />
-            <ToggleRow label="Haptics" icon={{ name: 'iphone.radiowaves.left.and.right', color: '#8e8e93' }} value={prefs.haptics} onChange={(v) => setPref('haptics', v)} />
-            <Divider />
-            <ToggleRow label="New theme every day" icon={{ name: 'shuffle', color: '#af52de' }} value={prefs.daily} onChange={(v) => setPref('daily', v)} />
           </>
         ) : null}
       </Section>

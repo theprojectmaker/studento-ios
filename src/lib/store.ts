@@ -83,6 +83,24 @@ export interface Prefs extends AlertPrefs {
   idleDim: boolean;
   /** Corner buttons never fade. */
   corners: boolean;
+  /** Leaving lock mode asks for Face ID / Touch ID / passcode. */
+  lockAuth: boolean;
+  /** A second in-app warning at 1 minute left. */
+  warn1: boolean;
+  /** Big countdown shows time left or time gone by in the period. */
+  countMode: 'left' | 'elapsed';
+  /** Auto-dim schedule (hours, NY time) and how dark it gets. */
+  nightFrom: number;
+  nightTo: number;
+  nightLevel: 'light' | 'medium' | 'dark';
+  /** A light haptic tick each second in the last 10 seconds of class. */
+  finalTicks: boolean;
+  /** Confetti when the last bell of the day rings. */
+  celebrate: 'off' | 'fridays' | 'always';
+  /** Voice used by "Announce out loud". */
+  voice: 'normal' | 'robot' | 'chipmunk' | 'deep';
+  /** The clock slowly breathes while nobody touches it. */
+  breathe: boolean;
 }
 
 export interface Shared {
@@ -169,6 +187,16 @@ export const DEFAULT_PREFS: Prefs = {
   tapToggle: true,
   idleDim: false,
   corners: false,
+  lockAuth: true,
+  warn1: false,
+  countMode: 'left',
+  nightFrom: 21,
+  nightTo: 6,
+  nightLevel: 'medium',
+  finalTicks: false,
+  celebrate: 'fridays',
+  voice: 'normal',
+  breathe: false,
 };
 
 const EMPTY_SHARED: Shared = { classNames: {}, classDetails: {}, customDays: [], override: null };

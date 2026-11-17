@@ -142,7 +142,7 @@
       [
         "expo-local-authentication",
         {
-          "faceIDPermission": "Studento uses Face ID to unlock its private sections."
+          "faceIDPermission": "Studento uses Face ID to unlock the locked clock and its private sections."
         }
       ]
     ],

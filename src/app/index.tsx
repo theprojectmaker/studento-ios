@@ -22,7 +22,7 @@ import { RacewayBackdrop } from '@/components/raceway-bg';
 import { LiquidGlassScene } from '@/components/liquid-glass-bg';
 import { LiquidTabBar } from '@/components/liquid-tab-bar';
 import { LockButton } from '@/components/lockmode';
-import { Blink, burnInOffset, FlashOverlay, NightDim, useThemeShuffle, useWarning } from '@/components/clock-extras';
+import { Blink, Breathe, burnInOffset, FlashOverlay, LastBellConfetti, NightDim, useThemeShuffle, useWarning } from '@/components/clock-extras';
 import { Glass, Icon } from '@/components/glass';
 import { Timeline } from '@/components/timeline';
 import { Button, GearIcon, tap } from '@/components/ui';
@@ -146,7 +146,7 @@ export default function ClockScreen() {
     height,
     landscape: width > height && width > 600,
     clock: clockParts(parts.hour, parts.minute, parts.second, prefs.h24, prefs.seconds),
-    bigText: inSchool ? countdownText(copy.countdownSec!, prefs.seconds) : clockParts(parts.hour, parts.minute, parts.second, prefs.h24, false).text,
+    bigText: inSchool ? countdownText(rawPrefs.countMode === 'elapsed' && st.phase === 'class' && copy.remaining > 0 ? Math.max(0, Math.round(copy.countdownSec! / copy.remaining) - copy.countdownSec!) : copy.countdownSec!, prefs.seconds) : clockParts(parts.hour, parts.minute, parts.second, prefs.h24, false).text,
     inSchool,
     editing,
     names: sched.names,
@@ -167,8 +167,9 @@ export default function ClockScreen() {
     <View style={{ flex: 1, backgroundColor: liquid ? 'transparent' : theme.bg }} onTouchStart={wake}>
       {theme.engine === 'race' ? <RacewayBackdrop theme={theme} elapsedSec={raceTotal != null ? raceTotal - (copy.countdownSec ?? 0) : null} totalSec={raceTotal} seed={raceSeed} motion={prefs.motion} /> : null}
       <LiveEffect theme={theme} motion={prefs.motion} />
-      <NightDim hour={parts.hour} on={rawPrefs.night} />
+      <NightDim hour={parts.hour} on={rawPrefs.night} from={rawPrefs.nightFrom} to={rawPrefs.nightTo} level={rawPrefs.nightLevel} />
       <FlashOverlay flash={flash} />
+      <LastBellConfetti st={st} mode={rawPrefs.celebrate} width={width} height={height} />
 
       <View
         style={{
@@ -181,7 +182,9 @@ export default function ClockScreen() {
       >
         <Animated.View style={[{ flex: 1, maxWidth: sz(900), width: '100%', alignSelf: 'center', transform: [{ translateX: nudge.x }, { translateY: nudge.y }] }, rawPrefs.idleDim ? dimStyle : null]}>
           {rawPrefs.locked ? null : <ClockBanners theme={theme} today={st.date} locked={focusLocked} />}
-          {theme.engine === 'race' ? <RaceLayout v={v} /> : prefs.layout === 'minimal' ? <Minimal v={v} /> : prefs.layout === 'glass' || liquid ? <Cards v={v} /> : <Classic v={v} />}
+          <Breathe on={rawPrefs.breathe && prefs.motion && !chromeOn && !editing}>
+            {theme.engine === 'race' ? <RaceLayout v={v} /> : prefs.layout === 'minimal' ? <Minimal v={v} /> : prefs.layout === 'glass' || liquid ? <Cards v={v} /> : <Classic v={v} />}
+          </Breathe>
         </Animated.View>
         {askAlerts && !locked ? (
           <View
@@ -936,6 +939,7 @@ function tweakCopy(c: Copy, st: NowState, p: Prefs): Copy {
     out = { ...out, eyebrow: `NOW · ${periodTitle(st.current).toUpperCase()}${room}` };
   }
   if (p.endTime) out = { ...out, unit: `left · ends ${fmtTime(st.current.end, p.h24)}` };
+  if (p.countMode === 'elapsed') out = { ...out, unit: out.unit.replace(/^left/, 'so far') };
   return out;
 }
 

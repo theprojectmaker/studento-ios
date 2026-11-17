@@ -9,7 +9,8 @@ import Animated, { Easing, FadeIn, FadeOut, useAnimatedStyle, useSharedValue, wi
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { TYPE } from '@/lib/fonts';
-import { setPref } from '@/lib/store';
+import { confirmUnlock } from '@/lib/clock-lock';
+import { getState, setPref } from '@/lib/store';
 import type { Theme } from '@/lib/themes';
 import { sz } from '@/lib/scale';
 
@@ -27,9 +28,14 @@ export function LockButton({ theme, onUnlock, hint: hintText }: { theme: Theme; 
     if (holding) {
       ring.set(withTiming(1, { duration: HOLD_MS, easing: Easing.linear }));
       const t = setTimeout(() => {
-        if (onUnlock) onUnlock();
-        else setPref('locked', false);
         setHolding(false);
+        if (onUnlock) return onUnlock();
+        // Lock mode asks for Face ID / Touch ID / passcode first (when the phone has any set up).
+        if (!getState().prefs.lockAuth) return setPref('locked', false);
+        void confirmUnlock().then((ok) => {
+          if (ok) setPref('locked', false);
+          else setHint(true);
+        });
       }, HOLD_MS);
       return () => clearTimeout(t);
     }
