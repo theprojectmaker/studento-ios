@@ -5,6 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { BeamAvatar, Glyph, type BeamPalette } from '@/components/beam-ui';
 import { ChatBackground, CHAT_BGS, Swatch } from '@/components/chat-background';
 import { TTL_OPTIONS } from '@/lib/beam-extra';
+import { useProfile } from '@/lib/beam-profile';
 
 export function BeamContact({
   c,
@@ -42,6 +43,7 @@ export function BeamContact({
   onBgPhoto: () => void;
 }) {
   const insets = useSafeAreaInsets();
+  const profile = useProfile(username);
   const { width } = useWindowDimensions();
   const cell = (Math.min(width, 600) - 32 - 8) / 3;
 
@@ -67,6 +69,7 @@ export function BeamContact({
             <BeamAvatar name={username} size={110} />
             <Text style={{ color: c.text, fontSize: 26, fontWeight: '700' }}>{username}</Text>
             <Text style={{ color: c.text3, fontSize: 14 }}>{`@${username}`}</Text>
+            {profile.status ? <Text style={{ color: c.text2, fontSize: 15, textAlign: 'center', paddingHorizontal: 20 }}>{profile.status}</Text> : null}
           </View>
 
           <View style={{ flexDirection: 'row', gap: 8 }}>

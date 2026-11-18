@@ -6,7 +6,7 @@ import { View } from 'react-native';
 import { DurationPick, flipFlag } from '@/components/admin-control';
 import { Button, Divider, Field, Note, Row, Section, Segmented, ToggleRow } from '@/components/ui';
 import { audit } from '@/lib/admin-tools';
-import { decide, postAnnouncement, takeDown, watchAccessList, watchAnnouncements, type AccessRequest, type Announcement } from '@/lib/beam-extra';
+import { decide, postAnnouncement, type AccessList, takeDown, watchAccessList, watchAnnouncements, type AccessRequest, type Announcement } from '@/lib/beam-extra';
 import { useBeamFlags } from '@/lib/beam-on';
 import { registerAdmin } from '@/lib/beam-social';
 import { fbDb } from '@/lib/fb';
@@ -15,23 +15,35 @@ type Tone = { text: string; tone: 'ok' | 'error' };
 const errText = (e: unknown) => (e instanceof Error ? e.message : 'Failed');
 
 export function WaitlistAdmin() {
-  const { waitlist } = useBeamFlags();
+  return (
+    <>
+      <ListAdmin list="access" />
+      <ListAdmin list="callAccess" />
+    </>
+  );
+}
+
+/** One early-access list: Beam itself, or calls (users see both as early access, never as calls). */
+function ListAdmin({ list }: { list: AccessList }) {
+  const calls = list === 'callAccess';
+  const { waitlist: beamWait, callWaitlist } = useBeamFlags();
+  const waitlist = calls ? callWaitlist : beamWait;
   const [requests, setRequests] = useState<AccessRequest[]>([]);
   const [show, setShow] = useState<'waiting' | 'approved' | 'denied'>('waiting');
   const [q, setQ] = useState('');
   const [msg, setMsg] = useState<Tone | null>(null);
-  useEffect(() => watchAccessList(setRequests), []);
+  useEffect(() => watchAccessList(setRequests, list), [list]);
   // Put this admin on the public list so nobody can block them.
   useEffect(() => {
     void registerAdmin().catch(() => {});
   }, []);
 
   const waiting = requests.filter((r) => r.status === 'waiting').sort((a, b) => (a.num ?? a.at) - (b.num ?? b.at));
-  const bulk = async (list: AccessRequest[], status: 'approved' | 'denied' | 'remove', label: string) => {
+  const bulk = async (reqs: AccessRequest[], status: 'approved' | 'denied' | 'remove', label: string) => {
     try {
-      await Promise.all(list.map((r) => (status === 'remove' ? deleteDoc(doc(fbDb(), 'access', r.uid)) : decide(r.uid, status))));
-      void audit(`waitlist.${status}`, `${list.length} people`);
-      setMsg({ text: `${label}: ${list.length}.`, tone: 'ok' });
+      await Promise.all(reqs.map((r) => (status === 'remove' ? deleteDoc(doc(fbDb(), list, r.uid)) : decide(r.uid, status, list))));
+      void audit(`${calls ? 'callwaitlist' : 'waitlist'}.${status}`, `${reqs.length} people`);
+      setMsg({ text: `${label}: ${reqs.length}.`, tone: 'ok' });
     } catch (e) {
       setMsg({ text: errText(e), tone: 'error' });
     }
@@ -41,8 +53,8 @@ export function WaitlistAdmin() {
 
   return (
     <>
-      <Section title="Waiting list" footer="On = everyone you have not let in yet must ask to join Beam and wait for you.">
-        <ToggleRow label="Waiting list" value={waitlist} onChange={(v) => void flipFlag('waitlist', v).catch(() => {})} />
+      <Section title={calls ? "Calls waiting list" : "Waiting list"} footer={calls ? "On = only people you let in here can start calls. They see it as early access, not calls." : "On = everyone you have not let in yet must ask to join Beam and wait for you."}>
+        <ToggleRow label={calls ? "Calls need approval" : "Waiting list"} value={waitlist} onChange={(v) => void flipFlag(calls ? 'callWaitlist' : 'waitlist', v).catch(() => {})} />
         <View style={{ padding: 12, gap: 8 }}>
           <Note>{`${count('waiting')} waiting · ${count('approved')} let in · ${count('denied')} denied`}</Note>
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
@@ -55,7 +67,7 @@ export function WaitlistAdmin() {
         </View>
         {msg ? <Note tone={msg.tone}>{msg.text}</Note> : null}
       </Section>
-      <Section title="People">
+      <Section title={calls ? "People asking for calls" : "People"}>
         <View style={{ padding: 12, gap: 8 }}>
           <Segmented
             value={show}

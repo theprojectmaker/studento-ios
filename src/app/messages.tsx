@@ -13,9 +13,10 @@ import { BeamChat } from '@/components/beam-chat';
 import { goToClock } from '@/lib/beam-nav';
 import { requestAccess, watchMyAccess, type AccessStatus } from '@/lib/beam-extra';
 import { lockBeam, useBeamUnlocked } from '@/lib/beam-lock';
-import { useBeamFlags, useBeamRedeemed, useBeamVisible } from '@/lib/beam-on';
+import { useBeamFlags, useBeamRedeemed, useBeamVisible, useCallAccess } from '@/lib/beam-on';
 import { BeamIntro } from '@/components/beam-intro';
 import { LiquidTabBar } from '@/components/liquid-tab-bar';
+import { toggleArchived, useArchived, useDrafts, useScheduledSender } from '@/lib/beam-local';
 import { BeamLockScreen } from '@/components/beam-lock-screen';
 import { BeamFriends } from '@/components/beam-friends';
 import { BeamSettingsPane } from '@/components/beam-settings-pane';
@@ -74,7 +75,11 @@ export default function Beam() {
   }, [account, admin]);
   const me = account?.user.username ?? '';
   const [section, setSection] = useState<Section>('messages');
-  const [unreadOnly, setUnreadOnly] = useState(false);
+  const [filter, setFilter] = useState<'all' | 'unread' | 'archived'>('all');
+  const unreadOnly = filter === 'unread';
+  const archived = useArchived();
+  const draftsMap = useDrafts();
+  useScheduledSender();
   const [threads, setThreads] = useState<api.Thread[] | null>(null);
   const [calls, setCalls] = useState<api.RecentCall[] | null>(null);
   const [contacts, setContacts] = useState<string[]>([]);
@@ -105,6 +110,7 @@ export default function Beam() {
     Alert.alert(u, undefined, [
       { text: pin, onPress: () => toggleMark('pin', u) },
       { text: mute, onPress: () => toggleMark('mute', u) },
+      { text: archived.includes(u) ? 'Unarchive' : 'Archive', onPress: () => toggleArchived(u) },
       { text: 'Cancel', style: 'cancel' },
     ]);
   };
@@ -160,6 +166,7 @@ export default function Beam() {
     };
   }, [q, account]);
 
+  const callAccess = useCallAccess();
   const call = (peer: string, video: boolean) => void startCall(peer, video).catch((e) => setErr(e instanceof Error ? e.message : "Couldn't start the call."));
   const friendState = useFriends();
   const openChat = (u: string) => {
@@ -176,7 +183,8 @@ export default function Beam() {
   const NAV: { k: Section; label: string; icon: keyof typeof Glyph; badge: number }[] = [
     { k: 'messages', label: 'Messages', icon: 'Bubble', badge: unreadTotal },
     { k: 'friends', label: 'Friends', icon: 'PersonAdd', badge: friendState.incoming.length },
-    { k: 'calls', label: 'Calls', icon: 'Phone', badge: missed },
+    // Until approved for calls, the Calls tab doesn't show at all.
+    ...(callAccess.allowed ? [{ k: 'calls' as Section, label: 'Calls', icon: 'Phone' as const, badge: missed }] : []),
     { k: 'contacts', label: 'Contacts', icon: 'Person', badge: 0 },
     { k: 'settings', label: 'Settings', icon: 'Gear', badge: 0 },
   ];
@@ -263,12 +271,16 @@ export default function Beam() {
         {u}
       </Text>
       {extra}
+      {callAccess.allowed ? (
+      <>
       <Pressable accessibilityLabel={`Call ${u}`} onPress={() => call(u, false)} hitSlop={6} style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: c.search, alignItems: 'center', justifyContent: 'center' }}>
         <Glyph.Phone color={c.blue} size={17} />
       </Pressable>
       <Pressable accessibilityLabel={`Video call ${u}`} onPress={() => call(u, true)} hitSlop={6} style={{ width: 34, height: 34, borderRadius: 17, backgroundColor: c.search, alignItems: 'center', justifyContent: 'center' }}>
         <Glyph.Video color={c.blue} size={18} />
       </Pressable>
+      </>
+      ) : null}
     </Pressable>
   );
 
@@ -312,12 +324,13 @@ export default function Beam() {
         </>
       );
   } else if (section === 'messages') {
-    const list = (threads ?? []).filter((t) => !unreadOnly || t.unread > 0).sort((a, b) => Number(marks.pin.includes(b.username)) - Number(marks.pin.includes(a.username)));
+    // Archived chats only show under Archived (a new message doesn't unarchive them, like WhatsApp's setting).
+    const list = (threads ?? []).filter((t) => (filter === 'archived' ? archived.includes(t.username) : !archived.includes(t.username) && (!unreadOnly || t.unread > 0))).sort((a, b) => Number(marks.pin.includes(b.username)) - Number(marks.pin.includes(a.username)));
     body =
       threads === null ? (
         <Empty c={c} text={err ?? 'Loading…'} />
       ) : list.length === 0 ? (
-        <Empty c={c} text={unreadOnly ? 'No unread messages.' : 'No messages yet. Search for someone above to start a chat.'} />
+        <Empty c={c} text={filter === 'archived' ? 'No archived chats. Hold a chat to archive it.' : unreadOnly ? 'No unread messages.' : 'No messages yet. Search for someone above to start a chat.'} />
       ) : (
         list.map((t) => {
           const muted = marks.mute.includes(t.username);
@@ -341,7 +354,8 @@ export default function Beam() {
                   <Text style={{ color: unread ? c.blue : c.text3, fontSize: 12, fontWeight: unread ? '600' : '400' }}>{when(t.lastAt)}</Text>
                 </View>
                 <Text style={{ color: unread ? c.text : c.text2, fontSize: 13.5, lineHeight: 18, marginTop: 2 }} numberOfLines={2}>
-                  {preview(t.lastBody)}
+                  {draftsMap[t.username] ? <Text style={{ color: c.red, fontWeight: '600' }}>{'Draft: '}</Text> : null}
+                  {draftsMap[t.username] ?? preview(t.lastBody)}
                 </Text>
               </View>
             </Pressable>
@@ -358,7 +372,7 @@ export default function Beam() {
         calls.map((k) => {
           const miss = !k.outgoing && (k.status === 'missed' || k.status === 'declined');
           return (
-            <Pressable key={k.id} onPress={() => call(k.peer, k.video)} style={(s) => rowStyle(s)}>
+            <Pressable key={k.id} onPress={() => (callAccess.allowed ? call(k.peer, k.video) : openChat(k.peer))} style={(s) => rowStyle(s)}>
               <BeamAvatar name={k.peer} size={42} />
               <View style={{ flex: 1 }}>
                 <Text style={{ color: miss ? c.red : c.text, fontSize: 15, fontWeight: '600' }}>{k.peer}</Text>
@@ -462,9 +476,9 @@ export default function Beam() {
         </View>
         {section === 'messages' && !searching ? (
           <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
-            {[false, true].map((u) => (
-              <Pressable key={String(u)} onPress={() => setUnreadOnly(u)} style={{ paddingHorizontal: 12, paddingVertical: 5, borderRadius: 10, backgroundColor: unreadOnly === u ? c.blue : c.search }}>
-                <Text style={{ fontSize: 12.5, fontWeight: '600', color: unreadOnly === u ? '#fff' : c.text2 }}>{u ? 'Unread' : 'All'}</Text>
+            {(['all', 'unread', 'archived'] as const).map((u) => (
+              <Pressable key={u} accessibilityRole="button" accessibilityState={{ selected: filter === u }} onPress={() => setFilter(u)} style={{ paddingHorizontal: 12, paddingVertical: 5, borderRadius: 10, backgroundColor: filter === u ? c.blue : c.search }}>
+                <Text style={{ fontSize: 12.5, fontWeight: '600', color: filter === u ? '#fff' : c.text2 }}>{u === 'all' ? 'All' : u === 'unread' ? 'Unread' : `Archived${archived.length ? ` ${archived.length}` : ''}`}</Text>
               </Pressable>
             ))}
           </View>

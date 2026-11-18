@@ -4,9 +4,10 @@
  * composer. It follows the system light/dark setting, not the Studento theme.
  */
 import { GlassView } from 'expo-glass-effect';
-import { Platform, Pressable, StyleSheet, Text, useColorScheme, View, type StyleProp, type ViewStyle } from 'react-native';
+import { Image, Platform, Pressable, StyleSheet, Text, useColorScheme, View, type StyleProp, type ViewStyle } from 'react-native';
 
 import { hasLiquidGlass } from '@/components/glass';
+import { useProfile } from '@/lib/beam-profile';
 import Svg, { Circle, Defs, LinearGradient, Path, Stop } from 'react-native-svg';
 
 export interface BeamPalette {
@@ -102,6 +103,9 @@ function hash(s: string): number {
 }
 
 export function BeamAvatar({ name, size = 46, gray = false }: { name: string; size?: number; gray?: boolean }) {
+  // Their profile photo when they set one, else the gradient letters.
+  const { photo } = useProfile(gray ? undefined : name);
+  if (photo) return <Image source={{ uri: photo }} accessibilityIgnoresInvertColors style={{ width: size, height: size, borderRadius: size / 2 }} />;
   const [a, b] = gray ? ['#C7C7CC', '#8E8E93'] : AV[hash(name) % AV.length];
   const id = gray ? 'avgray' : `av${hash(name) % AV.length}`;
   return (

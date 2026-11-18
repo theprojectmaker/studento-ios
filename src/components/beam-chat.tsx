@@ -6,23 +6,27 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Alert, Image, KeyboardAvoidingView, Linking, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Alert, Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { BeamContact } from '@/components/beam-contact';
 import { ChatBackground, isDarkBg } from '@/components/chat-background';
-import { ActionSheet, AttachSheet, CountdownSheet, PhotoViewer, PollSheet, StickerSheet, VideoViewer, type AttachKind } from '@/components/beam-sheets';
+import { ActionSheet, AttachSheet, CountdownSheet, ForwardSheet, ScheduleSheet, PhotoViewer, PollSheet, StickerSheet, VideoViewer, type AttachKind } from '@/components/beam-sheets';
 import { Piece } from '@/components/chessbuddy/Piece';
 import { BeamAvatar, BeamGlass, GlassButton, Glyph, useBeam, type BeamPalette } from '@/components/beam-ui';
 import { safetyNumber } from '@/lib/beam-crypto';
 import { tap } from '@/components/ui';
 import { getToken } from '@/lib/account';
 import * as api from '@/lib/api';
-import { newGame, sendTyping, setDisappearing, sweepExpired, TTL_OPTIONS, watchChatMeta } from '@/lib/beam-extra';
+import { newGame, sendTyping, setReceipts, setDisappearing, sweepExpired, TTL_OPTIONS, watchChatMeta } from '@/lib/beam-extra';
 import { getBackgroundPhoto, getPhotos, getVideo } from '@/lib/beam-media';
 import { setChatBg, useBeamSettings } from '@/lib/beam-settings';
 import { encode, fold, MAX_BODY, preview, type Folded, type Rich } from '@/lib/beam-msg';
 import { startCall } from '@/lib/calls';
+import { useCallAccess } from '@/lib/beam-on';
+import { firstUrl, LinkPreview, RichText, SwipeToReply, TypingDots } from '@/components/beam-chat-extras';
+import { getDraft, saveDraft, schedule, toggleStar, unschedule, useScheduled, useScheduledSender, useStars } from '@/lib/beam-local';
+import { CallAccessPill } from '@/components/beam-call-access';
 
 const HOUR = 60 * 60_000;
 
@@ -66,6 +70,7 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
   const c = useMemo(() => ({ ...base, outBubble: st.bubble }), [base, st.bubble]);
   const [meta, setMeta] = useState({ seen: false, typingAt: 0, ttl: 0 });
   const [contactOpen, setContactOpen] = useState(false);
+  const callAccess = useCallAccess();
   const chatBg = st.chatBgs[username] ?? '';
   const [typing, setTyping] = useState(false);
   const [search, setSearch] = useState<string | null>(null);
@@ -90,12 +95,25 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
   const insets = useSafeAreaInsets();
   const [raw, setRaw] = useState<api.ChatMessage[]>([]);
   const [blocked, setBlocked] = useState(false);
-  const [text, setText] = useState('');
+  // Draft per chat, kept on this phone.
+  const [text, setTextRaw] = useState(() => getDraft(username));
+  const setText = (t: string) => {
+    setTextRaw(t);
+    saveDraft(username, t);
+  };
+  const stars = useStars(username);
+  const starIds = useMemo(() => new Set(stars.map((x) => x.id)), [stars]);
+  const [starredOnly, setStarredOnly] = useState(false);
+  const scheduled = useScheduled(username);
+  useScheduledSender();
+  const [forward, setForward] = useState<Folded | null>(null);
+  const [people, setPeople] = useState<string[]>([]);
+  const [away, setAway] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [reply, setReply] = useState<Folded | null>(null);
   const [editing, setEditing] = useState<Folded | null>(null);
-  const [sheet, setSheet] = useState<'attach' | 'poll' | 'cd' | 'stk' | null>(null);
+  const [sheet, setSheet] = useState<'attach' | 'poll' | 'cd' | 'stk' | 'later' | null>(null);
   const [act, setAct] = useState<Folded | null>(null);
   const [photo, setPhoto] = useState<{ uri: string; once?: Folded } | null>(null);
   const [video, setVideo] = useState<string | null>(null);
@@ -130,6 +148,22 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
     if (Platform.OS === 'web') window.alert(msg);
     else Alert.alert('End-to-end encrypted', msg);
   };
+
+  // Read receipts: tell the chat whether I share them (off = neither side sees Read).
+  useEffect(() => {
+    if (username) void setReceipts(username, st.receipts).catch(() => {});
+  }, [username, st.receipts]);
+  useEffect(() => {
+    if (!forward) return;
+    void getToken().then((t) =>
+      t
+        ? api
+            .listThreads(t)
+            .then((l) => setPeople(l.map((x) => x.username).filter((u) => u && u !== username)))
+            .catch(() => {})
+        : undefined
+    );
+  }, [forward, username]);
 
   // Pinned messages live on this device only.
   const PIN_KEY = `beam.pins.${username}`;
@@ -218,6 +252,7 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
     setReply(null);
     if (r) return sendRich({ k: 'txt', t: body.slice(0, 500), r: r.id });
     setBusy('Sending…');
+    if (st.haptics) tap();
     try {
       await sendBody(body);
     } catch (e) {
@@ -229,6 +264,15 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
   };
 
   const attach = async (k: AttachKind) => {
+    if (k === 'schedule') {
+      if (!text.trim()) {
+        setSheet(null);
+        setErr('Type the message first, then choose Send later.');
+        return;
+      }
+      setSheet('later');
+      return;
+    }
     setSheet(k === 'poll' ? 'poll' : k === 'countdown' ? 'cd' : k === 'sticker' ? 'stk' : null);
     if (k === 'poll' || k === 'countdown' || k === 'sticker') return;
     if (k === 'chess') {
@@ -283,6 +327,16 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
     };
     const a: { label: string; red?: boolean; run: () => void }[] = [];
     if (!m.deleted) a.push({ label: 'Reply', run: close(() => setReply(m)) });
+    if (!m.deleted) a.push({ label: starIds.has(m.id) ? 'Unstar' : 'Star', run: close(() => toggleStar(username, { id: m.id, text: plain(m).slice(0, 200), at: m.createdAt })) });
+    if (!m.deleted && m.rich.k !== 'chess' && !(m.rich.k === 'img' && m.rich.once)) a.push({ label: 'Forward', run: close(() => setForward(m)) });
+    a.push({
+      label: 'Info',
+      run: close(() => {
+        const info = `Sent ${new Date(m.createdAt).toLocaleString()}${m.mine ? `\n${meta.seen && st.receipts ? 'Read' : 'Delivered'}` : ''}${keys?.peer ? '\nEnd-to-end encrypted' : ''}`;
+        if (Platform.OS === 'web') window.alert(info);
+        else Alert.alert('Message info', info);
+      }),
+    });
     if (!m.deleted) a.push({ label: pins.includes(m.id) ? 'Unpin' : 'Pin', run: close(() => togglePin(m.id)) });
     if (m.mine && !m.deleted && m.rich.k === 'txt')
       a.push({
@@ -330,7 +384,7 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
     <KeyboardAvoidingView style={{ flex: 1, backgroundColor: c.chatBg }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
       <View style={{ flex: 1 }}>
       <ChatBackground value={chatBg} />
-      <ScrollView ref={scroller} style={{ flex: 1 }} onLayout={() => search === null && scroller.current?.scrollToEnd({ animated: false })} keyboardDismissMode="interactive" keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 14, paddingTop: headH + 8, paddingBottom: 12 }} onContentSizeChange={() => search === null && scroller.current?.scrollToEnd({ animated: false })}>
+      <ScrollView ref={scroller} style={{ flex: 1 }} scrollEventThrottle={64} onScroll={(e) => { const n = e.nativeEvent; setAway(n.contentSize.height - n.contentOffset.y - n.layoutMeasurement.height > 600); }} onLayout={() => search === null && scroller.current?.scrollToEnd({ animated: false })} keyboardDismissMode="interactive" keyboardShouldPersistTaps="handled" contentContainerStyle={{ paddingHorizontal: 14, paddingTop: headH + 8, paddingBottom: 12 }} onContentSizeChange={() => search === null && scroller.current?.scrollToEnd({ animated: false })}>
         {keysFailed ? null : (
         <Pressable accessibilityRole="button" accessibilityLabel="Encryption details" onPress={showSafety} style={{ alignSelf: 'center', marginBottom: 6 }}>
           <BeamGlass c={c} radius={14} clear style={{ flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, maxWidth: 300 }}>
@@ -356,10 +410,12 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
           const runStart = newTime || prev?.mine !== m.mine;
           const runEnd = !next || next.mine !== m.mine || next.createdAt - m.createdAt > HOUR;
           const quoted = 'r' in m.rich && m.rich.r ? byId.get(m.rich.r) : undefined;
+          if (search !== null && starredOnly && !starIds.has(m.id)) return null;
           if (search && (m.deleted || !plain(m).toLowerCase().includes(search.toLowerCase()))) return null;
           return (
             <View key={m.id} onLayout={(e) => rowY.current.set(m.id, e.nativeEvent.layout.y)}>
               {newTime ? <Text style={{ textAlign: 'center', fontSize: 11, color: isDarkBg(chatBg) ? 'rgba(255,255,255,0.85)' : c.text3, marginTop: 16, marginBottom: 8, fontWeight: '500' }}>{stamp(m.createdAt)}</Text> : null}
+              <SwipeToReply c={c} enabled={st.swipeReply && !m.deleted && search === null} haptics={st.haptics} onReply={() => setReply(m)}>
               <View style={{ alignItems: m.mine ? 'flex-end' : 'flex-start', marginTop: runStart && !newTime ? 10 : 3 }}>
                 {quoted ? (
                   <View style={{ maxWidth: '70%', borderLeftWidth: 3, borderLeftColor: c.text3, paddingLeft: 8, marginBottom: 3, marginHorizontal: 6 }}>
@@ -399,27 +455,52 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
                     </BeamGlass>
                   ) : null}
                 </Pressable>
-                {(m.edited && !m.deleted) || pins.includes(m.id) ? (
+                {st.linkPreviews && !m.deleted && m.rich.k === 'txt' && firstUrl(m.rich.t) ? <LinkPreview url={firstUrl(m.rich.t)!} c={c} mine={m.mine} /> : null}
+                {(m.edited && !m.deleted) || pins.includes(m.id) || starIds.has(m.id) ? (
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 2, marginHorizontal: 6 }}>
                     {pins.includes(m.id) ? <Glyph.Pin color={c.text3} size={11} /> : null}
-                    <Text style={{ color: c.text3, fontSize: 10.5 }}>{[pins.includes(m.id) ? 'Pinned' : '', m.edited && !m.deleted ? 'Edited' : ''].filter(Boolean).join(' · ')}</Text>
+                    <Text style={{ color: c.text3, fontSize: 10.5 }}>{[starIds.has(m.id) ? '★ Starred' : '', pins.includes(m.id) ? 'Pinned' : '', m.edited && !m.deleted ? 'Edited' : ''].filter(Boolean).join(' · ')}</Text>
                   </View>
                 ) : null}
               </View>
+              </SwipeToReply>
               {timeFor === m.id ? <Text style={{ textAlign: m.mine ? 'right' : 'left', fontSize: 11, color: c.text3, marginTop: 3, marginHorizontal: 6 }}>{new Date(m.createdAt).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })}</Text> : null}
-              {m.mine && !next && !search ? <Text style={{ textAlign: 'right', fontSize: 11, color: c.text3, marginTop: 3, marginRight: 4, fontWeight: '500' }}>{meta.seen ? 'Read' : 'Delivered'}</Text> : null}
+              {m.mine && !next && !search ? <Text style={{ textAlign: 'right', fontSize: 11, color: c.text3, marginTop: 3, marginRight: 4, fontWeight: '500' }}>{meta.seen && st.receipts ? 'Read' : 'Delivered'}</Text> : null}
             </View>
           );
         })}
-        {typing && !search ? (
-          <View style={{ alignSelf: 'flex-start', flexDirection: 'row', gap: 4, backgroundColor: c.inBubble, borderRadius: 18, paddingHorizontal: 14, paddingVertical: 12, marginTop: 8 }}>
-            {[0.4, 0.6, 0.8].map((o) => (
-              <View key={o} style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: c.text3, opacity: o }} />
-            ))}
-          </View>
-        ) : null}
+        {search === null
+          ? scheduled.map((x) => (
+              <Pressable
+                key={x.key}
+                accessibilityLabel="Scheduled message, tap to cancel"
+                onPress={() => {
+                  const cancel = () => unschedule(x.key);
+                  if (Platform.OS === 'web') {
+                    if (window.confirm('Cancel this scheduled message?')) cancel();
+                  } else Alert.alert('Scheduled message', x.preview, [{ text: 'Keep', style: 'cancel' }, { text: 'Cancel it', style: 'destructive', onPress: cancel }]);
+                }}
+                style={{ alignSelf: 'flex-end', maxWidth: '78%', marginTop: 8 }}>
+                <View style={{ borderRadius: 18, borderWidth: 1.5, borderStyle: 'dashed', borderColor: c.outBubble, paddingHorizontal: 13, paddingVertical: 8 }}>
+                  <Text style={{ color: c.text, fontSize: st.textSize }}>{x.preview}</Text>
+                </View>
+                <Text style={{ textAlign: 'right', color: c.text3, fontSize: 11, marginTop: 3, marginRight: 4 }}>{`Sends ${new Date(x.at).toLocaleString([], { weekday: 'short', hour: 'numeric', minute: '2-digit' })} · tap to cancel`}</Text>
+              </Pressable>
+            ))
+          : null}
+        {typing && !search ? <TypingDots c={c} /> : null}
         {err ? <Text style={{ textAlign: 'center', color: c.red, fontSize: 12, marginTop: 10 }}>{err}</Text> : null}
       </ScrollView>
+
+      {away && search === null ? (
+        <View style={{ position: 'absolute', right: 14, bottom: 12 }}>
+          <GlassButton c={c} label="Jump to latest" size={40} onPress={() => scroller.current?.scrollToEnd({ animated: true })}>
+            <View style={{ transform: [{ rotate: '180deg' }] }}>
+              <Glyph.Up color={c.text} />
+            </View>
+          </GlassButton>
+        </View>
+      ) : null}
 
       {/* Floating Liquid Glass header: content scrolls under it. */}
       <View pointerEvents="box-none" onLayout={(e) => setHeadH(e.nativeEvent.layout.height)} style={{ position: 'absolute', left: 0, right: 0, top: 0, paddingTop: onBack ? insets.top + 4 : 10, paddingHorizontal: 10, gap: 8 }}>
@@ -454,7 +535,7 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
               <Pressable accessibilityRole="button" accessibilityLabel="Search this chat" onPress={() => setSearch(search === null ? '' : null)} hitSlop={4} style={{ width: 36, height: 44, alignItems: 'center', justifyContent: 'center' }}>
                 <Glyph.Search color={c.text} size={18} />
               </Pressable>
-              {blocked ? null : (
+              {blocked ? null : !callAccess.allowed ? null : (
                 <>
                   <Pressable accessibilityRole="button" accessibilityLabel="Video call" onPress={() => void startCall(username, true).catch((e) => setErr(String(e?.message ?? e)))} hitSlop={4} style={{ width: 38, height: 44, alignItems: 'center', justifyContent: 'center' }}>
                     <Glyph.Video color={c.text} size={23} />
@@ -465,13 +546,21 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
                 </>
               )}
             </BeamGlass>
+            {blocked || callAccess.allowed ? null : (
+              <View style={{ marginTop: 6 }}>
+                <CallAccessPill c={c} height={32} />
+              </View>
+            )}
           </View>
         </View>
         {search !== null ? (
           <BeamGlass c={c} radius={19} style={{ flexDirection: 'row', alignItems: 'center', gap: 6, height: 38, paddingHorizontal: 11 }}>
             <Glyph.Search color={c.text3} />
             <TextInput value={search} onChangeText={setSearch} autoFocus placeholder="Search this chat" placeholderTextColor={c.text3} style={{ flex: 1, color: c.text, fontSize: 15, height: '100%' }} />
-            <Pressable onPress={() => setSearch(null)} hitSlop={8}>
+            <Pressable accessibilityRole="button" accessibilityState={{ selected: starredOnly }} onPress={() => setStarredOnly(!starredOnly)} hitSlop={6} style={{ paddingHorizontal: 9, paddingVertical: 4, borderRadius: 11, backgroundColor: starredOnly ? c.blue : c.search }}>
+              <Text style={{ color: starredOnly ? '#fff' : c.text2, fontSize: 12.5, fontWeight: '600' }}>{`★ ${stars.length}`}</Text>
+            </Pressable>
+            <Pressable onPress={() => { setSearch(null); setStarredOnly(false); }} hitSlop={8}>
               <Text style={{ color: c.blue, fontSize: 15, fontWeight: '600' }}>Done</Text>
             </Pressable>
           </BeamGlass>
@@ -566,6 +655,40 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
       </View>
 
       <AttachSheet c={c} open={sheet === 'attach'} onClose={() => setSheet(null)} onPick={(k) => void attach(k)} />
+      <ScheduleSheet
+        c={c}
+        open={sheet === 'later'}
+        onClose={() => setSheet(null)}
+        onPick={(at) => {
+          const body = text.trim();
+          setSheet(null);
+          if (!body) return;
+          schedule(username, reply ? encode({ k: 'txt', t: body.slice(0, 500), r: reply.id }) : body.slice(0, 500), at, body.slice(0, 200));
+          setText('');
+          setReply(null);
+        }}
+      />
+      <ForwardSheet
+        c={c}
+        open={!!forward}
+        people={people}
+        onClose={() => setForward(null)}
+        onPick={(to) => {
+          const m = forward;
+          setForward(null);
+          if (!m) return;
+          const r = { ...m.rich } as Rich & { r?: number };
+          delete r.r;
+          void getToken().then((t) =>
+            t
+              ? api
+                  .sendMessage(t, to, r.k === 'txt' ? r.t : encode(r))
+                  .then(() => setErr(`Forwarded to ${to}.`))
+                  .catch((e) => setErr(e instanceof Error ? e.message : "Couldn't forward."))
+              : undefined
+          );
+        }}
+      />
       <StickerSheet
         c={c}
         open={sheet === 'stk'}
@@ -618,6 +741,7 @@ export function BeamChat({ username, onBack }: { username: string; onBack?: () =
         ttl={meta.ttl}
         blocked={blocked}
         onCall={(video) => {
+          if (!callAccess.allowed) return setErr('Tap Early access at the top to ask for this.');
           setContactOpen(false);
           void startCall(username, video).catch((e) => setErr(String(e?.message ?? e)));
         }}
@@ -705,19 +829,7 @@ function Body({
     case 'txt':
       // a message that is only one or two emoji shows big, like iMessage
       if (st.bigEmoji && /^\p{Extended_Pictographic}(‍?\p{Extended_Pictographic}|️){0,6}$/u.test(r.t.trim())) return <Text style={{ fontSize: 44 }}>{r.t.trim()}</Text>;
-      return bubble(
-        <Text style={{ color: fg, fontSize: st.textSize, lineHeight: st.textSize * 1.3, letterSpacing: -0.1 }}>
-          {r.t.split(/(https?:\/\/[^\s]+)/g).map((part, i) =>
-            /^https?:\/\//.test(part) ? (
-              <Text key={i} style={{ textDecorationLine: 'underline' }} onPress={() => void Linking.openURL(part).catch(() => {})}>
-                {part}
-              </Text>
-            ) : (
-              part
-            )
-          )}
-        </Text>
-      );
+      return bubble(<RichText text={r.t} style={{ color: fg, fontSize: st.textSize, lineHeight: st.textSize * 1.3, letterSpacing: -0.1 }} />);
     case 'chess':
       // Chess Buddy style invite: green board color, the two kings, a big Play button.
       return (

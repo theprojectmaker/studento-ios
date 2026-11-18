@@ -1,10 +1,11 @@
 /** Pop-up sheets for a Beam chat: attach menu, poll + countdown makers, message actions, viewers. */
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useEffect, useState } from 'react';
-import { Image, Linking, Modal, Platform, Pressable, Text, TextInput, View } from 'react-native';
+import { Image, Linking, Modal, Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { WebView } from 'react-native-webview';
 
-import { Glyph, type BeamPalette } from '@/components/beam-ui';
+import { BeamAvatar, Glyph, type BeamPalette } from '@/components/beam-ui';
 import { REACTIONS, STICKERS } from '@/lib/beam-msg';
 
 function Sheet({ c, open, onClose, children }: { c: BeamPalette; open: boolean; onClose: () => void; children: React.ReactNode }) {
@@ -21,7 +22,7 @@ function Sheet({ c, open, onClose, children }: { c: BeamPalette; open: boolean; 
   );
 }
 
-export type AttachKind = 'camera' | 'photos' | 'once' | 'video' | 'record' | 'poll' | 'countdown' | 'sticker' | 'chess';
+export type AttachKind = 'camera' | 'photos' | 'once' | 'video' | 'record' | 'poll' | 'countdown' | 'sticker' | 'chess' | 'schedule';
 
 const ATTACH: { k: AttachKind; label: string; tint: string; icon: keyof typeof Glyph }[] = [
   { k: 'camera', label: 'Camera', tint: '#8e8e93', icon: 'Camera' },
@@ -33,6 +34,7 @@ const ATTACH: { k: AttachKind; label: string; tint: string; icon: keyof typeof G
   { k: 'countdown', label: 'Countdown', tint: '#64d2ff', icon: 'Timer' },
   { k: 'sticker', label: 'Stickers', tint: '#ffd60a', icon: 'Smile' },
   { k: 'chess', label: 'Chess', tint: '#a2845e', icon: 'Person' },
+  { k: 'schedule', label: 'Send later', tint: '#5e5ce6', icon: 'Timer' },
 ];
 
 export function AttachSheet({ c, open, onClose, onPick }: { c: BeamPalette; open: boolean; onClose: () => void; onPick: (k: AttachKind) => void }) {
@@ -55,16 +57,104 @@ export function AttachSheet({ c, open, onClose, onPick }: { c: BeamPalette; open
   );
 }
 
+/** Sticker packs (big emoji sent as stickers), with a Recent row kept on this device. */
+const PACKS: [string, string[]][] = [
+  ['Faces', ['😀', '😂', '🤣', '🥹', '😊', '😍', '🥰', '😘', '😎', '🤩', '🥳', '😏', '😴', '🤯', '😭', '😡', '🥺', '😬', '🙄', '🤔', '🫠', '🤐', '😇', '🤪', '😵‍💫', '🫡', '🤗', '😤', '😱', '🤒']],
+  ['Hands', ['👍', '👎', '👏', '🙌', '🙏', '🤝', '✌️', '🤞', '👌', '🤌', '👋', '💪', '🫶', '☝️', '👀', '🫵', '✍️', '🤙']],
+  ['Hearts', ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '💔', '❤️‍🔥', '💕', '💯', '✨', '🔥', '⭐', '🌈', '💫', '🎉']],
+  ['School', ['📚', '✏️', '📝', '📐', '🧮', '🧪', '🔬', '🎒', '🏫', '⏰', '📅', '🧠', '💻', '🎓', '📎', '🗂️', '🏆', '🥇']],
+  ['Fun', ['⚽', '🏀', '🏈', '🎮', '🎧', '🎸', '🎨', '🍕', '🍔', '🍟', '🌮', '🍩', '🍦', '☕', '🧋', '🚗', '✈️', '🏖️']],
+  ['Animals', ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐸', '🐵', '🐧', '🐢', '🦄', '🐝', '🦋']],
+];
+const K_RECENT = 'beam.stickers.recent';
+
 export function StickerSheet({ c, open, onClose, onPick }: { c: BeamPalette; open: boolean; onClose: () => void; onPick: (e: string) => void }) {
+  const [tab, setTab] = useState(0);
+  const [recent, setRecent] = useState<string[]>([]);
+  useEffect(() => {
+    if (!open) return;
+    AsyncStorage.getItem(K_RECENT)
+      .then((s) => setRecent(s ? (JSON.parse(s) as string[]) : []))
+      .catch(() => {});
+  }, [open]);
+  const pick = (e: string) => {
+    const next = [e, ...recent.filter((x) => x !== e)].slice(0, 18);
+    void AsyncStorage.setItem(K_RECENT, JSON.stringify(next)).catch(() => {});
+    onPick(e);
+  };
+  const tabs: [string, string[]][] = recent.length ? [['Recent', recent], ...PACKS] : PACKS;
+  const list = tabs[Math.min(tab, tabs.length - 1)]?.[1] ?? STICKERS;
   return (
     <Sheet c={c} open={open} onClose={onClose}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingBottom: 10 }}>
+        {tabs.map(([name], i) => (
+          <Pressable key={name} onPress={() => setTab(i)} style={{ paddingHorizontal: 12, paddingVertical: 6, borderRadius: 14, backgroundColor: i === tab ? c.blue : c.search }}>
+            <Text style={{ color: i === tab ? '#fff' : c.text2, fontSize: 13, fontWeight: '600' }}>{name}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
       <View style={{ flexDirection: 'row', flexWrap: 'wrap' }}>
-        {STICKERS.map((e) => (
-          <Pressable key={e} onPress={() => onPick(e)} style={{ width: '16.66%', alignItems: 'center', paddingVertical: 8 }}>
+        {list.map((e) => (
+          <Pressable key={e} accessibilityLabel={`Send ${e}`} onPress={() => pick(e)} style={{ width: '16.66%', alignItems: 'center', paddingVertical: 8 }}>
             <Text style={{ fontSize: 34 }}>{e}</Text>
           </Pressable>
         ))}
       </View>
+    </Sheet>
+  );
+}
+
+/** When to send a scheduled message. */
+export function ScheduleSheet({ c, open, onClose, onPick }: { c: BeamPalette; open: boolean; onClose: () => void; onPick: (at: number, label: string) => void }) {
+  const at = (h: number, m = 0, dayOffset = 0) => {
+    const d = new Date();
+    d.setDate(d.getDate() + dayOffset);
+    d.setHours(h, m, 0, 0);
+    return d.getTime();
+  };
+  // Times are worked out when tapped, so they are never stale.
+  const next = (h: number, m = 0) => {
+    const t = at(h, m);
+    return t > Date.now() ? t : at(h, m, 1);
+  };
+  const opts: [string, () => number][] = [
+    ['In 15 minutes', () => Date.now() + 15 * 60_000],
+    ['In 1 hour', () => Date.now() + 3600_000],
+    ['In 3 hours', () => Date.now() + 3 * 3600_000],
+    ['Next 8:00 PM', () => next(20)],
+    ['Tomorrow at 7:30 AM', () => at(7, 30, 1)],
+    ['Tomorrow at 3:00 PM', () => at(15, 0, 1)],
+  ];
+  return (
+    <Sheet c={c} open={open} onClose={onClose}>
+      <Text style={{ color: c.text, fontSize: 17, fontWeight: '700', marginBottom: 4 }}>Send later</Text>
+      <Text style={{ color: c.text3, fontSize: 13, marginBottom: 10 }}>Type the message first. It sends from this phone at that time while Beam is open, or the next time you open it.</Text>
+      {opts.map(([label, t]) => (
+        <Pressable key={label} onPress={() => onPick(t(), label)} style={({ pressed }) => ({ paddingVertical: 13, paddingHorizontal: 6, borderRadius: 10, backgroundColor: pressed ? c.rowPress : 'transparent' })}>
+          <Text style={{ color: c.blue, fontSize: 16 }}>{label}</Text>
+        </Pressable>
+      ))}
+    </Sheet>
+  );
+}
+
+/** Forward a message to another chat. */
+export function ForwardSheet({ c, open, people, onClose, onPick }: { c: BeamPalette; open: boolean; people: string[]; onClose: () => void; onPick: (u: string) => void }) {
+  const [q, setQ] = useState('');
+  const shown = people.filter((p) => p.includes(q.trim().toLowerCase())).slice(0, 30);
+  return (
+    <Sheet c={c} open={open} onClose={onClose}>
+      <Text style={{ color: c.text, fontSize: 17, fontWeight: '700', marginBottom: 8 }}>Forward to</Text>
+      <Field c={c} value={q} onChangeText={setQ} placeholder="Search chats" autoCapitalize="none" autoCorrect={false} />
+      <ScrollView style={{ maxHeight: 340, marginTop: 8 }}>
+        {shown.length === 0 ? <Text style={{ color: c.text3, padding: 12 }}>No chats yet.</Text> : null}
+        {shown.map((u) => (
+          <Pressable key={u} onPress={() => onPick(u)} style={({ pressed }) => ({ flexDirection: 'row', alignItems: 'center', gap: 10, padding: 8, borderRadius: 10, backgroundColor: pressed ? c.rowPress : 'transparent' })}>
+            <BeamAvatar name={u} size={36} />
+            <Text style={{ color: c.text, fontSize: 15.5, fontWeight: '600' }}>{u}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
     </Sheet>
   );
 }

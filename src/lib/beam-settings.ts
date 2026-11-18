@@ -9,11 +9,17 @@ export interface BeamSettings {
   haptics: boolean;
   enterSends: boolean;
   bigEmoji: boolean;
+  /** send and show Read receipts (off = neither side sees Read, like WhatsApp) */
+  receipts: boolean;
+  /** swipe a bubble right to reply */
+  swipeReply: boolean;
+  /** show a preview card for links */
+  linkPreviews: boolean;
   /** per-chat background by username: a preset id or a photo data URI */
   chatBgs: Record<string, string>;
 }
 export const BUBBLES = ['#0b84fe', '#34c759', '#af52de', '#ff2d55', '#ff9500', '#5e5ce6', '#30b0c7', '#1c1c1e', '#ff6482', '#64d2ff', '#bf5af2', '#a2845e'];
-const DEFAULTS: BeamSettings = { bubble: BUBBLES[0], textSize: 16, alerts: true, haptics: true, enterSends: false, bigEmoji: true, chatBgs: {} };
+const DEFAULTS: BeamSettings = { bubble: BUBBLES[0], textSize: 16, alerts: true, haptics: true, enterSends: false, bigEmoji: true, receipts: true, swipeReply: true, linkPreviews: true, chatBgs: {} };
 const KEY = 'beam.settings';
 
 let state: BeamSettings = DEFAULTS;

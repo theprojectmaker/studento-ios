@@ -241,6 +241,7 @@ export const deleteAccount = (_t: string, password: string) =>
     await deleteDoc(doc(db, 'blocks', u.uid)).catch(() => {});
     await deleteDoc(doc(db, 'usernames', d.username)).catch(() => {});
     await deleteDoc(doc(db, 'keys', u.uid)).catch(() => {});
+    await deleteDoc(doc(db, 'profiles', u.uid)).catch(() => {});
     await deleteDoc(doc(db, 'users', u.uid));
     await u.delete();
     return {};

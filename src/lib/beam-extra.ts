@@ -169,13 +169,16 @@ export interface AccessRequest {
   num?: number;
 }
 
-export function watchMyAccess(cb: (s: AccessStatus, num?: number) => void): () => void {
+/** Which early-access list: Beam itself, or calls (approved separately). */
+export type AccessList = 'access' | 'callAccess';
+
+export function watchMyAccess(cb: (s: AccessStatus, num?: number) => void, list: AccessList = 'access'): () => void {
   let stop = () => {};
   let dead = false;
   void currentUser().then((u) => {
     if (!u || dead) return;
     stop = onSnapshot(
-      doc(fbDb(), 'access', u.uid),
+      doc(fbDb(), list, u.uid),
       (s) => cb(s.exists() ? (s.data().status as AccessStatus) : 'none', s.exists() ? (s.data().num as number | undefined) : undefined),
       () => cb('none')
     );
@@ -186,23 +189,23 @@ export function watchMyAccess(cb: (s: AccessStatus, num?: number) => void): () =
   };
 }
 
-export async function requestAccess(): Promise<void> {
+export async function requestAccess(list: AccessList = 'access'): Promise<void> {
   const u = await me();
   // Place in line from a +1 counter, so everyone gets their own number.
-  const ref = doc(fbDb(), 'counters', 'waitlist');
+  const ref = doc(fbDb(), 'counters', list === 'access' ? 'waitlist' : 'callwaitlist');
   const num = await runTransaction(fbDb(), async (tx) => {
     const n = Math.max(1, Number((await tx.get(ref)).data()?.next ?? 1));
     tx.set(ref, { next: n + 1 });
     return n;
   });
-  await setDoc(doc(fbDb(), 'access', u.uid), { username: await nameOf(u.uid), status: 'waiting', at: Date.now(), num });
+  await setDoc(doc(fbDb(), list, u.uid), { username: await nameOf(u.uid), status: 'waiting', at: Date.now(), num });
 }
 
 /** Admin: everyone on the list, waiting first. */
-export function watchAccessList(cb: (l: AccessRequest[]) => void): () => void {
+export function watchAccessList(cb: (l: AccessRequest[]) => void, list: AccessList = 'access'): () => void {
   try {
     return onSnapshot(
-      query(collection(fbDb(), 'access'), orderBy('at', 'desc'), limit(200)),
+      query(collection(fbDb(), list), orderBy('at', 'desc'), limit(200)),
       (snap) => {
         const rank = { waiting: 0, approved: 1, denied: 2, none: 3 };
         cb(snap.docs.map((d) => ({ uid: d.id, ...(d.data() as Omit<AccessRequest, 'uid'>) })).sort((a, b) => rank[a.status] - rank[b.status]));
@@ -214,12 +217,12 @@ export function watchAccessList(cb: (l: AccessRequest[]) => void): () => void {
   }
 }
 /** Admin: answer everyone waiting at once. */
-export async function decideAll(list: AccessRequest[], status: 'approved' | 'denied'): Promise<number> {
-  const w = list.filter((r) => r.status === 'waiting');
-  await Promise.all(w.map((r) => decide(r.uid, status)));
+export async function decideAll(reqs: AccessRequest[], status: 'approved' | 'denied', list: AccessList = 'access'): Promise<number> {
+  const w = reqs.filter((r) => r.status === 'waiting');
+  await Promise.all(w.map((r) => decide(r.uid, status, list)));
   return w.length;
 }
-export const decide = (uid: string, status: 'approved' | 'denied') => updateDoc(doc(fbDb(), 'access', uid), { status, at: Date.now() });
+export const decide = (uid: string, status: 'approved' | 'denied', list: AccessList = 'access') => updateDoc(doc(fbDb(), list, uid), { status, at: Date.now() });
 /** Admin: switch a flag (e.g. waitlist) on or off for everyone. */
 export const setFlag = (k: string, v: boolean) => setDoc(doc(fbDb(), 'config', 'flags'), { [k]: v }, { merge: true });
 
@@ -249,7 +252,9 @@ export function watchChatMeta(username: string, cb: (m: { seen: boolean; typingA
         ref,
         (s) => {
           const d = s.data() ?? {};
-          cb({ seen: Number((d.unread as Record<string, number> | undefined)?.[other] ?? 0) === 0, typingAt: Number((d.typing as Record<string, number> | undefined)?.[other] ?? 0), ttl: Number(d.ttl ?? 0) });
+          // Read receipts off on their side: never report Read.
+          const quiet = !!(d.quiet as Record<string, boolean> | undefined)?.[other];
+          cb({ seen: !quiet && Number((d.unread as Record<string, number> | undefined)?.[other] ?? 0) === 0, typingAt: Number((d.typing as Record<string, number> | undefined)?.[other] ?? 0), ttl: Number(d.ttl ?? 0) });
         },
         () => {}
       );
@@ -259,6 +264,12 @@ export function watchChatMeta(username: string, cb: (m: { seen: boolean; typingA
     dead = true;
     stop();
   };
+}
+
+/** Read receipts on/off for me in this chat (stored on the chat as quiet.{uid}). */
+export async function setReceipts(username: string, on: boolean): Promise<void> {
+  const { ref, mine } = await chatRef(username);
+  await updateDoc(ref, { [`quiet.${mine}`]: !on }).catch(() => {});
 }
 
 let lastTyping = 0;

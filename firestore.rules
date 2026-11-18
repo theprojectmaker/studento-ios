@@ -12,6 +12,12 @@ service cloud.firestore {
       return !exists(/databases/$(database)/documents/config/flags)
         || get(/databases/$(database)/documents/config/flags).data.get(name, true) != false;
     }
+    // Calls have their own early-access list (callAccess/{uid}); admins, or the flag off, skip it.
+    function canCall() {
+      return isAdmin() || !flagOn('callWaitlist')
+        || (exists(/databases/$(database)/documents/callAccess/$(me()))
+          && get(/databases/$(database)/documents/callAccess/$(me())).data.status == 'approved');
+    }
     function banned() { return exists(/databases/$(database)/documents/bans/$(me())); }
     function onlyChanges(keys) { return request.resource.data.diff(resource.data).affectedKeys().hasOnly(keys); }
     function blockedBy(other) {
@@ -127,7 +133,8 @@ service cloud.firestore {
       allow read: if signedIn() && (resource.data.to == me() || resource.data.from == me() || me() in resource.data.members);
       allow create: if signedIn() && flagOn('messaging') && request.resource.data.from == me() && !banned()
         && request.resource.data.members.size() == 2 && me() in request.resource.data.members
-        && !blockedBy(request.resource.data.to);
+        && !blockedBy(request.resource.data.to)
+        && canCall();
       allow update: if signedIn() && me() in resource.data.members
         && onlyChanges(['status', 'answeredAt', 'endedAt']);
       match /signals/{sig} {
@@ -163,6 +170,29 @@ service cloud.firestore {
 
     // Beam waiting list: a person asks once (status waiting); only the admin lets them in or denies.
     match /access/{uid} {
+      allow get: if signedIn() && (me() == uid || isAdmin());
+      allow list: if isAdmin();
+      allow create: if signedIn() && me() == uid && request.resource.data.status == 'waiting'
+        && request.resource.data.keys().hasOnly(['username', 'status', 'at', 'num']);
+      allow update, delete: if isAdmin();
+    }
+
+    // Beam profile: an optional small photo + short status, readable by signed-in users, written
+    // only by the owner. Nothing about contacts or chats.
+    match /profiles/{uid} {
+      allow get: if signedIn();
+      allow list: if false;
+      allow create, update: if signedIn() && me() == uid
+        && request.resource.data.keys().hasOnly(['status', 'photo', 'at'])
+        && request.resource.data.status is string && request.resource.data.status.size() <= 80
+        && request.resource.data.photo is string && request.resource.data.photo.size() <= 60000
+        && (request.resource.data.photo == '' || request.resource.data.photo.matches('^data:image/jpeg;base64,.*'))
+        && request.resource.data.at is number;
+      allow delete: if signedIn() && me() == uid;
+    }
+
+    // Early access for calls: same shape as the Beam list, approved separately by the admin.
+    match /callAccess/{uid} {
       allow get: if signedIn() && (me() == uid || isAdmin());
       allow list: if isAdmin();
       allow create: if signedIn() && me() == uid && request.resource.data.status == 'waiting'

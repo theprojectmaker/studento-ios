@@ -33,5 +33,18 @@ export function WaitlistWatcher() {
       })().catch(() => {});
     });
   }, [account, unlocked]);
+  // Same for the separate early-access list (calls), worded as early access.
+  useEffect(() => {
+    if (!account || account.user.admin || !unlocked) return;
+    return watchMyAccess((status) => {
+      void (async () => {
+        const last = await AsyncStorage.getItem(KEY + '.call');
+        await AsyncStorage.setItem(KEY + '.call', status);
+        if (status === 'approved' && last === 'waiting' && Platform.OS !== 'web') {
+          await Notifications.scheduleNotificationAsync({ content: { title: 'Studento', body: 'Your early access is ready. Open the app to try it.', sound: true, data: { kind: 'waitlist' } }, trigger: null });
+        }
+      })().catch(() => {});
+    }, 'callAccess');
+  }, [account, unlocked]);
   return null;
 }

@@ -1,9 +1,11 @@
 /** Beam settings, with the live count of every message sent on Beam at the top. */
 import { useEffect, useState } from 'react';
-import { Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { Pressable, ScrollView, Switch, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { type BeamPalette } from '@/components/beam-ui';
+import { BeamAvatar, type BeamPalette } from '@/components/beam-ui';
+import { pickProfilePhoto, saveMyProfile, STATUS_PRESETS, useProfile } from '@/lib/beam-profile';
+import { useStore } from '@/lib/store';
 import { watchMessageCount } from '@/lib/beam-extra';
 import { BUBBLES, setBeamSetting, useBeamSettings, type BeamSettings } from '@/lib/beam-settings';
 
@@ -19,6 +21,14 @@ export function BeamSettingsPane({ c, wide, topPad }: { c: BeamPalette; wide: bo
   const st = useBeamSettings();
   const [count, setCount] = useState<number | null>(null);
   useEffect(() => watchMessageCount(setCount), []);
+  const me = useStore((s) => s.account?.user.username ?? '');
+  const prof = useProfile(me || undefined);
+  const [status, setStatus] = useState<string | null>(null);
+  const [pmsg, setPmsg] = useState<string | null>(null);
+  const save = (p: { status?: string; photo?: string }) =>
+    void saveMyProfile(me, p)
+      .then(() => setPmsg('Saved.'))
+      .catch((e) => setPmsg(e instanceof Error ? e.message : "Couldn't save."));
 
   const toggle = (k: keyof BeamSettings, label: string, sub: string) => (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 10, paddingHorizontal: 14 }}>
@@ -50,6 +60,39 @@ export function BeamSettingsPane({ c, wide, topPad }: { c: BeamPalette; wide: bo
           <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 14 }}>messages sent on Beam</Text>
         </View>
 
+        {me
+          ? group(
+              'Profile',
+              <View style={{ padding: 14, gap: 10 }}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+                  <BeamAvatar name={me} size={56} />
+                  <View style={{ flex: 1, gap: 6 }}>
+                    <Text style={{ color: c.text, fontSize: 17, fontWeight: '700' }}>{me}</Text>
+                    <View style={{ flexDirection: 'row', gap: 8 }}>
+                      <Pressable onPress={() => void pickProfilePhoto().then((d) => d && save({ photo: d })).catch((e) => setPmsg(e instanceof Error ? e.message : 'Failed'))}>
+                        <Text style={{ color: c.blue, fontSize: 14, fontWeight: '600' }}>{prof.photo ? 'Change photo' : 'Add photo'}</Text>
+                      </Pressable>
+                      {prof.photo ? (
+                        <Pressable onPress={() => save({ photo: '' })}>
+                          <Text style={{ color: c.red, fontSize: 14 }}>Remove</Text>
+                        </Pressable>
+                      ) : null}
+                    </View>
+                  </View>
+                </View>
+                <TextInput value={status ?? prof.status} onChangeText={setStatus} onEndEditing={() => status !== null && save({ status })} placeholder="Status (anyone on Beam can see it)" placeholderTextColor={c.text3} maxLength={80} style={{ color: c.text, fontSize: 15, backgroundColor: c.search, borderRadius: 10, paddingHorizontal: 12, paddingVertical: 9 }} />
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+                  {STATUS_PRESETS.map((p) => (
+                    <Pressable key={p} onPress={() => { setStatus(p); save({ status: p }); }} style={{ paddingHorizontal: 10, paddingVertical: 5, borderRadius: 12, backgroundColor: (status ?? prof.status) === p ? c.blue : c.search }}>
+                      <Text style={{ color: (status ?? prof.status) === p ? '#fff' : c.text2, fontSize: 12.5, fontWeight: '600' }}>{p}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                {pmsg ? <Text style={{ color: c.text3, fontSize: 12 }}>{pmsg}</Text> : null}
+              </View>
+            )
+          : null}
+
         {group(
           'Bubble color',
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10, padding: 14 }}>
@@ -75,7 +118,10 @@ export function BeamSettingsPane({ c, wide, topPad }: { c: BeamPalette; wide: bo
           <>
             {toggle('enterSends', 'Return key sends', 'Press return to send instead of a new line')}
             {toggle('bigEmoji', 'Big emoji', 'A message that is only emoji shows large')}
-            {toggle('haptics', 'Haptics', 'A small tap when you react or vote')}
+            {toggle('haptics', 'Haptics', 'A small tap when you send, react or vote')}
+            {toggle('swipeReply', 'Swipe to reply', 'Swipe a message to the right to reply to it')}
+            {toggle('linkPreviews', 'Link previews', 'Show a title card for links people send')}
+            {toggle('receipts', 'Read receipts', 'Off: nobody sees Read, including you')}
           </>
         )}
 
