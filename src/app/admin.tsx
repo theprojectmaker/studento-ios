@@ -99,24 +99,22 @@ export default function Admin() {
     );
   }
   return (
-    <View style={{ flex: 1 }}>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 6, paddingHorizontal: 12, paddingVertical: 8 }}>
+    <Screen>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 6, paddingVertical: 4 }}>
         {TABS.map(([k, l]) => (
           <Button key={k} title={l} kind={tab === k ? undefined : 'plain'} onPress={() => setTab(k)} />
         ))}
       </ScrollView>
-      <View style={{ flex: 1 }}>
-        {tab === 'dash' ? <Screen><AdminDashboard /></Screen> : null}
-        {tab === 'switches' ? <Screen><AdminSwitches /></Screen> : null}
-        {tab === 'announce' ? <Screen><AnnouncementsAdmin /></Screen> : null}
-        {tab === 'accounts' ? <Screen><AccountsAdmin /></Screen> : null}
-        {tab === 'waitlist' ? <Screen><WaitlistAdmin /></Screen> : null}
-        {tab === 'codes' ? <Screen><PromoCodesAdmin /></Screen> : null}
-        {tab === 'reports' || tab === 'schools' ? <Moderation tab={tab} /> : null}
-        {tab === 'config' ? <Screen><AppConfigAdmin /></Screen> : null}
-        {tab === 'log' ? <Screen><AuditLogAdmin /></Screen> : null}
-      </View>
-    </View>
+      {tab === 'dash' ? <AdminDashboard /> : null}
+      {tab === 'switches' ? <AdminSwitches /> : null}
+      {tab === 'announce' ? <AnnouncementsAdmin /> : null}
+      {tab === 'accounts' ? <AccountsAdmin /> : null}
+      {tab === 'waitlist' ? <WaitlistAdmin /> : null}
+      {tab === 'codes' ? <PromoCodesAdmin /> : null}
+      {tab === 'reports' || tab === 'schools' ? <Moderation tab={tab} /> : null}
+      {tab === 'config' ? <AppConfigAdmin /> : null}
+      {tab === 'log' ? <AuditLogAdmin /> : null}
+    </Screen>
   );
 }
 
@@ -178,7 +176,7 @@ function Moderation({ tab }: { tab: 'reports' | 'schools' }) {
   };
 
   return (
-    <Screen>
+    <>
       {tab === 'reports' ? (
       <Section title="Reports" footer="What students flagged on shared schools and schedules. Delete removes the flagged item; Dismiss just clears the report.">
         {reports === null ? <Note>Loading…</Note> : reports.length === 0 ? <Note>No reports.</Note> : null}
@@ -243,6 +241,6 @@ function Moderation({ tab }: { tab: 'reports' | 'schools' }) {
         </Section>
       )}
       {msg ? <Note tone={msg.tone}>{msg.text}</Note> : null}
-    </Screen>
+    </>
   );
 }
