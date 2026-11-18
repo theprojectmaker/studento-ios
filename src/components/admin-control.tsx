@@ -1,11 +1,12 @@
 /** Admin control center: dashboard counts, maintenance, and every kill switch. */
 import { doc, setDoc } from 'firebase/firestore';
 import { useEffect, useState } from 'react';
-import { View } from 'react-native';
+import { Share, View } from 'react-native';
 
 import { Button, Divider, Field, Note, Row, Section, ToggleRow } from '@/components/ui';
 import { FEATURES, useFlags } from '@/lib/admin-switches';
 import { AREAS, areaFlag, audit, listCodes, watchAudit, type AuditEntry } from '@/lib/admin-tools';
+import { toCsv } from '@/lib/admin-extra';
 import * as api from '@/lib/api';
 import { banOver, setFlag, totals, watchAccessList, watchAnnouncements, watchBans, watchMessageCount, type AccessRequest, type Announcement, type Ban } from '@/lib/beam-extra';
 import { fbDb } from '@/lib/fb';
@@ -92,6 +93,30 @@ export function AdminDashboard() {
         <Row label="Switches off" value={String(off + (flags.maintenance === true ? 1 : 0))} />
         <Divider />
         <Row label="Maintenance mode" value={flags.maintenance === true ? 'ON' : 'off'} />
+        <View style={{ padding: 12 }}>
+          <Button
+            title="Export counts (CSV)"
+            kind="plain"
+            onPress={() =>
+              void Share.share({
+                message: toCsv([
+                  ['metric', 'value'],
+                  ['accounts', accounts ?? 0],
+                  ['messages_all_time', live ?? 0],
+                  ['banned_or_chat_off', banList.length],
+                  ['waiting_beam', waiting],
+                  ['open_reports', reports ?? 0],
+                  ['announcements_live', liveAnn],
+                  ['announcements_scheduled', scheduled],
+                  ['promo_unused', codes?.open ?? 0],
+                  ['promo_used', codes?.used ?? 0],
+                  ['switches_off', off + (flags.maintenance === true ? 1 : 0)],
+                  ['exported_at', new Date().toISOString()],
+                ]),
+              }).catch(() => {})
+            }
+          />
+        </View>
       </Section>
       <Section title="Latest admin actions">
         {log.length === 0 ? <Note>Nothing yet.</Note> : null}

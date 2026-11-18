@@ -1,14 +1,18 @@
 /** A fully banned account sees only this screen; nothing else in the app works for it. */
-import { useEffect, useState } from 'react';
+import Constants from 'expo-constants';
+import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
 import { router, usePathname } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { useEffect, useState } from 'react';
 
-import { areaFlag, areaForPath } from '@/lib/admin-tools';
+import { areaFlag, areaForPath, cmpVersion, watchAppConfig } from '@/lib/admin-tools';
+import { useRemoteBanner } from '@/lib/admin-extra';
 import { watchFlags } from '@/lib/beam-extra';
 import { useStore } from '@/lib/store';
 
 import { useTheme } from '@/lib/hooks';
 import { useMyBan } from '@/lib/my-ban';
+
+const APP_STORE_URL = 'https://apps.apple.com/app/id6825547011';
 
 /** Maintenance mode: everyone but admins sees a "be right back" screen. */
 export function MaintenanceGate() {
@@ -56,6 +60,40 @@ export function AreaGate() {
       <Pressable accessibilityRole="button" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} style={{ paddingHorizontal: 22, paddingVertical: 10, borderRadius: 12, backgroundColor: theme.accent }}>
         <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Go back</Text>
       </Pressable>
+    </View>
+  );
+}
+
+/** Force-update: an app older than config/app minVersion can't be used until it updates. */
+export function ForceUpdateGate() {
+  const theme = useTheme();
+  const admin = useStore((s) => !!s.account?.user.admin);
+  const [min, setMin] = useState('');
+  useEffect(() => watchAppConfig((c) => setMin(c.minVersion)), []);
+  const version = Constants.expoConfig?.version ?? '0.0.0';
+  if (admin || !min || cmpVersion(version, min) >= 0) return null;
+  return (
+    <View style={[StyleSheet.absoluteFill, { zIndex: 19500, backgroundColor: theme.bg, alignItems: 'center', justifyContent: 'center', padding: 32, gap: 12 }]} onStartShouldSetResponder={() => true}>
+      <Text style={{ color: theme.ink, fontSize: 22, fontWeight: '700', textAlign: 'center' }}>Time to update</Text>
+      <Text style={{ color: theme.muted, fontSize: 15, textAlign: 'center', lineHeight: 21 }}>{`This version of Studento is out of date. Please update to keep using it.`}</Text>
+      {Platform.OS === 'ios' ? (
+        <Pressable accessibilityRole="button" onPress={() => void Linking.openURL(APP_STORE_URL).catch(() => {})} style={{ paddingHorizontal: 22, paddingVertical: 10, borderRadius: 12, backgroundColor: theme.accent }}>
+          <Text style={{ color: '#fff', fontSize: 16, fontWeight: '600' }}>Update now</Text>
+        </Pressable>
+      ) : null}
+    </View>
+  );
+}
+
+/** A thin app-wide banner the admin can push to everyone. */
+export function RemoteBanner() {
+  const theme = useTheme();
+  const banner = useRemoteBanner();
+  if (!banner) return null;
+  const bg = banner.tone === 'warn' ? '#b3261e' : theme.accent;
+  return (
+    <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, zIndex: 18000, backgroundColor: bg, paddingTop: 44, paddingBottom: 8, paddingHorizontal: 16 }}>
+      <Text style={{ color: '#fff', fontSize: 13, fontWeight: '600', textAlign: 'center' }}>{banner.text}</Text>
     </View>
   );
 }

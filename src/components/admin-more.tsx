@@ -3,7 +3,9 @@ import { useEffect, useState } from 'react';
 import { Alert, Platform, Share, Text, View } from 'react-native';
 
 import { Button, Divider, Field, Note, Row, Section, Segmented } from '@/components/ui';
+import { toCsv } from '@/lib/admin-extra';
 import { deleteCode, generateCodes, listCodes, PROMO_UNLOCKS, revokeCode, saveAppConfig, useAppConfig, watchAudit, type AuditEntry, type PromoCode } from '@/lib/admin-tools';
+import Constants from 'expo-constants';
 import { TYPE } from '@/lib/fonts';
 import { useTheme } from '@/lib/hooks';
 import { sz } from '@/lib/scale';
@@ -109,7 +111,13 @@ export function PromoCodesAdmin() {
       </Section>
 
       <Section title={`Codes (${all.filter((c) => !c.used && !c.revoked).length} unused · ${all.filter((c) => c.used).length} used)`}>
-        <View style={{ padding: 12 }}>
+        <View style={{ padding: 12, gap: 8 }}>
+          <Button
+            title="Export all as CSV"
+            kind="plain"
+            disabled={!all.length}
+            onPress={() => out(toCsv([['code_or_hint', 'unlocks', 'batch', 'status', 'used_by', 'used_at', 'created'], ...all.map((c) => [c.code ?? c.hint, label(c.unlock), c.batch, c.revoked ? 'revoked' : c.used ? 'used' : 'unused', c.usedName ?? '', c.usedAt ? new Date(c.usedAt).toISOString() : '', new Date(c.createdAt).toISOString()])]), 'share')}
+          />
           <Segmented
             value={show}
             onChange={setShow}
@@ -211,5 +219,108 @@ export function AuditLogAdmin() {
         </View>
       ))}
     </Section>
+  );
+}
+
+/** Slow mode, daily message cap and the word filter (soft, per-device for non-admins). */
+export function LimitsAdmin() {
+  const cfg = useAppConfig();
+  const [slow, setSlow] = useState<string | null>(null);
+  const [limit, setLimit] = useState<string | null>(null);
+  const [words, setWords] = useState<string | null>(null);
+  const [msg, setMsg] = useState<Tone | null>(null);
+  const save = (patch: Parameters<typeof saveAppConfig>[0], ok: string) =>
+    void saveAppConfig(patch)
+      .then(() => setMsg({ text: ok, tone: 'ok' }))
+      .catch((e: unknown) => setMsg({ text: errText(e), tone: 'error' }));
+  const slowV = slow ?? String(cfg.slowModeSec || '');
+  const limitV = limit ?? String(cfg.msgLimitPerDay || '');
+  const wordsV = words ?? (cfg.wordFilter ?? []).join(', ');
+
+  return (
+    <>
+      {msg ? <Note tone={msg.tone}>{msg.text}</Note> : null}
+      <Section title="Slow mode" footer="Least seconds between one person's messages. 0 = off. Admins are never limited.">
+        <View style={{ padding: 12, gap: 8 }}>
+          <Field value={slowV} onChangeText={(t) => setSlow(t.replace(/\D/g, '').slice(0, 4))} placeholder="Seconds (0 = off)" keyboardType="number-pad" />
+          <Button title="Save slow mode" kind="plain" onPress={() => save({ slowModeSec: Number(slowV) || 0 }, 'Slow mode saved.')} />
+        </View>
+      </Section>
+      <Section title="Daily message cap" footer="How many messages one account may send per day. 0 = no cap.">
+        <View style={{ padding: 12, gap: 8 }}>
+          <Field value={limitV} onChangeText={(t) => setLimit(t.replace(/\D/g, '').slice(0, 5))} placeholder="Messages per day (0 = off)" keyboardType="number-pad" />
+          <Button title="Save cap" kind="plain" onPress={() => save({ msgLimitPerDay: Number(limitV) || 0 }, 'Cap saved.')} />
+        </View>
+      </Section>
+      <Section title="Word filter" footer="Comma-separated words blocked in outgoing messages (whole word, any case). Leave empty for none.">
+        <View style={{ padding: 12, gap: 8 }}>
+          <Field value={wordsV} onChangeText={setWords} placeholder="e.g. spam, scam" multiline autoCapitalize="none" />
+          <Button title="Save word filter" kind="plain" onPress={() => save({ wordFilter: wordsV.split(',').map((w) => w.trim()).filter(Boolean).slice(0, 200) }, 'Word filter saved.')} />
+        </View>
+      </Section>
+    </>
+  );
+}
+
+/** Push: app-wide banner, theme of the day, and the minimum app version (force update). */
+export function PushAdmin() {
+  const theme = useTheme();
+  const cfg = useAppConfig();
+  const [text, setText] = useState<string | null>(null);
+  const [tone, setTone] = useState<'info' | 'warn'>('info');
+  const [bannerDays, setBannerDays] = useState(0);
+  const [tod, setTod] = useState<string | null>(null);
+  const [minV, setMinV] = useState<string | null>(null);
+  const [msg, setMsg] = useState<Tone | null>(null);
+  const save = (patch: Parameters<typeof saveAppConfig>[0], ok: string) =>
+    void saveAppConfig(patch)
+      .then(() => setMsg({ text: ok, tone: 'ok' }))
+      .catch((e: unknown) => setMsg({ text: errText(e), tone: 'error' }));
+  const bannerText = text ?? cfg.banner.text;
+  const todV = tod ?? cfg.themeOfDay;
+  const minVersion = minV ?? cfg.minVersion;
+
+  return (
+    <>
+      {msg ? <Note tone={msg.tone}>{msg.text}</Note> : null}
+      <Section title="App-wide banner" footer="A thin strip at the very top for everyone. Clear the text to take it down.">
+        <View style={{ padding: 12, gap: 8 }}>
+          <Field value={bannerText} onChangeText={setText} placeholder="Banner text (empty = off)" maxLength={120} />
+          <Segmented value={tone} onChange={setTone} options={[{ value: 'info', label: 'Info' }, { value: 'warn', label: 'Warning' }]} />
+          <Note>Takes itself down after</Note>
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+            {([['No end', 0], ['1 day', 1], ['3 days', 3], ['7 days', 7]] as [string, number][]).map(([l, d]) => (
+              <Button key={l} title={l} kind={bannerDays === d ? undefined : 'plain'} onPress={() => setBannerDays(d)} />
+            ))}
+          </View>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={{ flex: 1 }}>
+              <Button title="Show banner" disabled={!bannerText.trim()} onPress={() => save({ banner: { text: bannerText.trim(), tone, until: bannerDays ? Date.now() + bannerDays * 86400_000 : 0 } }, 'Banner shown.')} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Button title="Take down" kind="danger" onPress={() => { setText(''); save({ banner: { text: '', tone: 'info', until: 0 } }, 'Banner down.'); }} />
+            </View>
+          </View>
+        </View>
+      </Section>
+      <Section title="Theme of the day" footer="Pushed as a suggestion; people can still pick their own. Empty = none.">
+        <View style={{ padding: 12, gap: 8 }}>
+          <Field value={todV} onChangeText={setTod} placeholder="Theme id (empty = none)" autoCapitalize="none" autoCorrect={false} />
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+            {THEMES.slice(0, 8).map((t) => (
+              <Button key={t.id} title={t.name} kind={todV === t.id ? undefined : 'plain'} onPress={() => setTod(t.id)} />
+            ))}
+          </View>
+          <Button title="Save theme of the day" kind="plain" disabled={!!todV && !THEMES.some((t) => t.id === todV)} onPress={() => save({ themeOfDay: todV.trim() }, 'Theme of the day saved.')} />
+        </View>
+      </Section>
+      <Section title="Force update" footer={`Accounts on an app older than this see an update screen. This app is ${Constants.expoConfig?.version ?? '?'}. Empty = off.`}>
+        <View style={{ padding: 12, gap: 8 }}>
+          <Field value={minVersion} onChangeText={setMinV} placeholder="Minimum version e.g. 1.3.0" autoCapitalize="none" autoCorrect={false} />
+          <Button title="Save minimum version" kind="plain" onPress={() => save({ minVersion: minVersion.trim() }, 'Minimum version saved.')} />
+          <Text style={{ ...TYPE.regular, color: theme.muted, fontSize: sz(12) }}>Set carefully: too high locks everyone out until they update.</Text>
+        </View>
+      </Section>
+    </>
   );
 }

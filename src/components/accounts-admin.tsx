@@ -4,8 +4,13 @@ import { View } from 'react-native';
 
 import { Button, Divider, Field, Note, Row, Section, ToggleRow } from '@/components/ui';
 import { DurationPick } from '@/components/admin-control';
-import { audit, getNote, saveNote } from '@/lib/admin-tools';
+import { audit, getNoteFull, saveNote } from '@/lib/admin-tools';
+import { FEATURES } from '@/lib/admin-switches';
+import { getOverride, recordBan, setOverride, watchBanHistory, type BanEvent, type UserOverride } from '@/lib/admin-extra';
 import { banOver, listAccounts, sendNotice, setBan, takeDownNotice, watchBans, watchNoticesFor, type Account, type Ban, type Notice } from '@/lib/beam-extra';
+
+/** Per-user feature overrides: force a Beam feature on or off for one account. */
+const OVERRIDE_KEYS = [...FEATURES.map((f) => ({ key: f.key, label: f.label })), { key: 'messaging', label: 'Beam (messaging)' }];
 
 function AccountTools({ a, ban }: { a: Account; ban?: Ban }) {
   const [notices, setNotices] = useState<Notice[]>([]);
@@ -16,9 +21,14 @@ function AccountTools({ a, ban }: { a: Account; ban?: Ban }) {
   const [banFor, setBanFor] = useState(0);
   const [msg, setMsg] = useState<{ text: string; tone: 'ok' | 'error' } | null>(null);
   const [noteText, setNoteText] = useState<string | null>(null);
+  const [tags, setTags] = useState<string | null>(null);
+  const [over, setOver] = useState<UserOverride | null>(null);
+  const [history, setHistory] = useState<BanEvent[]>([]);
   useEffect(() => watchNoticesFor(a.uid, setNotices), [a.uid]);
+  useEffect(() => watchBanHistory(a.uid, setHistory), [a.uid]);
   useEffect(() => {
-    void getNote(a.uid).then(setNoteText).catch(() => setNoteText(''));
+    void getNoteFull(a.uid).then((n) => { setNoteText(n.text); setTags(n.tags.join(', ')); }).catch(() => { setNoteText(''); setTags(''); });
+    void getOverride(a.uid).then(setOver).catch(() => setOver({ flags: {}, at: 0 }));
   }, [a.uid]);
 
   const run = async (label: string, fn: () => Promise<unknown>) => {
@@ -30,21 +40,43 @@ function AccountTools({ a, ban }: { a: Account; ban?: Ban }) {
       setMsg({ text: e instanceof Error ? e.message : 'Failed', tone: 'error' });
     }
   };
+  // Override cycles none -> on -> off -> none.
+  const cycle = (k: string) => {
+    const cur = over?.flags[k];
+    const next = { ...(over?.flags ?? {}) };
+    if (cur === undefined) next[k] = true;
+    else if (cur === true) next[k] = false;
+    else delete next[k];
+    setOver({ flags: next, at: over?.at ?? 0 });
+    void setOverride(a.uid, a.username, next).catch((e: unknown) => setMsg({ text: e instanceof Error ? e.message : 'Failed', tone: 'error' }));
+  };
+  const ovLabel = (k: string) => (over?.flags[k] === true ? 'forced on' : over?.flags[k] === false ? 'forced off' : 'default');
 
   return (
     <View style={{ paddingHorizontal: 12, paddingBottom: 12, gap: 8 }}>
       <Note>Private note (only admins see it)</Note>
       <Field value={noteText ?? ''} onChangeText={setNoteText} placeholder={noteText === null ? 'Loading…' : 'Notes about this account'} maxLength={2000} multiline />
-      <Button title="Save note" kind="plain" disabled={noteText === null} onPress={() => void saveNote(a.uid, a.username, noteText ?? '').then(() => setMsg({ text: 'Note saved.', tone: 'ok' })).catch((e: unknown) => setMsg({ text: e instanceof Error ? e.message : 'Failed', tone: 'error' }))} />
+      <Field value={tags ?? ''} onChangeText={setTags} placeholder="Tags (comma-separated)" autoCapitalize="none" />
+      <Button title="Save note & tags" kind="plain" disabled={noteText === null} onPress={() => void saveNote(a.uid, a.username, noteText ?? '', (tags ?? '').split(',').map((t) => t.trim()).filter(Boolean)).then(() => setMsg({ text: 'Saved.', tone: 'ok' })).catch((e: unknown) => setMsg({ text: e instanceof Error ? e.message : 'Failed', tone: 'error' }))} />
+      <Note>Feature overrides (tap to cycle default → on → off)</Note>
+      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
+        {OVERRIDE_KEYS.map((o) => (
+          <Button key={o.key} title={`${o.label}: ${ovLabel(o.key)}`} kind={over?.flags[o.key] === undefined ? 'plain' : over.flags[o.key] ? 'primary' : 'danger'} onPress={() => cycle(o.key)} />
+        ))}
+      </View>
       {ban ? <Note>{`${ban.level === 'full' ? 'Banned' : 'Chatting off'} since ${new Date(ban.at).toLocaleString()}${ban.until ? ` · until ${new Date(ban.until).toLocaleString()}` : ' · no end'}${ban.reason ? ` · ${ban.reason}` : ''}`}</Note> : null}
       <Field value={reason} onChangeText={setReason} placeholder="Reason they see (optional)" maxLength={200} />
       <Note>Ban lasts</Note>
       <DurationPick value={banFor} onChange={setBanFor} />
       <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 6 }}>
-        {ban?.level !== 'chat' ? <Button title="Turn off chatting" kind="plain" onPress={() => void run(`${a.username} can't message or call now.`, () => setBan(a.uid, 'chat', reason.trim(), banFor ? Date.now() + banFor : 0))} /> : null}
-        {ban?.level !== 'full' ? <Button title="Ban fully" kind="danger" onPress={() => void run(`${a.username} is banned. The app won't work for them.`, () => setBan(a.uid, 'full', reason.trim(), banFor ? Date.now() + banFor : 0))} /> : null}
-        {ban ? <Button title="Unban" onPress={() => void run(`${a.username} is back to normal.`, () => setBan(a.uid, null))} /> : null}
+        {ban?.level !== 'chat' ? <Button title="Turn off chatting" kind="plain" onPress={() => void run(`${a.username} can't message or call now.`, async () => { await setBan(a.uid, 'chat', reason.trim(), banFor ? Date.now() + banFor : 0); await recordBan(a.uid, a.username, 'chat', reason.trim()); })} /> : null}
+        {ban?.level !== 'full' ? <Button title="Ban fully" kind="danger" onPress={() => void run(`${a.username} is banned. The app won't work for them.`, async () => { await setBan(a.uid, 'full', reason.trim(), banFor ? Date.now() + banFor : 0); await recordBan(a.uid, a.username, 'full', reason.trim()); })} /> : null}
+        {ban ? <Button title="Unban" onPress={() => void run(`${a.username} is back to normal.`, async () => { await setBan(a.uid, null); await recordBan(a.uid, a.username, 'unban', ''); })} /> : null}
       </View>
+      {history.length ? <Note>Ban history</Note> : null}
+      {history.map((h) => (
+        <Row key={h.id} label={h.level === 'unban' ? 'Unbanned' : h.level === 'full' ? 'Full ban' : 'Chat off'} sub={`${new Date(h.at).toLocaleString()} · by ${h.by}${h.reason ? ` · ${h.reason}` : ''}`} />
+      ))}
       <Note>Pop-up just for {a.username}</Note>
       <Field value={title} onChangeText={setTitle} placeholder="Title" maxLength={80} />
       <Field value={body} onChangeText={setBody} placeholder="Message" maxLength={600} multiline />

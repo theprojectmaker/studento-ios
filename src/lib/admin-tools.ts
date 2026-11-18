@@ -60,8 +60,12 @@ export function watchAudit(cb: (l: AuditEntry[]) => void, n = 150): () => void {
 export async function getNote(uid: string): Promise<string> {
   return String((await getDoc(doc(fbDb(), 'adminNotes', uid))).data()?.text ?? '');
 }
-export const saveNote = (uid: string, username: string, text: string) =>
-  logged('note', username, () => setDoc(doc(fbDb(), 'adminNotes', uid), { text: text.slice(0, 2000), at: Date.now() }));
+export async function getNoteFull(uid: string): Promise<{ text: string; tags: string[] }> {
+  const d = (await getDoc(doc(fbDb(), 'adminNotes', uid)).catch(() => null))?.data();
+  return { text: String(d?.text ?? ''), tags: (d?.tags as string[]) ?? [] };
+}
+export const saveNote = (uid: string, username: string, text: string, tags?: string[]) =>
+  logged('note', username, () => setDoc(doc(fbDb(), 'adminNotes', uid), { text: text.slice(0, 2000), at: Date.now(), ...(tags ? { tags: tags.slice(0, 20) } : {}) }, { merge: true }));
 
 /* ---------- app config values ---------- */
 export interface AppConfig {
@@ -71,8 +75,20 @@ export interface AppConfig {
   defaultTheme: string;
   /** feature rollout percentages, by key: a user is in if bucket(uid,key) < pct */
   rollout: Record<string, number>;
+  /** oldest app version allowed; older ones see a "please update" gate. Empty = off. */
+  minVersion: string;
+  /** app-wide banner shown at the top for everyone. Empty text = off. */
+  banner: { text: string; tone: 'info' | 'warn'; until: number };
+  /** theme id pushed as "theme of the day" (people can still change it). Empty = off. */
+  themeOfDay: string;
+  /** soft cap on messages one account may send per day (0 = off). */
+  msgLimitPerDay: number;
+  /** slow mode: least seconds between a person's messages (0 = off). */
+  slowModeSec: number;
+  /** words blocked in outgoing Beam messages (matched whole-word, case-insensitive). */
+  wordFilter: string[];
 }
-const EMPTY: AppConfig = { remoteText: '', defaultTheme: '', rollout: {} };
+const EMPTY: AppConfig = { remoteText: '', defaultTheme: '', rollout: {}, minVersion: '', banner: { text: '', tone: 'info', until: 0 }, themeOfDay: '', msgLimitPerDay: 0, slowModeSec: 0, wordFilter: [] };
 export function watchAppConfig(cb: (c: AppConfig) => void): () => void {
   try {
     return onSnapshot(
@@ -83,6 +99,10 @@ export function watchAppConfig(cb: (c: AppConfig) => void): () => void {
   } catch {
     return () => {};
   }
+}
+export async function fetchAppConfig(): Promise<AppConfig> {
+  const d = (await getDoc(doc(fbDb(), 'config', 'app')).catch(() => null))?.data() as Partial<AppConfig> | undefined;
+  return { ...EMPTY, ...d };
 }
 export function useAppConfig(): AppConfig {
   const [c, setC] = useState<AppConfig>(EMPTY);
@@ -99,6 +119,26 @@ export function inRollout(cfg: AppConfig, key: string, uid: string | undefined):
   if (pct === undefined) return true;
   if (!uid) return pct >= 100;
   return bucket(uid, key) < pct;
+}
+
+/** Compare dotted versions. -1 if a < b, 0 if equal, 1 if a > b. Missing parts count as 0. */
+export function cmpVersion(a: string, b: string): number {
+  const pa = a.split('.').map((x) => parseInt(x, 10) || 0);
+  const pb = b.split('.').map((x) => parseInt(x, 10) || 0);
+  for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+    const d = (pa[i] ?? 0) - (pb[i] ?? 0);
+    if (d) return d < 0 ? -1 : 1;
+  }
+  return 0;
+}
+
+/** First blocked word found in text (case-insensitive, whole word), or null. */
+export function blockedWord(text: string, filter: string[]): string | null {
+  for (const w of filter) {
+    const t = w.trim();
+    if (t && new RegExp(`\\b${t.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i').test(text)) return t;
+  }
+  return null;
 }
 
 /* ---------- app areas (kill switches for whole screens) ---------- */

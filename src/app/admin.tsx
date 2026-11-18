@@ -9,7 +9,7 @@ import { Alert, Platform, ScrollView, View } from 'react-native';
 
 import { AccountsAdmin } from '@/components/accounts-admin';
 import { AdminDashboard, AdminSwitches } from '@/components/admin-control';
-import { AppConfigAdmin, AuditLogAdmin, PromoCodesAdmin } from '@/components/admin-more';
+import { AppConfigAdmin, AuditLogAdmin, LimitsAdmin, PromoCodesAdmin, PushAdmin } from '@/components/admin-more';
 import { AnnouncementsAdmin, WaitlistAdmin } from '@/components/beam-admin-section';
 import { Button, Divider, Field, Note, Row, Screen, Section } from '@/components/ui';
 import { audit } from '@/lib/admin-tools';
@@ -36,6 +36,8 @@ const TABS = [
   ['accounts', 'Accounts'],
   ['waitlist', 'Waitlist'],
   ['codes', 'Codes'],
+  ['limits', 'Limits'],
+  ['push', 'Push'],
   ['reports', 'Reports'],
   ['schools', 'Schools'],
   ['config', 'Config'],
@@ -111,6 +113,8 @@ export default function Admin() {
       {tab === 'accounts' ? <AccountsAdmin /> : null}
       {tab === 'waitlist' ? <WaitlistAdmin /> : null}
       {tab === 'codes' ? <PromoCodesAdmin /> : null}
+      {tab === 'limits' ? <LimitsAdmin /> : null}
+      {tab === 'push' ? <PushAdmin /> : null}
       {tab === 'reports' || tab === 'schools' ? <Moderation tab={tab} /> : null}
       {tab === 'config' ? <AppConfigAdmin /> : null}
       {tab === 'log' ? <AuditLogAdmin /> : null}
