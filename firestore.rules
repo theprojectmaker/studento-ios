@@ -266,10 +266,25 @@ service cloud.firestore {
       allow read, write: if isAdmin();
     }
 
-    // Remote app config values (remote text, default theme, rollout %).
+    // Remote app config values (remote text, default theme, rollout %, banner, limits,
+    // theme of the day, minimum version, word filter).
     match /config/app {
       allow read: if true;
       allow write: if isAdmin();
+    }
+
+    // Per-user feature overrides. The admin writes; a person may read only their own, so the
+    // app can decide which features are on for them.
+    match /userOverrides/{uid} {
+      allow get: if signedIn() && (me() == uid || isAdmin());
+      allow list, write: if isAdmin();
+    }
+
+    // Ban history: append-only record of bans and unbans, admin only.
+    match /banHistory/{id} {
+      allow read: if isAdmin();
+      allow create: if isAdmin() && request.resource.data.keys().hasOnly(['uid', 'username', 'level', 'reason', 'at', 'by']);
+      allow update, delete: if false;
     }
 
     match /{document=**} {
